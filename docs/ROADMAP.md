@@ -29,15 +29,18 @@ Audit candidate benchmarks and individual tasks. Select tasks by interaction dif
 
 Build the evaluation layers in this order:
 
-1. a provisional **20-task bring-up set** for validating runners, reset logic, traces, and verifiers;
-2. a stable **10–20-task smoke suite**, likely drawn from the bring-up work, for fast implementation checks;
-3. an approximately **100-task primary suite** for meaningful comparisons;
-4. a separate **regression suite** that grows when previously failing cases are fixed; and
-5. a **hidden holdout** whose traces and verifier internals are not exposed to the optimizer.
+1. assess source benchmarks and propose a source allocation;
+2. construct and validate an approximately **100-task primary suite**;
+3. designate a stable **20-task smoke subset inside the primary suite** under ADR-0007;
+4. grow a separate **regression suite** when previously failing cases are fixed;
+5. protect a disjoint **hidden holdout** whose traces and verifier internals are not exposed to the optimizer; and
+6. keep permitted-account live-site transfer tests in a separately scored suite.
+
+The smoke cases also serve as the first end-to-end bring-up cases for runners, reset logic, traces, and verifiers. Temporary diagnostic tasks may be used during development but are not an additional scored suite.
 
 Before freezing any suite, run the selected tasks through a known working harness and confirm setup, completion conditions, verifier behavior, reproducibility, and artifact capture.
 
-Exit criterion: the 20-task bring-up set works end to end; the 100-task selection and suite roles are documented; verifier defects and unstable tasks are identified rather than counted as agent failures.
+Exit criterion: the 20-task smoke subset works end to end; the 100-task selection and suite roles are documented; verifier defects and unstable tasks are identified rather than counted as agent failures.
 
 ## Phase 3 — Verifier and judge construction
 

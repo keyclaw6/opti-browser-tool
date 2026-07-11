@@ -1,0 +1,232 @@
+review_date: 2026-07-11
+decision_status: proposed_not_accepted
+related_adrs:
+  smoke_nesting: docs/adr/0007-nested-smoke-suite.md
+  source_portfolio: docs/adr/0008-primary-benchmark-source-shortlist.md
+  regression_policy: docs/adr/0009-regression-suite-seeding-and-promotion.md
+
+score_interpretation: >-
+  Every published score is a model-plus-harness-plus-protocol result. Record the
+  model snapshot, observations, actions, prompt, memory or skill mechanism,
+  step budget, retries, evaluator, benchmark revision, and any human assistance.
+
+suite_hypothesis:
+  primary_size: 100
+  smoke_size: 20
+  smoke_is_subset_of_primary: true
+  source_allocation:
+    real: {primary: 25, smoke: 5}
+    webarena_verified_hard: {primary: 25, smoke: 4}
+    visualwebarena: {primary: 15, smoke: 3}
+    workarena_plus_plus: {primary: 20, smoke: 4}
+    webchorearena: {primary: 10, smoke: 2}
+    webforge_l3: {primary_max: 5, smoke_max: 2, conditional: true}
+  constraints:
+    max_tasks_per_source: 25
+    max_tasks_per_rendered_site: 5
+    max_webarena_family_tasks: 50
+    min_state_changing_tasks: 60
+    min_genuinely_visual_tasks: 20
+    min_forms_filters_configuration_editor_tasks: 20
+    min_recovery_relevant_tasks: 15
+    min_interference_tasks: 10
+
+candidates:
+  - id: real
+    role: core_proposed
+    pool_reference: 112 published v1 tasks; v2 task count to verify
+    coverage:
+      - linkedin_like_professional_networking
+      - ecommerce_checkout
+      - travel_and_accommodation_booking
+      - restaurant_booking
+      - email
+      - calendar
+      - rides
+      - freelance_marketplace
+      - property_search
+    evaluator: programmatic_state_for_actions_and_llm_rubric_for_retrieval
+    result_reference:
+      score_percent: 41.07
+      system: Claude 3.7 Sonnet Thinking with published v1 harness
+      caveat: REAL v2 is live and lacks a directly comparable public score in this review
+    admission:
+      - pin_v1_or_v2_and_all_revisions
+      - prefer_programmatic_action_tasks
+      - exclude_retrieval_until_judge_calibration
+      - synthetic_payments_only
+      - no_more_than_five_tasks_per_replica
+    sources:
+      - https://arxiv.org/abs/2504.11543
+      - https://www.realevals.xyz/
+      - https://github.com/agi-inc/REAL
+
+  - id: webarena_verified_hard
+    role: core_proposed
+    pool_size: 258
+    parent_pool_size: 812
+    site_counts:
+      shopping_admin: 55
+      gitlab: 57
+      reddit: 42
+      shopping: 56
+      multi_site: 48
+    coverage:
+      - reddit_like_social_forum
+      - shopping_and_administration
+      - gitlab
+      - multi_site_mutation
+    evaluator: deterministic_structured_response_and_network_event_replay
+    difficulty_evidence:
+      predicted_success_at_most_20_percent_share: 48.1
+    result_reference:
+      score_percent: 53.7
+      system: SKILL.nb
+      scope: full_verified_benchmark_not_hard_subset
+      caveat: no public Hard-subset score located
+    admission:
+      - prefer_mutation_and_hard_navigation
+      - pin_task_and_evaluator_checksums
+      - adversarial_false_trace_tests
+      - deduplicate_intent_templates
+    sources:
+      - https://servicenow.github.io/webarena-verified/latest/
+      - https://servicenow.github.io/webarena-verified/latest/getting_started/hard_subset/
+      - https://arxiv.org/abs/2606.08049
+
+  - id: visualwebarena
+    role: core_proposed
+    pool_size: 910
+    coverage:
+      - reddit
+      - shopping
+      - classifieds
+      - visual_grounding
+      - spatial_controls
+    evaluator: execution_based_task_specific
+    result_reference:
+      score_percent: 58.3
+      system: PANDO
+      official_board_reference_percent: 54.0
+      official_board_system: SGV with Gemini 2.5 Flash
+      human_reference_percent: 88.7
+    admission:
+      - require_vision_ablation_evidence
+      - reject_hidden_structure_shortcuts
+      - audit_completion_state
+      - cover_all_three_sites
+    sources:
+      - https://github.com/web-arena-x/visualwebarena
+      - https://arxiv.org/abs/2605.24785
+
+  - id: workarena_plus_plus
+    role: core_proposed
+    pool_size: 682
+    coverage:
+      - enterprise_forms
+      - records_and_tables
+      - filters
+      - service_catalogs
+      - menus
+      - configuration
+      - compositional_planning
+    evaluator: task_validators_and_oracle_functions
+    result_references:
+      level_2:
+        score_percent: 69.4
+        standard_error: 3.0
+        system: GenericAgent with gpt-5-2025-08-07
+        protocol_compliant: true
+      level_3:
+        score_percent: 11.5
+        standard_error: 2.1
+        system: GenericAgent with gpt-5-2025-08-07
+        protocol_compliant: false
+        caveat: max_steps increased from 50 to 100
+    admission:
+      - prove_gated_instance_access
+      - prove_reset_and_seed_reliability
+      - mostly_level_3_plus_selected_hard_level_2
+      - record_standard_and_extended_budgets_separately
+      - limit_template_duplicates
+    sources:
+      - https://github.com/ServiceNow/WorkArena
+      - https://huggingface.co/spaces/ServiceNow/browsergym-leaderboard/blob/main/results/GenericAgent-GPT-5/workarena-l2.json
+      - https://huggingface.co/spaces/ServiceNow/browsergym-leaderboard/blob/main/results/GenericAgent-GPT-5/workarena-l3.json
+
+  - id: webchorearena
+    role: targeted_proposed
+    pool_size: 532
+    coverage:
+      - massive_memory
+      - calculation
+      - long_term_memory
+      - multi_page_and_cross_site_work
+    evaluator: inherited_webarena_family_checks_requiring_audit
+    result_references:
+      leaderboard_top:
+        score_percent: 47.4
+        system: ColorBrowserAgent with GPT-5
+        caveat: framework includes human_in_the_loop_knowledge_adaptation
+      autonomous_reference:
+        score_percent: 44.9
+        system: BrowserGym with Gemini 2.5 Pro
+    admission:
+      - prefer_interaction_heavy_tasks
+      - audit_or_replace_verifiers
+      - deduplicate_against_other_webarena_sources
+      - avoid_cross_run_benchmark_specific_memory
+    sources:
+      - https://github.com/WebChoreArena/WebChoreArena
+      - https://docs.google.com/spreadsheets/d/1RGyJ0QOxGj196KTfUK0SZeVl5IkM928_38wzIkQVxCs/edit
+      - https://arxiv.org/abs/2601.07262
+
+  - id: webforge_l3
+    role: conditional_proposed
+    pool_size: 934
+    coverage:
+      - popups
+      - cookie_dialogs
+      - network_delays
+      - visual_and_information_complexity
+      - risk_factor
+    evaluator: default_llm_final_answer_comparison
+    result_reference:
+      overall_score_percent: 75.9
+      level_3_score_percent: 58.0
+      level_3_risk_factor_score_percent: 23.1
+      system: Gemini-3-Pro with screenshot plus DOM
+    admission:
+      - level_3_and_risk_heavy_only
+      - deterministic_operation_code_or_independent_state_verifier
+      - no_default_llm_judge_as_sole_gate
+      - false_completion_and_shortcut_probes
+    sources:
+      - https://github.com/yuandaxia2001/WebForge
+
+replacement_candidates:
+  - id: warc_bench
+    priority: first
+    reason: archived real webpages plus deterministic GUI-subtask rewards
+    pool_size: 438
+    highest_observed_success_percent: 64.8
+    blocker: runnable public release and licensing path not located during this review
+    source: https://arxiv.org/abs/2510.09872
+
+separate_tracks:
+  - id: timewarp
+    role: paired_ui_drift_robustness
+    reason_not_primary: correlated versions across only three environment families
+    sources:
+      - https://arxiv.org/abs/2603.04949
+      - https://github.com/sparklabutah/timewarp
+  - id: openapps
+    role: adapter_and_perturbation_diagnostics
+    reason_not_primary: core tasks appear too simple for the hard primary aggregate
+    source: https://github.com/facebookresearch/OpenApps
+  - id: live_web
+    role: permitted_account_transfer_suite
+    reason_not_primary: drift_accounts_region_bot_defenses_and_judge_variance
+  - id: miniwob_plus_plus
+    role: action_interface_unit_tests
+    reason_not_primary: synthetic_and_often_saturated
