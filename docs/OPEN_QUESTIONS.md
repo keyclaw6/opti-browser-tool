@@ -13,7 +13,7 @@ These are intentionally unresolved. They should be answered through research and
 9. Which ten WARC-Bench tasks provide distinct real-UI mechanisms without template duplication, verifier shortcuts, or excessive short-horizon bias?
 10. Do EntWorld or RiskWebWorld obtain authoritative public releases that justify replacing part of WorkArena++, WebForge, or another allocated source?
 11. When ADR-0006 is ready, should WebSP-Eval become the first permitted-account configuration and privacy transfer suite?
-12. Which 20 tasks should form the stable smoke subset nested inside the approximately 100-task primary suite?
+12. Which of the current 20 smoke candidates remain stable after real environment and verifier validation?
 13. How should unstable tasks, repeated trials, initial regression membership, later regression promotion, and the hidden holdout be managed?
 14. Which completion verifiers and LLM judges are needed, what evidence may each see, and how will false-positive and false-negative rates be calibrated?
 15. What trace and artifact representation best supports replay, diagnosis, redaction, and cross-harness comparison?
@@ -23,6 +23,6 @@ These are intentionally unresolved. They should be answered through research and
 19. What detailed policy is required before permitted live-site testing?
 20. Should the repository remain public, and which license should it use?
 21. Which implementation language, runtime, package manager, and CI structure should be adopted after the first baseline is selected?
-22. Which strong reference model and harness will calibrate Batch 1 against ADR-0011's 40% task-level minimum?
-23. How many trials and what uncertainty rule are required before a task is accepted, rejected, or held at the 40% boundary?
+22. Which strong reference model and harness will calibrate Batch 1 against ADR-0012's 35–70% task-level band?
+23. How many trials and what uncertainty rule are required near the 35% and 70% boundaries?
 24. Which of the 140 Batch 1 candidates survive environment, verifier, duplication, and task-level difficulty audits?

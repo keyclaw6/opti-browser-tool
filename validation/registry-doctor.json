@@ -1,0 +1,46 @@
+{
+  "ok": true,
+  "config": "/mnt/data/opti-browser-tool-reconstruction/opti-browser-tool/evals/config.example.json",
+  "sources": {
+    "real_v1": {
+      "enabled": false,
+      "has_command": true,
+      "executable": "python",
+      "executable_found": true,
+      "parse_error": null,
+      "ok": true
+    },
+    "visualwebarena": {
+      "enabled": false,
+      "has_command": true,
+      "executable": "python",
+      "executable_found": true,
+      "parse_error": null,
+      "ok": true
+    },
+    "warc_bench": {
+      "enabled": false,
+      "has_command": true,
+      "executable": "python",
+      "executable_found": true,
+      "parse_error": null,
+      "ok": true
+    },
+    "webarena_verified": {
+      "enabled": false,
+      "has_command": true,
+      "executable": "python",
+      "executable_found": true,
+      "parse_error": null,
+      "ok": true
+    },
+    "workarena_l2": {
+      "enabled": false,
+      "has_command": true,
+      "executable": "python",
+      "executable_found": true,
+      "parse_error": null,
+      "ok": true
+    }
+  }
+}

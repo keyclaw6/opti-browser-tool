@@ -59,7 +59,7 @@ First audit benchmarks at the environment and verifier level. Then audit individ
 
 Use stratified selection rather than random sampling. Reject or quarantine tasks with broken setup, ambiguous success conditions, unavailable dependencies, excessive information-retrieval emphasis, or instability that cannot be measured.
 
-Construct the provisional 20-task bring-up set first. Use it to prove task reset, trace capture, verifier correctness, and repeatability. After the runner is credible, define the stable smoke subset and the approximately 100-task primary suite. Keep regression and hidden-holdout roles distinct from both.
+Use the 20-task smoke subset to prove task reset, trace capture, verifier correctness, and repeatability, then execute the full 140-task provisional pool. Filter the validated pool into the final approximately 100-task primary suite. Keep regression and hidden-holdout roles distinct from both.
 
 ### Validation
 

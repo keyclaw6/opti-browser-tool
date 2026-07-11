@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opti-browser-tool.local/schemas/bridge-result.schema.json",
+  "title": "Opti Browser Tool bridge result",
+  "type": "object",
+  "required": ["task_id", "status"],
+  "properties": {
+    "task_id": {"type": "string", "minLength": 1},
+    "status": {"enum": ["passed", "failed", "invalid", "error", "skipped"]},
+    "reward": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "verifier": {"type": "object"},
+    "error": {"type": ["object", "null"]},
+    "artifacts": {"type": "object", "additionalProperties": {"type": "string"}},
+    "metrics": {"type": "object"},
+    "metadata": {"type": "object"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"enum": ["invalid", "error", "skipped"]}}},
+      "then": {"properties": {"reward": {"type": "null"}}}
+    }
+  ],
+  "additionalProperties": true
+}

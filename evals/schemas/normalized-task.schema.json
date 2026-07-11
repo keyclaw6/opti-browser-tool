@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opti-browser-tool.local/schemas/normalized-task.schema.json",
+  "title": "Opti Browser Tool normalized task",
+  "type": "object",
+  "required": [
+    "schema_version", "id", "source", "upstream", "goal", "site",
+    "interaction_class", "state_change_expected", "suite_membership",
+    "difficulty_evidence", "verification", "runtime", "provenance"
+  ],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "id": {"type": "string", "minLength": 1},
+    "source": {"enum": ["real_v1", "webarena_verified", "workarena_l2", "visualwebarena", "warc_bench"]},
+    "goal": {"type": "string", "minLength": 1},
+    "site": {"type": "string", "minLength": 1},
+    "state_change_expected": {"type": "boolean"},
+    "suite_membership": {"type": "array", "items": {"type": "string"}, "minItems": 2, "uniqueItems": true},
+    "upstream": {
+      "type": "object",
+      "required": ["benchmark", "version", "native_task_id", "site", "source_manifest", "source_checksum"]
+    },
+    "difficulty_evidence": {
+      "type": "object",
+      "required": ["reference_success_percent", "evidence_scope", "per_task_success_percent", "per_task_calibration_status"],
+      "properties": {
+        "reference_success_percent": {"type": "number", "minimum": 35, "maximum": 70},
+        "evidence_scope": {"const": "benchmark_aggregate_not_task_level"},
+        "per_task_success_percent": {"type": ["number", "null"]},
+        "per_task_calibration_status": {"type": "string"}
+      }
+    },
+    "verification": {"type": "object"},
+    "runtime": {"type": "object"},
+    "provenance": {"type": "object"}
+  },
+  "additionalProperties": true
+}

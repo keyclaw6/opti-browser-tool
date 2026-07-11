@@ -1,0 +1,49 @@
+{
+  "schema_version": "0.1.0",
+  "id": "opti-browser-smoke-v0",
+  "kind": "smoke",
+  "status": "provisional_runnable",
+  "created_at": "2026-07-11T22:25:14Z",
+  "task_count": 20,
+  "task_ids": [
+    "real-v1-dashdish-4",
+    "real-v1-fly-unified-4",
+    "real-v1-gocalendar-1",
+    "real-v1-gomail-8",
+    "real-v1-networkin-1",
+    "visualwebarena-103",
+    "visualwebarena-208",
+    "visualwebarena-303",
+    "warc-bench-online-4",
+    "warc-bench-online-51",
+    "warc-bench-online-8",
+    "webarena-verified-447",
+    "webarena-verified-475",
+    "webarena-verified-480",
+    "webarena-verified-593",
+    "webarena-verified-666",
+    "workarena-l2-amount-based-expense-management-medium-l2-seed-121",
+    "workarena-l2-dashboard-retrieve-catalog-and-max-order-developer-laptop-l2-seed-860",
+    "workarena-l2-dashboard-retrieve-incident-and-max-filter-hardware-list-l2-seed-700",
+    "workarena-l2-three-changes-fix-basic-varied-risk-change-request-scheduling-l2-seed-435"
+  ],
+  "source_quotas": {
+    "real_v1": 5,
+    "webarena_verified": 5,
+    "workarena_l2": 4,
+    "visualwebarena": 3,
+    "warc_bench": 3
+  },
+  "policy": {
+    "reference_success_band_percent": {
+      "minimum_percent": 35.0,
+      "maximum_percent": 70.0
+    },
+    "source_aggregate_screening_complete": true,
+    "per_task_calibration_required_before_freeze": true,
+    "task_verification_required_before_freeze": true,
+    "missing_environment_or_verifier_invalidates_run": true,
+    "smoke_is_subset_of_primary": true
+  },
+  "note": "The 20-task smoke suite is a strict subset of primary and is used for fast implementation checks."
+}

@@ -404,5 +404,11 @@
     "upper_saturation_ceiling_percent": null,
     "note": "Benchmark aggregate evidence screens sources only. Every task still requires local task-level calibration.",
     "upper_saturation_ceiling_status": "open_decision"
+  },
+  "decision_correction": {
+    "status": "superseded_numeric_rule",
+    "note": "This selection manifest records the earlier 40% interpretation. ADR-0012 later accepted a 35–70% inclusive band. The exact selected task IDs remain unchanged.",
+    "active_adr": "docs/adr/0012-reference-success-band-35-to-70.md",
+    "active_pool_adr": "docs/adr/0014-run-all-140-candidates-before-filtering.md"
   }
 }

@@ -1,34 +1,30 @@
-# Benchmark and Task Research
+# Benchmark and task research
 
-## Current benchmark-level result
+This area records benchmark-source comparisons, exact task candidates, provenance, licensing notes, and the evidence required before final admission.
 
-- [Benchmark source selection report, 2026-07-11](2026-07-11-benchmark-source-selection-report.md)
-- [ADR-0008: proposed primary benchmark-source portfolio](../../docs/adr/0008-primary-benchmark-source-shortlist.md)
-- [Candidate comparison matrix](benchmark-candidate-matrix.csv)
-- [Machine-readable candidate record](candidate-benchmarks.yaml)
-- [Task audit template](TASK_AUDIT_TEMPLATE.md)
+## Current state
 
-The source portfolio is proposed, not accepted. Individual task IDs have not been selected. The latest revision promotes WARC-Bench into the candidate allocation after locating its public archived environments and programmatic evaluators; EntWorld and RiskWebWorld remain unallocated until authoritative runnable releases can be verified.
+Batch 1 contains 140 exact candidates:
 
-## Next execution step
+- 30 REAL v1;
+- 30 WebArena-Verified;
+- 30 WorkArena++ Level 2;
+- 30 VisualWebArena; and
+- 20 WARC-Bench.
 
-Build a versioned candidate pool of roughly 200–250 tasks using the proposed allocation as a sampling guide. Audit each task for interaction relevance, difficulty, reset, verifier behavior, duplication, licensing, safety, and shortcut susceptibility. Then run a simple baseline and a known strong harness before presenting an exact 100-task manifest and nested 20-task smoke subset for approval.
+All 140 are normalized into the runnable provisional candidate pool under ADR-0014. The source-family reference results lie in the accepted 35–70% band, but they are not per-task rates. Every candidate remains pending environment, reset, solvability, verifier, duplication, and repeated task-level calibration checks.
 
-## Required final outputs
+The final primary target remains approximately 100 tasks, with a nested 20-task smoke suite. Filtering occurs only after the 140-task pool has validation evidence and every exclusion has a documented reason.
 
-- benchmark-level environment and licensing audit;
-- one audit record per candidate task;
-- browser-interaction failure taxonomy and coverage matrix;
-- approximately 100-task primary suite;
-- 20-task smoke subset nested in the primary suite under ADR-0007;
-- replacement pool;
-- separate regression and hidden-holdout protocols; and
-- validation results from a known working harness.
+## Files
 
-## Task candidate batches
+- `2026-07-11-benchmark-source-selection-report.md`: source-level analysis and proposed portfolio.
+- `benchmark-candidate-matrix.csv`: compact source comparison.
+- `candidate-benchmarks.yaml`: early source inventory.
+- `TASK_AUDIT_TEMPLATE.md`: review template for task admission.
+- `task-candidates/`: exact Batch 1 records, summaries, provenance locks, and calibration plan.
+- `scripts/`: generation and consistency checks for the candidate batch.
 
-- [Batch 1 report](task-candidates/batch-1-report.md)
-- [Batch 1 candidate CSV](task-candidates/batch-1-candidates.csv)
-- [Batch 1 machine-readable JSONL](task-candidates/batch-1-candidates.jsonl)
+## Evidence boundary
 
-Batch 1 is provisional. Benchmark-level scores are used only for sourcing; task-level calibration is required under ADR-0011; the accepted minimum is 40% under a pinned strong reference system.
+Benchmark-level scores may screen a source family. They must not be copied onto every task. Final task admission requires a pinned reference harness, repeated runs, uncertainty reporting, and verifier/environment validity.

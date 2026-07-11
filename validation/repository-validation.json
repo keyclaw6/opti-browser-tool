@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "repo_root": "/mnt/data/opti-browser-tool-reconstruction/opti-browser-tool",
+  "candidate_count": 140,
+  "catalog_count": 140,
+  "source_counts": {
+    "real_v1": 30,
+    "visualwebarena": 30,
+    "warc_bench": 20,
+    "webarena_verified": 30,
+    "workarena_l2": 30
+  },
+  "primary_count": 140,
+  "smoke_count": 20,
+  "regression_count": 20,
+  "errors": [],
+  "warnings": []
+}

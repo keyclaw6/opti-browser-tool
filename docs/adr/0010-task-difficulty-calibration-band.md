@@ -1,61 +1,23 @@
 # ADR-0010: Task difficulty calibration band
 
-- Status: Superseded by ADR-0011
+- Status: Superseded by ADR-0011 at the time; substance later accepted by ADR-0012
 - Date opened: 2026-07-11
-- Date accepted: —
-- Date superseded: 2026-07-11
 - Decision owner: project owner
-- Supersedes: no earlier ADR
 - Superseded by: [ADR-0011](0011-minimum-success-floor-for-task-candidates.md)
+- Later correction: [ADR-0012](0012-reference-success-band-35-to-70.md)
 
-## Supersession note
+## Historical sequence
 
-This 35–70% band was drafted during candidate construction but was **never explicitly accepted by the project owner**. On 2026-07-11, the owner gave a clear replacement rule: prioritize sources and tasks at or above 40%, while leaving the upper saturation ceiling open for later calibration. The unaccepted proposal is retained so a review agent can reconstruct the sequence of reasoning. ADR-0011 is the active rule.
+This ADR originally proposed a **35–70% inclusive** calibration band. It was not yet accepted when ADR-0011 recorded a 40% minimum. The project owner later clarified that the intended range had always been 35–70%, and ADR-0012 accepted that correction.
 
-## Context
+The record is retained so a review agent can reconstruct the sequence rather than seeing the earlier 40% mistake silently erased.
 
-The evaluation suite must leave enough headroom for harness improvements while still producing enough successful runs to detect regressions and diagnose why a treatment helped. Tasks that nearly every strong system passes are saturated. Tasks that nearly every strong system fails give weak experimental resolution because most harness changes still produce a zero.
+## Original rationale
 
-The closed band was an internal proposal intended to balance headroom against measurable successes. It did not satisfy the repository acceptance protocol because the project owner had not approved it.
+The suite needs enough failures to leave improvement headroom and enough successes to compare winning and failing traces. Tasks near zero success give poor experimental resolution; tasks near saturation leave little room for improvement.
 
-## Decision
-
-Prioritize tasks whose **task-level success rate under a current strong reproducible reference system is between 35% and 70% inclusive**.
-
-This is a final-suite admission preference, not permission to assign a benchmark's aggregate score to every task in that benchmark.
-
-The evidence hierarchy is:
-
-1. repeated task-level results from the exact model, harness, benchmark revision, and protocol we intend to use;
-2. public per-task results under a sufficiently comparable strong system;
-3. task-level estimates aggregated from several comparable public systems or trajectories; and
-4. benchmark-level aggregate scores, which may be used only to source candidates before task-level calibration.
-
-A candidate selected using level 4 evidence must be marked `calibration_required` and cannot be described as having a known 35–70% task success rate.
-
-## Why
-
-A 35–70% band should give the research loop both kinds of evidence it needs:
-
-- enough failures to reveal weaknesses and leave improvement headroom; and
-- enough successes to compare successful and failed traces, detect regressions, and estimate whether a treatment changes reliability.
-
-The band is deliberately asymmetric around 50%. The upper bound allows useful, stable tasks into smoke and regression roles without accepting near-saturated tasks. The lower bound avoids filling the suite with tasks so difficult that ordinary improvements remain statistically invisible.
-
-## Consequences
-
-- The exact 100-task primary suite cannot be frozen from benchmark metadata alone.
-- Public benchmark scores may screen benchmark families, but every selected task still needs a local calibration run.
-- Task-level rates must be tied to a versioned reference protocol and accompanied by the number of trials and uncertainty.
-- Tasks above 70% or below 35% may remain in a replacement pool or be retained for a specifically documented role, but they require an explicit exception and must not dominate the primary score.
-- The 20-task smoke subset remains nested in the primary suite under ADR-0007. Its tasks may be selected from the more stable part of the accepted band after calibration.
+Benchmark-level aggregates may screen source families, but final admission requires repeated task-level results from a pinned strong reference protocol. A benchmark aggregate must never be copied onto every task as though it were a per-task score.
 
 ## Still open
 
-This ADR does not decide:
-
-- which model and harness constitute the calibration reference system;
-- how many repeated trials are required for stable and dynamic tasks;
-- the confidence-interval rule around the 35% and 70% boundaries;
-- whether separate calibration systems are needed for visual-first and structured-action lanes; or
-- how many deliberate out-of-band exception tasks may be retained.
+ADR-0012 does not decide the reference harness, number of repetitions, confidence-interval rule at the boundaries, or whether visual and structured lanes need separate calibration references.

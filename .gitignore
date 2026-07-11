@@ -8,3 +8,7 @@ artifacts/
 runs/
 secrets/
 *.log
+*.egg-info/
+build/
+dist/
+evals/config.local.json

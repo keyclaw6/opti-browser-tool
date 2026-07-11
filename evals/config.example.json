@@ -1,0 +1,36 @@
+{
+  "schema_version": "0.1.0",
+  "description": "Source-specific bridge commands. Disabled by default so missing environments fail closed.",
+  "sources": {
+    "real_v1": {
+      "enabled": false,
+      "command": "python bridges/real_v1.py --task-json {task_json} --result-json {result_json}",
+      "timeout_seconds": 900,
+      "env": {}
+    },
+    "webarena_verified": {
+      "enabled": false,
+      "command": "python bridges/webarena_verified.py --task-json {task_json} --result-json {result_json}",
+      "timeout_seconds": 900,
+      "env": {}
+    },
+    "workarena_l2": {
+      "enabled": false,
+      "command": "python bridges/workarena_l2.py --task-json {task_json} --result-json {result_json}",
+      "timeout_seconds": 1200,
+      "env": {}
+    },
+    "visualwebarena": {
+      "enabled": false,
+      "command": "python bridges/visualwebarena.py --task-json {task_json} --result-json {result_json}",
+      "timeout_seconds": 900,
+      "env": {}
+    },
+    "warc_bench": {
+      "enabled": false,
+      "command": "python bridges/warc_bench.py --task-json {task_json} --result-json {result_json}",
+      "timeout_seconds": 600,
+      "env": {}
+    }
+  }
+}

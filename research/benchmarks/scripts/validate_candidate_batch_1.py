@@ -2,8 +2,8 @@
 """Validate the committed Batch 1 candidate artifacts.
 
 This validates manifest identity and internal consistency only. It does not prove
-that benchmark environments launch or that any individual task clears ADR-0011's
-40% local strong-system success floor.
+that benchmark environments launch or that any individual task falls inside ADR-0012's
+35–70% local strong-system success band.
 """
 from __future__ import annotations
 
@@ -78,7 +78,7 @@ def main() -> None:
 
     for row in rows:
         score = float(row["public_benchmark_reference_percent"])
-        assert score >= 40.0, (row["candidate_id"], score)
+        assert 35.0 <= score <= 70.0, (row["candidate_id"], score)
         assert row["public_reference_date"], row["candidate_id"]
         assert row["public_reference_status"] == (
             "latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof"
@@ -88,15 +88,14 @@ def main() -> None:
         assert row["per_task_calibration_status"] == "required_before_final_admission"
         assert row["public_benchmark_reference_at_least_40_percent"].lower() == "true"
 
+    # The selection manifest is preserved as historical input and still records
+    # the superseded 40% interpretation. The active rule is validated above.
     assert selection["candidate_source_screening_rule"][
         "minimum_public_strong_system_aggregate_percent"
     ] == 40.0
     assert selection["task_level_admission_preference"][
         "minimum_strong_system_success_percent"
     ] == 40.0
-    assert selection["task_level_admission_preference"][
-        "upper_saturation_ceiling_status"
-    ] == "open_decision"
     assert locks["lock_schema_version"] == "0.2"
     assert len(locks["sources"]) == 5
     lock_by_source = {item["source"]: item for item in locks["sources"]}

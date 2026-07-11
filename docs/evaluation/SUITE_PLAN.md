@@ -1,33 +1,35 @@
 # Evaluation Suite Plan
 
-This document records accepted suite relationships and current target sizes. Exact benchmark sources and task IDs remain subject to ADR-0008 and task-level audit.
+This document separates the currently runnable candidate pool from the eventual frozen evaluation suites.
 
-## Primary suite — approximately 100 tasks
+## Provisional candidate pool — 140 tasks
 
-The principal visible evaluation used for meaningful baseline and treatment comparisons after the infrastructure is validated. Selection must be stratified by interaction failure mode and checked for reproducibility, verifier quality, difficulty headroom, and safety.
+ADR-0014 directs the project to execute all 140 sourced candidates before filtering. `evals/suites/candidate-pool.json` and the current provisional `primary.json` therefore contain the same 140 tasks.
 
-The primary task manifest is constructed first. Every task receives a source revision, environment revision, evaluator revision, seed or initial state, action budget, timeout, and failure-mode tags.
+This pool exists to measure setup reliability, reset behavior, verifier validity, duplication, instability, and task-level reference success. It is not yet the final benchmark.
 
-## Smoke suite — approximately 20 tasks, nested in primary
+## Final primary suite — target approximately 100 tasks
 
-ADR-0007 establishes that every smoke case is also a primary-suite case. The smoke set is a stable, fast implementation gate covering every benchmark adapter and the principal interaction mechanisms.
+After validation, select approximately 100 tasks stratified by interaction failure mode and checked for reproducibility, verifier quality, 35–70% task-level reference success, safety, and redundancy. Every exclusion and exception must have a recorded reason.
 
-A smoke result may be reused in the primary run only when every execution and evaluation setting is identical. Smoke performance is not an independent estimate of general capability.
+## Smoke suite — 20 tasks nested in the candidate/primary set
 
-During bring-up, these same cases are used to validate runners, reset logic, traces, action dispatch, and verifiers; there is no separate disposable task pool unless a temporary diagnostic case is explicitly labeled as such.
+ADR-0007 establishes that every smoke case is also a primary-suite case. The smoke set is a stable, fast implementation gate covering every source adapter and principal interaction mechanism.
+
+A smoke result may be reused in a larger run only when execution and evaluation settings are identical. Smoke performance is not an independent estimate of general capability.
 
 ## Regression suite
 
-A separate, growing set of important invariants and previously failing tasks that have been fixed. The smoke cases provide stable integration regressions, while capability regressions are promoted with their motivating trace evidence after fixes survive repeated verification. Exact promotion policy is proposed in ADR-0009 and remains unaccepted; final gating also depends on ADR-0005.
+A separate growing set of important invariants and previously failing tasks that have been fixed. The current 20-task regression manifest is only a provisional seed equal to smoke. Permanent capability regressions are promoted with trace evidence after repeated verification. Exact promotion policy remains proposed in ADR-0009.
 
 ## Hidden holdout
 
-A protected transfer check unavailable to the optimizing agent. Holdout traces and private verifier logic must not be used to invent changes. The holdout is disjoint from both visible suites.
+A protected transfer check unavailable to the optimizing agent. Holdout traces and private verifier logic must not be used to invent changes. The holdout is disjoint from visible optimization tasks.
 
 ## Separate live-site transfer suite
 
-Permitted-account live tasks are scored separately from the controlled primary suite because account state, regional interfaces, bot defenses, and website drift create a different validity regime. No live task runs before ADR-0006 is accepted.
+Permitted-account live tasks are scored separately because account state, regional interfaces, bot defenses, and website drift create a different validity regime. No live task runs before ADR-0006 is accepted.
 
 ## Validation requirement
 
-Before a task set is frozen, run it through a known working harness and inspect setup, reset, completion state, verifier output, artifacts, and instability. Broken or ambiguous tasks must be repaired, replaced, or explicitly quarantined. Using an existing framework to validate a benchmark does not select that framework as the project's final browser substrate.
+Before any task set is frozen, run it through known working harnesses and inspect setup, reset, completion state, verifier output, artifacts, and instability. Broken or ambiguous tasks must be repaired, replaced, or quarantined. Using an existing framework to validate a benchmark does not select that framework as the final browser substrate.

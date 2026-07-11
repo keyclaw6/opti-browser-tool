@@ -62,3 +62,7 @@ The accepted suite manifest must:
 ## Revisit triggers
 
 Revisit if the 20-task smoke run becomes too expensive for frequent gating, fails to detect integration defects, or becomes sufficiently overexposed that it no longer provides a useful readiness signal.
+
+## Later implementation note
+
+ADR-0014 temporarily places all 140 candidates in the provisional primary manifest before filtering. The accepted nesting rule remains unchanged: the 20 smoke tasks are contained in both the provisional pool and the eventual approximately 100-task primary suite.

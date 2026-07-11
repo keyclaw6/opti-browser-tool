@@ -1,0 +1,8 @@
+test_external_bridge_contract (test_command_adapter.CommandAdapterTest.test_external_bridge_contract) ... ok
+test_runs_all_140_tasks (test_fixture_runner.FixtureRunnerTest.test_runs_all_140_tasks) ... ok
+test_complete_repository (test_repository_validation.RepositoryValidationTest.test_complete_repository) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 2.002s
+
+OK

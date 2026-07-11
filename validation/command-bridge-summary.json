@@ -1,0 +1,27 @@
+{
+  "schema_version": "0.1.0",
+  "task_count": 1,
+  "status_counts": {
+    "passed": 1
+  },
+  "strict_success_rate": 1.0,
+  "valid_outcome_success_rate": 1.0,
+  "valid_outcome_count": 1,
+  "invalidating_outcome_count": 0,
+  "run_valid": true,
+  "benchmark_reportable": true,
+  "acceptance_decision_eligible": true,
+  "by_source": {
+    "real_v1": {
+      "total": 1,
+      "status_counts": {
+        "passed": 1
+      },
+      "strict_success_rate": 1.0,
+      "valid_outcome_success_rate": 1.0
+    }
+  },
+  "interpretation": "Eligible for benchmark comparison.",
+  "run_id": "20260711T232924Z-50636041",
+  "suite_id": "opti-browser-smoke-v0"
+}

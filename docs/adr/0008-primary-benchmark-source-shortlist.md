@@ -66,11 +66,11 @@ The supporting report records current public score examples and protocol caveats
 
 ## Candidate Batch 1 update — 2026-07-11
 
-ADR-0011 established a **40% minimum success floor** for source screening and final task admission. In response, the first exact candidate export does not implement this ADR's proposed final allocation directly. It contains 140 provisional candidates from REAL v1, WorkArena++ L2, the full WebArena-Verified dataset, VisualWebArena, and WARC-Bench. Each source has a latest verifiable public strong-system aggregate result of at least 40%.
+ADR-0012 established a **35–70% inclusive reference-success band** for source screening and final task admission. The first exact candidate export does not implement this ADR's proposed final allocation directly. It contains 140 provisional candidates from REAL v1, WorkArena++ L2, the full WebArena-Verified dataset, VisualWebArena, and WARC-Bench. Each source has a latest verifiable public strong-system aggregate result inside the accepted band.
 
 This changes the research emphasis in three ways:
 
-- WebArena-Verified candidates are drawn from the full dataset rather than defaulting to the Hard subset, because a large part of the Hard subset is predicted below the accepted 40% task-level floor.
+- WebArena-Verified candidates are drawn from the full dataset rather than defaulting to the Hard subset, because a large part of the Hard subset is predicted below the accepted 35% task-level floor.
 - WorkArena candidates use L2 rather than L3, because the current L2 result is 69.4% under the standard protocol while the available L3 result is far below the floor and used a doubled action budget.
 - WebChoreArena and conditional WebForge candidates are deferred to a second pass focused on coverage gaps, evaluator repair, and long-horizon or interference tasks.
 
@@ -88,7 +88,7 @@ ADR-0008 may be accepted only after:
 6. WorkArena access and reproducible instance reset are demonstrated;
 7. selected tasks are run with both a simple baseline and a known strong harness under recorded protocols;
 8. saturated, broken, unsafe, judge-fragile, or benchmark-leaking tasks are rejected;
-9. the exact 100-task manifest, replacement pool, and nested 20-task smoke subset are reviewed; and
+9. all 140 candidates are executed and audited, then the final approximately 100-task manifest, replacement pool, and nested 20-task smoke subset are reviewed; and
 10. the project owner explicitly accepts this ADR or a revised portfolio.
 
 Until then, this portfolio guides research only.

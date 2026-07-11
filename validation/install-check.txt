@@ -1,0 +1,2 @@
+Editable install and CLI validation succeeded.
+Python: Python 3.13.5

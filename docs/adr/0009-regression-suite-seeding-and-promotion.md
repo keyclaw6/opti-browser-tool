@@ -16,7 +16,7 @@ How should the first regression suite be seeded, and when should newly fixed bro
 
 Treat regression as an evaluation role rather than a separate benchmark source.
 
-1. Construct and validate the 100-task primary suite first.
+1. Execute and validate the 140-task provisional pool, then filter the final approximately 100-task primary suite.
 2. Seed the regression suite only with tasks that have deterministic or independently validated verifiers, stable resets, and repeated successful reference runs.
 3. Include a small set of integration invariants from the nested smoke suite, but do not automatically place all smoke or primary tasks into regression.
 4. Promote a previously failing primary task after a treatment fixes it, implementation audit confirms that the treatment was active, repeated reruns support the flip, and the broader primary gate does not regress materially.

@@ -1,37 +1,25 @@
-# Task candidate inventory
+# Batch 1 exact task candidates
 
-This directory contains versioned task candidates for the browser-agent evaluation suite. A candidate is not an admitted primary-suite task.
+This directory preserves the first 140 exact candidates and the source evidence used to find them. The rows are not final admissions.
 
-## Batch 1
+## Accepted calibration rule
 
-Batch 1 contains 140 exact task identities from five benchmark families:
+ADR-0012 requires repeated task-level reference success between **35% and 70%, inclusive** before final admission, absent an explicitly documented diagnostic exception.
 
-- 30 REAL v1 tasks;
-- 30 WorkArena++ L2 task-and-seed pairs;
-- 30 WebArena-Verified tasks;
-- 30 VisualWebArena tasks; and
-- 20 WARC-Bench held-out-test candidates.
+The candidate files predate the correction and retain a legacy field named `public_benchmark_reference_at_least_40_percent`. That field is historical source-screening metadata, not the current decision rule. The active normalized catalog under `evals/catalog/` records the accepted 35–70% band and leaves every per-task rate empty.
 
-All five public benchmark-level reference scores are at least 40%, satisfying ADR-0011's source-screening floor. Public evidence does not establish that each individual task clears the 40% task-level floor. Every row therefore carries:
+## Contents
 
-- `score_evidence_scope=benchmark_aggregate_not_task_level`;
-- an empty `per_task_reference_success_percent`; and
-- `per_task_calibration_status=required_before_final_admission`.
+- `batch-1-candidates.jsonl` and `.csv`: all 140 exact raw candidate records.
+- `batch-1-index.md`: human-readable task list.
+- `batch-1-report.md`: selection rationale and limitations.
+- `batch-1-source-audit.md`: source-manifest consistency checks.
+- `batch-1-sources.lock.json`: pinned source revisions and checksums.
+- `batch-1-selection.json`: historical selection program output.
+- summary CSVs by source, site, and interaction class.
+- `CALIBRATION_PLAN.md`: required validation stages.
+- `UPSTREAM_LICENSES.md`: licensing notes.
 
-For calibration order, 117 candidates are Priority A and 23 are Priority B. Priority B consists of 14 metadata-flagged harder tasks and nine visual navigation/search tasks. This is an audit sequence, not a result or admission decision.
+## Current suite relationship
 
-## Files
-
-- `batch-1-index.md` — human-readable table of every exact candidate.
-- `batch-1-candidates.csv` — review-friendly table with exact IDs, goals, versions, score provenance, evaluator metadata, and audit flags.
-- `batch-1-candidates.jsonl` — machine-readable equivalent.
-- `batch-1-selection.json` — the exact selectors used to construct the batch.
-- `batch-1-sources.lock.json` — package versions, source paths, and manifest checksums.
-- `batch-1-summary-by-*.csv` — generated coverage summaries.
-- `batch-1-report.md` — rationale, limitations, and calibration plan.
-- `batch-1-source-audit.md` — source-manifest identity checks and their limitations.
-- `UPSTREAM_LICENSES.md` — source-version and upstream-license notices for the task metadata.
-
-## Admission status
-
-No Batch 1 task is yet part of the frozen 100-task primary suite, smoke suite, hidden holdout, or regression suite. The next gate is task-level calibration plus verifier and environment auditing.
+All 140 candidates are present in the active provisional candidate/primary manifests. The 20 smoke tasks are nested inside them. The superseded 100-task draft is preserved under `archive/superseded/runnable-suite-v0-100/`.

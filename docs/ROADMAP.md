@@ -30,8 +30,8 @@ Audit candidate benchmarks and individual tasks. Select tasks by interaction dif
 Build the evaluation layers in this order:
 
 1. assess source benchmarks and propose a source allocation;
-2. construct and validate an approximately **100-task primary suite**;
-3. designate a stable **20-task smoke subset inside the primary suite** under ADR-0007;
+2. execute and validate the complete **140-task provisional candidate pool** under ADR-0014;
+3. filter it into an approximately **100-task final primary suite** with a stable **20-task smoke subset inside it** under ADR-0007;
 4. grow a separate **regression suite** when previously failing cases are fixed;
 5. protect a disjoint **hidden holdout** whose traces and verifier internals are not exposed to the optimizer; and
 6. keep permitted-account live-site transfer tests in a separately scored suite.
@@ -40,7 +40,7 @@ The smoke cases also serve as the first end-to-end bring-up cases for runners, r
 
 Before freezing any suite, run the selected tasks through a known working harness and confirm setup, completion conditions, verifier behavior, reproducibility, and artifact capture.
 
-Exit criterion: the 20-task smoke subset works end to end; the 100-task selection and suite roles are documented; verifier defects and unstable tasks are identified rather than counted as agent failures.
+Exit criterion: the 20-task smoke subset and all source bridges work end to end; the 140 candidates have recorded validation outcomes; an approximately 100-task final selection is justified; verifier defects and unstable tasks are not counted as agent failures.
 
 ## Phase 3 — Verifier and judge construction
 

@@ -1,0 +1,37 @@
+from __future__ import annotations
+
+import json
+import os
+import tempfile
+import unittest
+from pathlib import Path
+
+from opti_eval.adapters.fixture import FixtureAdapter
+from opti_eval.catalog import select_tasks
+from opti_eval.runner import run_evaluation
+
+
+class FixtureRunnerTest(unittest.TestCase):
+    def test_runs_all_140_tasks(self) -> None:
+        root = Path(os.environ["OPTI_BROWSER_REPO_ROOT"])
+        suite, tasks = select_tasks(root, "primary")
+        self.assertEqual(len(tasks), 140)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "run"
+            record = run_evaluation(
+                repo_root=root,
+                suite=suite,
+                tasks=tasks,
+                adapter=FixtureAdapter(pass_rate=0.5, seed=7),
+                output_dir=out,
+                max_workers=4,
+            )
+            self.assertEqual(record["summary"]["task_count"], 140)
+            self.assertTrue(record["summary"]["run_valid"])
+            self.assertFalse(record["summary"]["benchmark_reportable"])
+            self.assertEqual(len((out / "results.jsonl").read_text().splitlines()), 140)
+            self.assertEqual(len(list((out / "tasks").iterdir())), 140)
+
+
+if __name__ == "__main__":
+    unittest.main()

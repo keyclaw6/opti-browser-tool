@@ -7,6 +7,10 @@
 - Scope: benchmark families, score evidence, risks, and task-admission rules
 - Not in scope: final task IDs, browser backend selection, executor selection, or judge-panel construction
 
+## Current decision correction
+
+This report records the source-selection research as it evolved. Later project-owner decisions supersede two operational details: ADR-0012 sets the active task-level reference band to **35–70% inclusive**, and ADR-0014 keeps all 140 exact candidates in the provisional runnable pool before filtering toward the final approximately 100-task suite. Any 40% floor mentioned later is historical and not active.
+
 ## Executive conclusion
 
 The first controlled primary suite should be assembled from multiple benchmark families. No single available benchmark simultaneously supplies:
@@ -366,7 +370,7 @@ Before freezing the 100 tasks:
 4. Run oracle or human completion trials and verify reset behavior.
 5. Generate deliberate near-miss, false-completion, and shortcut trajectories for the evaluator.
 6. Run a simple baseline and a known strong harness with exact protocol records.
-7. Require or prioritize at least 40% repeated success under the pinned strong reference system, following ADR-0011. Record tasks above 80% as possible saturation risks, but keep the exact upper cutoff open until local variance is measured.
+7. Require repeated task-level success inside the 35–70% inclusive band under the pinned strong reference system, following ADR-0012. Record and justify any out-of-band diagnostic exceptions.
 8. Reject tasks that are broken, saturated, unsafe, dependent on hidden benchmark leakage, or dominated by retrieval rather than interaction.
 9. Select the exact 100 and replacement pool by coverage, not by benchmark quotas alone.
 10. Select the nested 20 smoke tasks from the frozen 100 and present the manifest for explicit approval.
@@ -391,6 +395,6 @@ Proceed to task-level inventory using the proposed 20/20/15/20/10/10/5 allocatio
 
 ## 2026-07-11 task-candidate update
 
-The project owner subsequently accepted a 40% minimum strong-system success floor for source screening and final task admission (ADR-0011). A 140-task provisional candidate inventory has therefore been exported from five sources whose latest verifiable benchmark-level strong-system aggregate results are at least 40%: REAL v1, WorkArena++ L2, WebArena-Verified, VisualWebArena, and WARC-Bench.
+A 140-task provisional candidate inventory was exported from REAL v1, WorkArena++ L2, WebArena-Verified, VisualWebArena, and WARC-Bench. ADR-0012 later corrected the active rule to a 35–70% inclusive band; all five source-level references lie within that band. ADR-0014 directs the project to run all 140 candidates before filtering.
 
 The aggregate score is only a source-screening proxy. None of the 140 tasks is represented as having a known task-level rate. Every task is marked for local calibration before final-suite admission. The exact inventory and rationale are in [`task-candidates/batch-1-report.md`](task-candidates/batch-1-report.md).

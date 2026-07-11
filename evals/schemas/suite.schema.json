@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opti-browser-tool.local/schemas/suite.schema.json",
+  "title": "Opti Browser Tool suite manifest",
+  "type": "object",
+  "required": ["schema_version", "id", "kind", "status", "task_count", "task_ids", "policy"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "id": {"type": "string", "minLength": 1},
+    "kind": {"enum": ["candidate_pool", "primary", "smoke", "regression", "holdout"]},
+    "status": {"type": "string"},
+    "task_count": {"type": "integer", "minimum": 0},
+    "task_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "source_quotas": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "policy": {"type": "object"}
+  },
+  "additionalProperties": true
+}
