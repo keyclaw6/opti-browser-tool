@@ -31,4 +31,4 @@ Build a versioned candidate pool of roughly 200–250 tasks using the proposed a
 - [Batch 1 candidate CSV](task-candidates/batch-1-candidates.csv)
 - [Batch 1 machine-readable JSONL](task-candidates/batch-1-candidates.jsonl)
 
-Batch 1 is provisional. Benchmark-level scores are used only for sourcing; task-level calibration is required under ADR-0010.
+Batch 1 is provisional. Benchmark-level scores are used only for sourcing; task-level calibration is required under ADR-0011; the accepted minimum is 40% under a pinned strong reference system.

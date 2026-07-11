@@ -10,7 +10,13 @@
       "public_reference_status": "latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof",
       "score_source": "https://arxiv.org/abs/2504.11543",
       "source_manifest": "agisdk/REAL/browsergym/webclones/v1/tasks/*.json",
-      "source_checksum_sha256": "1331f3b5b53d6d167cb3fe06c35f15ad811cf0b43c9e3500cbefb39012babe73"
+      "score_evidence_grade": "B",
+      "score_evidence_note": "Exact v1 task-version alignment, but the latest public leaderboard rows were not exportable in this pass; use the published v1 result as the reproducible floor reference.",
+      "source_checksum": "1331f3b5b53d6d167cb3fe06c35f15ad811cf0b43c9e3500cbefb39012babe73",
+      "source_checksum_type": "sha256_sorted_relative_filename_nul_raw_bytes_nul",
+      "source_checksum_note": "Hash all 112 v1 task JSON files in filename order as filename UTF-8, NUL, raw file bytes, NUL.",
+      "package_artifact": "agisdk-0.3.5-py3-none-any.whl",
+      "package_sha256": "168596cf1fd3c8d8bef1336d19838eb5beb95905857450fa37bce24e1b7e0ccb"
     },
     {
       "source": "WorkArena++ L2",
@@ -21,7 +27,13 @@
       "public_reference_status": "latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof",
       "score_source": "https://huggingface.co/spaces/ServiceNow/browsergym-leaderboard/blob/main/results/GenericAgent-GPT-5/workarena-l2.json",
       "source_manifest": "get_all_tasks_agents(filter=\"l2\", meta_seed=42) materialized as task class + seed",
-      "source_checksum_sha256": "becccb6bbdba4df6d04c9a53cf9d62a767cca52ba6a0291247b10f883263319a"
+      "score_evidence_grade": "A",
+      "score_evidence_note": "Official BrowserGym leaderboard record with protocol-compliant and reproducible flags.",
+      "source_checksum": "71abe43ca5fa186dc9f58f29110a534e8dbd5bf85090df39d962fe14e7b0d521",
+      "source_checksum_type": "sha256_canonical_json_all_l2_task_seed_pairs",
+      "source_checksum_note": "Hash UTF-8 canonical JSON plus newline for all 235 pairs from get_all_tasks_agents(filter=\"l2\", meta_seed=42), sorted by task_id then seed, with sort_keys=True and compact separators.",
+      "package_artifact": "browsergym_workarena-0.5.3-py3-none-any.whl",
+      "package_sha256": "eb0bdb58598f5e8aeb8b9f01ac3a68dc26d477e3067f01bb56f640a1016e81a5"
     },
     {
       "source": "WebArena-Verified",
@@ -32,7 +44,13 @@
       "public_reference_status": "latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof",
       "score_source": "https://arxiv.org/abs/2606.08049",
       "source_manifest": "webarena_verified/assets/dataset/webarena-verified.json",
-      "source_checksum_sha256": "d65275660814663375028e9017e1f929e3c38321041b125795e2713b52243d30"
+      "score_evidence_grade": "A",
+      "score_evidence_note": "Recent primary paper result on the exact verified benchmark family.",
+      "source_checksum": "d65275660814663375028e9017e1f929e3c38321041b125795e2713b52243d30",
+      "source_checksum_type": "sha256_raw_manifest_file",
+      "source_checksum_note": "SHA-256 of webarena-verified.json raw bytes.",
+      "package_artifact": "webarena_verified-1.2.3-py3-none-any.whl",
+      "package_sha256": "91a0297a096a343a13ff5e0ebc35c39b3d926b27c4d5a8a57c833681acbc6b7a"
     },
     {
       "source": "VisualWebArena",
@@ -43,7 +61,13 @@
       "public_reference_status": "latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof",
       "score_source": "https://arxiv.org/abs/2605.24785",
       "source_manifest": "visualwebarena/test_raw.json",
-      "source_checksum_sha256": "00cde63c75d752f8ba023237327e2c087e243aad2541b2b43cb17fce0142f6d0"
+      "score_evidence_grade": "A",
+      "score_evidence_note": "Recent primary paper result on the full 910-task benchmark.",
+      "source_checksum": "00cde63c75d752f8ba023237327e2c087e243aad2541b2b43cb17fce0142f6d0",
+      "source_checksum_type": "sha256_raw_manifest_file",
+      "source_checksum_note": "SHA-256 of visualwebarena/test_raw.json raw bytes.",
+      "package_artifact": "libvisualwebarena-0.0.15-py3-none-any.whl",
+      "package_sha256": "02c2f66b6a7ccb98e11c6decd8b00e8fc262223b002b80a13464e20bcdfe2999"
     },
     {
       "source": "WARC-Bench",
@@ -54,7 +78,12 @@
       "public_reference_status": "latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof",
       "score_source": "https://github.com/sanjari-orb/warc-bench",
       "source_manifest": "src/orby/subtask_benchmark/environments/benchmark.json",
-      "source_checksum_sha256": "git-blob:6b2bc7ee04b3231325fe3a84b195d26d0c589287"
+      "score_evidence_grade": "B",
+      "score_evidence_note": "Official repository result on the held-out test split; per-task public results were not located.",
+      "source_checksum": "6b2bc7ee04b3231325fe3a84b195d26d0c589287",
+      "source_checksum_type": "git_blob_sha1",
+      "source_checksum_note": "Git blob SHA reported for benchmark.json at the pinned commit."
     }
-  ]
+  ],
+  "lock_schema_version": "0.2"
 }

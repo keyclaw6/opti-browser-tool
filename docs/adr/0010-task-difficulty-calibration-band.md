@@ -1,10 +1,16 @@
 # ADR-0010: Task difficulty calibration band
 
-- Status: Accepted
+- Status: Superseded by ADR-0011
 - Date opened: 2026-07-11
 - Date accepted: 2026-07-11
+- Date superseded: 2026-07-11
 - Decision owner: project owner
 - Supersedes: no earlier ADR
+- Superseded by: [ADR-0011](0011-minimum-success-floor-for-task-candidates.md)
+
+## Supersession note
+
+Later on 2026-07-11, the project owner replaced the closed 35–70% admission band with a simpler minimum-success rule: prioritize sources and tasks at or above 40%, while leaving the upper saturation ceiling open for later calibration. The original reasoning is retained here so a review agent can reconstruct the sequence of decisions. ADR-0011 is the active rule.
 
 ## Context
 

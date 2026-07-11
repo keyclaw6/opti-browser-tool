@@ -23,6 +23,6 @@ These are intentionally unresolved. They should be answered through research and
 19. What detailed policy is required before permitted live-site testing?
 20. Should the repository remain public, and which license should it use?
 21. Which implementation language, runtime, package manager, and CI structure should be adopted after the first baseline is selected?
-22. Which strong reference model and harness will calibrate Batch 1 against ADR-0010's 35–70% task-level band?
-23. How many trials and what uncertainty rule are required before a task is accepted, rejected, or held at a band boundary?
+22. Which strong reference model and harness will calibrate Batch 1 against ADR-0011's 40% task-level minimum?
+23. How many trials and what uncertainty rule are required before a task is accepted, rejected, or held at the 40% boundary?
 24. Which of the 140 Batch 1 candidates survive environment, verifier, duplication, and task-level difficulty audits?

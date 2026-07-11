@@ -2,7 +2,7 @@
 
 Research infrastructure for discovering which browser-agent harness designs produce the most reliable computer and browser use.
 
-**Repository status:** benchmark-source research has produced a first exact candidate batch of 140 tasks, but no task has entered the frozen evaluation suite. The next gate is task-level calibration and verifier/environment auditing under the accepted 35–70% difficulty band. The project charter, nested smoke-suite rule, and task-difficulty band are accepted. The benchmark source portfolio and regression-seeding policy remain proposed. No browser backend, control library, lane architecture, trace store, experiment gate, or detailed live-site operating policy has been selected yet.
+**Repository status:** benchmark-source research has produced a first exact candidate batch of 140 tasks, but no task has entered the frozen evaluation suite. The next gate is task-level calibration and verifier/environment auditing under the accepted 40% minimum success floor. The project charter, nested smoke-suite rule, and minimum task-success floor are accepted. The benchmark source portfolio and regression-seeding policy remain proposed. No browser backend, control library, lane architecture, trace store, experiment gate, or detailed live-site operating policy has been selected yet.
 
 ## Mission
 
@@ -23,7 +23,7 @@ These workstreams are described in `docs/PRE_RESEARCH_WORKSTREAMS.md`. They are 
 
 ## Decision discipline
 
-ADR-0001 (project constitution), ADR-0007 (the smoke suite is a subset of the primary suite), and ADR-0010 (prioritize tasks with 35–70% task-level success under a strong reproducible reference system) are accepted. ADR-0002 through ADR-0006 remain open. ADR-0008 (benchmark sources) and ADR-0009 (regression seeding and promotion) are proposed and are not binding until explicitly accepted.
+ADR-0001 (project constitution), ADR-0007 (the smoke suite is a subset of the primary suite), and ADR-0011 (use 40% strong-system success as the minimum candidate floor) are accepted. ADR-0002 through ADR-0006 remain open. ADR-0008 (benchmark sources) and ADR-0009 (regression seeding and promotion) are proposed and are not binding until explicitly accepted.
 
 See `docs/DECISION_PROCESS.md` and `docs/DECISION_REGISTER.md`.
 

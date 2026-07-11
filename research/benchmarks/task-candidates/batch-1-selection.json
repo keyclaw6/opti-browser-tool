@@ -2,10 +2,6 @@
   "schema_version": "0.1",
   "created": "2026-07-11",
   "status": "provisional_candidate_batch_not_final_suite",
-  "task_level_target_success_rate_percent": {
-    "minimum": 35.0,
-    "maximum": 70.0
-  },
   "important_evidence_boundary": "Public scores currently support benchmark-level sourcing only. Every task requires local task-level calibration before final admission.",
   "sources": {
     "real_v1": {
@@ -398,5 +394,15 @@
         }
       ]
     }
+  },
+  "candidate_source_screening_rule": {
+    "minimum_public_strong_system_aggregate_percent": 40.0,
+    "reason": "Project owner requested sources where current strong systems succeed at least 40%, to avoid a candidate pool dominated by near-zero tasks."
+  },
+  "task_level_admission_preference": {
+    "minimum_strong_system_success_percent": 40.0,
+    "upper_saturation_ceiling_percent": null,
+    "note": "Benchmark aggregate evidence screens sources only. Every task still requires local task-level calibration.",
+    "upper_saturation_ceiling_status": "open_decision"
   }
 }

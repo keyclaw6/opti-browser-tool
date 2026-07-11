@@ -2,14 +2,16 @@
 
 - Date: 2026-07-11
 - Status: Provisional candidate pool; not a frozen evaluation suite
-- Related decision: [ADR-0010](../../../docs/adr/0010-task-difficulty-calibration-band.md)
+- Related decision: [ADR-0011](../../../docs/adr/0011-minimum-success-floor-for-task-candidates.md)
 - Machine-readable inventory: [`batch-1-candidates.csv`](batch-1-candidates.csv)
 
 ## Executive finding
 
-Batch 1 identifies **140 exact candidates** from five benchmark families whose latest strong public aggregate result verified in this research pass lies within the project's 35–70% sourcing band. The batch is intentionally larger than the planned 100-task primary suite so that tasks can be rejected during environment, verifier, duplication, safety, and difficulty audits without forcing weak replacements into the final set.
+Batch 1 identifies **140 exact candidates** from five benchmark families whose latest verifiable strong public aggregate result in this research pass is at least 40%. The batch is intentionally larger than the planned 100-task primary suite so that tasks can be rejected during environment, verifier, duplication, safety, and difficulty audits without forcing weak replacements into the final set.
 
 The batch contains 131 state-changing tasks and nine visual navigation or search tasks. It spans 26 source/site combinations and 66 labeled interaction classes. It includes professional social interaction, Reddit-like forums, checkout and ordering, flight and accommodation booking, payment and address forms, enterprise configuration, calendars, email, rich-text editing, repository workflows, visual product selection, custom dropdowns, date pickers, table filters, and dashboard controls.
+
+The calibration order is intentionally split. **Priority A contains 117 tasks** selected for direct relevance and a reasonable metadata-based chance of clearing the 40% floor. **Priority B contains 23 tasks**: 14 tasks flagged as probably harder and nine visual navigation/search tasks whose value must be demonstrated against action-heavy alternatives. Priority is only an audit order, not a result or admission decision.
 
 ## Critical evidence boundary
 
@@ -17,26 +19,37 @@ The public evidence is **benchmark-level**, not task-level. For example, a 58.3%
 
 The exact tasks below are therefore candidates because:
 
-1. their source benchmark's strong-system aggregate score is within 35–70%;
+1. their source benchmark's strong-system aggregate score is at least 40%;
 2. their metadata indicates medium or compositional difficulty where that metadata exists;
 3. they exercise interactions central to this project; and
 4. they have a programmatic or structured evaluator worth auditing.
 
-They cannot enter the final 100 until local runs establish a task-level rate in or near the accepted band.
+They cannot enter the final 100 until local runs establish that they clear the accepted 40% minimum and are not saturated.
 
 ### Score freshness and SOTA wording
 
-The source scores are dated public references, not proof that an exhaustive search found the absolute current best result for every benchmark. The artifact records the source date and marks each reference `latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof`. Final admission will use a pinned current strong reference system and local repeated trials, because that is the only way to establish the task-level 35–70% condition consistently across all sources.
+The source scores are dated public references, not proof that an exhaustive search found the absolute current best result for every benchmark. The artifact records the source date and marks each reference `latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof`. Final admission will use a pinned current strong reference system and local repeated trials, because that is the only way to establish the task-level 40% minimum consistently across all sources.
 
 ## Source composition
 
-| Source | Candidates | Public strong-system result used for sourcing | Reference date | Why this slice was selected |
-|---|---:|---:|---|---|
-| REAL v1 | 30 | at most 41% in the published REAL study | 2025-04-15 | Exact version alignment with the published result; medium/hard action and retrieval-action tasks; deterministic state checks; modern consumer and professional apps |
-| WorkArena++ L2 | 30 | 69.4% ± 3.0 | 2025-08-07 | At the top of the target band; exact task-class and seed pairs; compositional enterprise workflows without using L3's much lower, non-standard-budget result |
-| WebArena-Verified | 30 | 53.7% | 2026-06-06 | Audited structured and network-trace verification; state-changing Reddit, shopping, administration, and GitLab workflows; mixed hard and non-hard tasks |
-| VisualWebArena | 30 | 58.3% | 2026-05-24 | Overall-medium tasks with medium or hard visual difficulty; visual classifieds, Reddit, and shopping; programmatic HTML, URL, or image-query evaluation |
-| WARC-Bench | 20 | 64.8% held-out test | 2025-10-10 | Archived real interfaces and deterministic JavaScript rewards for date pickers, dropdowns, forms, rich text, filters, tree navigation, and dashboard widgets |
+| Source | Candidates | Public strong-system result used for sourcing | Date | Evidence grade | Why this slice was selected |
+|---|---:|---:|---|:---:|---|
+| REAL v1 | 30 | at most 41% in the published REAL study | 2025-04-15 | B | Exact version alignment with the published result; current v2 leaderboard rows were not exportable in this pass; medium/hard state-changing tasks across modern consumer and professional apps |
+| WorkArena++ L2 | 30 | 69.4% ± 3.0 | 2025-08-07 | A | Official protocol-compliant and reproducible BrowserGym leaderboard record; exact task-class and seed pairs; compositional enterprise workflows |
+| WebArena-Verified | 30 | 53.7% | 2026-06-06 | A | Recent primary-paper result; audited structured and network-trace verification; state-changing Reddit, shopping, administration, and GitLab workflows |
+| VisualWebArena | 30 | 58.3% | 2026-05-24 | A | Recent primary-paper result on all 910 tasks; overall-medium tasks with medium or hard visual difficulty across classifieds, Reddit, and shopping |
+| WARC-Bench | 20 | 64.8% held-out test | 2025-10-10 | B | Official repository aggregate; archived real interfaces and deterministic JavaScript rewards for date pickers, dropdowns, forms, rich text, filters, tree navigation, and dashboard widgets |
+
+### Calibration priority by source
+
+| Source | Priority A | Priority B | Priority-B reason |
+|---|---:|---:|---|
+| REAL v1 | 21 | 9 | Upstream `hard` label; screen after medium tasks |
+| WorkArena++ L2 | 30 | 0 | All are compositional L2 candidates |
+| WebArena-Verified | 25 | 5 | Five tasks belong to the difficulty-prioritized Hard subset |
+| VisualWebArena | 21 | 9 | Nine tasks are navigation/search-only rather than state-changing |
+| WARC-Bench | 20 | 0 | Held-out deterministic component tasks |
+| **Total** | **117** | **23** | — |
 
 ## Why these sources appear in Batch 1
 
@@ -50,11 +63,11 @@ The batch pins REAL v1 because the public benchmark result applies to the origin
 
 WorkArena++ L2 contributes enterprise interactions that are poorly represented by consumer benchmarks: list filtering, duplicate marking, workload and priority assignment, change scheduling, dashboard reasoning followed by record creation, expense workflows, catalog ordering, table sorting, hardware assets, and onboarding or offboarding.
 
-The official L2 result sits at 69.4%, just inside the accepted band. The batch therefore selects medium-sized or clearly compositional task families and records an exact seed for every task. Each generated natural-language goal still has to be materialized and archived from the pinned ServiceNow instance before admission.
+The official L2 result sits at 69.4%, above the accepted 40% source-screening floor while retaining meaningful headroom. The batch therefore selects medium-sized or clearly compositional task families and records an exact seed for every task. Each generated natural-language goal still has to be materialized and archived from the pinned ServiceNow instance before admission.
 
 ### WebArena-Verified
 
-The earlier plan emphasized the Hard subset, but that is not appropriate as the default after ADR-0010: the maintainers report that a large fraction of that subset has predicted success at or below 20%. Batch 1 instead samples the full verified set and includes only five Hard-subset tasks among 30 candidates.
+The earlier plan emphasized the Hard subset, but that is not appropriate as the default after ADR-0011: the maintainers report that a large fraction of that subset has predicted success at or below 20%. Batch 1 instead samples the full verified set and includes only five Hard-subset tasks among 30 candidates.
 
 The selected tasks cover forum creation and posting, subscription, cross-forum image reposting, constrained product selection and checkout, refund and review forms, address updates, catalog administration, order notification, web-editor commits, collaborator management, milestones, issues, merge requests, and project creation.
 
@@ -95,10 +108,14 @@ The construction script checked that:
 - all 30 WebArena-Verified IDs exist in version 1.2.3;
 - all 30 VisualWebArena IDs exist in version 0.0.15 and are labeled overall-medium;
 - none of the 20 WARC candidates appears in the repository's known environment-issue skip list;
-- every source's public aggregate score is inside 35–70%; and
+- every source's public aggregate score is at least 40%; and
 - all 140 candidate IDs are unique.
 
-This is a manifest validation, not proof that the environments launch, reset, or score correctly.
+This is a manifest validation, not proof that the environments launch, reset, or score correctly. The exact checks and limitations are recorded in [`batch-1-source-audit.md`](batch-1-source-audit.md).
+
+## Recommended split for the next execution stage
+
+To avoid spending the first calibration budget on the least promising candidates, run the 117 Priority A tasks first. After environment and verifier failures are removed, use the resulting coverage gaps to decide which Priority B tasks deserve runs. This is a workload split only; it does not change the planned 100-task suite size or preselect the nested smoke set.
 
 ## Required calibration before final selection
 
@@ -109,12 +126,12 @@ For each candidate:
 3. test the evaluator against success, near miss, partial completion, plausible false claim, harmful extra action, and infrastructure failure;
 4. run a simple baseline and the chosen strong reference system;
 5. repeat sufficiently to estimate task-level success and uncertainty;
-6. reject tasks with an estimated strong-system rate materially below 35% or above 70%, unless an explicit exception is approved;
+6. reject tasks with an estimated strong-system rate materially below 40%, unless an explicit exception is approved; separately flag near-saturated tasks for removal or a narrow smoke/regression role;
 7. reject tasks dominated by environment or evaluator failures;
 8. deduplicate equivalent templates and action paths; and
 9. select the final 100 only after coverage and correlation analysis.
 
-The trial count and boundary confidence rule remain open decisions. A sensible first measurement pass is three trials per task for deterministic replicas, followed by additional trials for tasks near 35% or 70% and for any task showing state instability.
+The trial count and boundary confidence rule remain open decisions. A sensible first measurement pass is three trials per task for deterministic replicas, followed by additional trials for tasks near 40%, near any subsequently accepted saturation ceiling, and for any task showing state instability.
 
 ## Planned Batch 2
 

@@ -12,11 +12,13 @@ Batch 1 contains 140 exact task identities from five benchmark families:
 - 30 VisualWebArena tasks; and
 - 20 WARC-Bench held-out-test candidates.
 
-All five public benchmark-level reference scores fall inside the 35–70% sourcing band established in ADR-0010. Public evidence does not establish that each individual task falls inside that band. Every row therefore carries:
+All five public benchmark-level reference scores are at least 40%, satisfying ADR-0011's source-screening floor. Public evidence does not establish that each individual task clears the 40% task-level floor. Every row therefore carries:
 
 - `score_evidence_scope=benchmark_aggregate_not_task_level`;
 - an empty `per_task_reference_success_percent`; and
 - `per_task_calibration_status=required_before_final_admission`.
+
+For calibration order, 117 candidates are Priority A and 23 are Priority B. Priority B consists of 14 metadata-flagged harder tasks and nine visual navigation/search tasks. This is an audit sequence, not a result or admission decision.
 
 ## Files
 
@@ -27,6 +29,7 @@ All five public benchmark-level reference scores fall inside the 35–70% sourci
 - `batch-1-sources.lock.json` — package versions, source paths, and manifest checksums.
 - `batch-1-summary-by-*.csv` — generated coverage summaries.
 - `batch-1-report.md` — rationale, limitations, and calibration plan.
+- `batch-1-source-audit.md` — source-manifest identity checks and their limitations.
 - `UPSTREAM_LICENSES.md` — source-version and upstream-license notices for the task metadata.
 
 ## Admission status

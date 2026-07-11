@@ -366,7 +366,7 @@ Before freezing the 100 tasks:
 4. Run oracle or human completion trials and verify reset behavior.
 5. Generate deliberate near-miss, false-completion, and shortcut trajectories for the evaluator.
 6. Run a simple baseline and a known strong harness with exact protocol records.
-7. Prefer tasks on which the strong harness remains below 80% repeated success; prioritize the 10–70% band when the environment and verifier are reliable.
+7. Require or prioritize at least 40% repeated success under the pinned strong reference system, following ADR-0011. Record tasks above 80% as possible saturation risks, but keep the exact upper cutoff open until local variance is measured.
 8. Reject tasks that are broken, saturated, unsafe, dependent on hidden benchmark leakage, or dominated by retrieval rather than interaction.
 9. Select the exact 100 and replacement pool by coverage, not by benchmark quotas alone.
 10. Select the nested 20 smoke tasks from the frozen 100 and present the manifest for explicit approval.
@@ -391,6 +391,6 @@ Proceed to task-level inventory using the proposed 20/20/15/20/10/10/5 allocatio
 
 ## 2026-07-11 task-candidate update
 
-The project owner subsequently accepted a preferred task-level success band of 35–70% under a current strong reproducible system (ADR-0010). A 140-task provisional candidate inventory has therefore been exported from five sources whose recent benchmark-level aggregate results fall inside that band: REAL v1, WorkArena++ L2, WebArena-Verified, VisualWebArena, and WARC-Bench.
+The project owner subsequently accepted a 40% minimum strong-system success floor for source screening and final task admission (ADR-0011). A 140-task provisional candidate inventory has therefore been exported from five sources whose latest verifiable benchmark-level strong-system aggregate results are at least 40%: REAL v1, WorkArena++ L2, WebArena-Verified, VisualWebArena, and WARC-Bench.
 
 The aggregate score is only a source-screening proxy. None of the 140 tasks is represented as having a known task-level rate. Every task is marked for local calibration before final-suite admission. The exact inventory and rationale are in [`task-candidates/batch-1-report.md`](task-candidates/batch-1-report.md).

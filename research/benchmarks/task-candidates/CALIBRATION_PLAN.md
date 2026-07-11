@@ -4,7 +4,7 @@ This plan describes the next gate. It is not yet an accepted experimental protoc
 
 ## Objective
 
-Determine which Batch 1 candidates actually fall in the 35–70% task-level success band under a pinned strong reference system, while separating genuine agent failures from environment and evaluator failures.
+Determine which Batch 1 candidates meet the 40% task-level success minimum under a pinned strong reference system, while separating genuine agent failures from environment and evaluator failures.
 
 ## Minimum record per run
 
@@ -16,7 +16,7 @@ Record the candidate ID, benchmark and environment revision, reset result, brows
 2. **Verifier challenge set** — construct success, near-miss, partial-completion, false-claim, harmful-extra-action, and infrastructure-failure cases.
 3. **One-pass reference screen** — run every candidate once with the chosen strong system to eliminate obvious breakage and saturation.
 4. **Initial calibration** — run surviving tasks three times under identical protocol.
-5. **Boundary expansion** — add trials for tasks near 35% or 70%, tasks with inconsistent resets, and dynamic tasks.
+5. **Boundary expansion** — add trials for tasks near 40%, tasks near any later saturation ceiling, tasks with inconsistent resets, and dynamic tasks.
 6. **Admission review** — accept, reject, or hold each task with trace evidence and an estimated success interval.
 
 ## Required classifications
@@ -41,6 +41,6 @@ Before running the calibration at scale, decide:
 - the strong reference model and harness;
 - whether visual and structured lanes use one shared reference or separate references;
 - the minimum trial count and confidence-interval rule;
-- how to handle tasks whose interval overlaps a boundary;
+- how to handle tasks whose interval overlaps the 40% boundary;
 - how much environment-instability evidence causes rejection; and
 - whether any deliberate out-of-band tasks are allowed.

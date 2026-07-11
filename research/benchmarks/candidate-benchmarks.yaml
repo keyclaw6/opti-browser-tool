@@ -8,8 +8,11 @@ related_adrs:
 
 task_difficulty_target:
   decision: accepted
-  related_adr: docs/adr/0010-task-difficulty-calibration-band.md
-  task_level_success_rate_percent: {minimum: 35, maximum: 70}
+  related_adr: docs/adr/0011-minimum-success-floor-for-task-candidates.md
+  source_screening_minimum_public_strong_system_success_percent: 40
+  final_task_admission_minimum_local_strong_system_success_percent: 40
+  upper_saturation_ceiling_percent: null
+  upper_saturation_ceiling_status: open_decision
   evidence_boundary: >-
     Benchmark-level aggregate scores may be used to source candidates, but they
     do not establish an individual task's success rate. Final admission requires

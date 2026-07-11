@@ -66,12 +66,12 @@ The supporting report records current public score examples and protocol caveats
 
 ## Candidate Batch 1 update — 2026-07-11
 
-ADR-0010 established a preferred **task-level** strong-system success band of 35–70%. In response, the first exact candidate export does not implement this ADR's proposed final allocation directly. It contains 140 provisional candidates from REAL v1, WorkArena++ L2, the full WebArena-Verified dataset, VisualWebArena, and WARC-Bench. Each source has a recent public aggregate result inside the band.
+ADR-0011 established a **40% minimum success floor** for source screening and final task admission. In response, the first exact candidate export does not implement this ADR's proposed final allocation directly. It contains 140 provisional candidates from REAL v1, WorkArena++ L2, the full WebArena-Verified dataset, VisualWebArena, and WARC-Bench. Each source has a latest verifiable public strong-system aggregate result of at least 40%.
 
 This changes the research emphasis in three ways:
 
-- WebArena-Verified candidates are drawn from the full dataset rather than defaulting to the Hard subset, because a large part of the Hard subset is predicted below the accepted task-level band.
-- WorkArena candidates use L2 rather than L3, because the current L2 result is 69.4% under the standard protocol while the available L3 result is far below the band and used a doubled action budget.
+- WebArena-Verified candidates are drawn from the full dataset rather than defaulting to the Hard subset, because a large part of the Hard subset is predicted below the accepted 40% task-level floor.
+- WorkArena candidates use L2 rather than L3, because the current L2 result is 69.4% under the standard protocol while the available L3 result is far below the floor and used a doubled action budget.
 - WebChoreArena and conditional WebForge candidates are deferred to a second pass focused on coverage gaps, evaluator repair, and long-horizon or interference tasks.
 
 This update does **not** accept ADR-0008 or change its status. Benchmark aggregates are only sourcing evidence. The exact candidates remain unadmitted until task-level calibration. See [`batch-1-report.md`](../../research/benchmarks/task-candidates/batch-1-report.md).
