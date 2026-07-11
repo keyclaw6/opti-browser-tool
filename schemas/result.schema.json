@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/opti-browser-tool/result.schema.json",
+  "title": "Browser Run Result",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "run_id",
+    "task_id",
+    "validity",
+    "success",
+    "verifier",
+    "metrics",
+    "artifacts"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "0.1-draft"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "validity": {
+      "enum": [
+        "valid",
+        "invalid_infrastructure",
+        "invalid_implementation",
+        "invalid_evaluator",
+        "safety_incident"
+      ]
+    },
+    "success": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "verifier": {
+      "type": "object",
+      "required": [
+        "version",
+        "outcome"
+      ],
+      "additionalProperties": true
+    },
+    "metrics": {
+      "type": "object",
+      "required": [
+        "elapsed_ms",
+        "tool_calls",
+        "browser_actions",
+        "failed_actions",
+        "retries"
+      ],
+      "additionalProperties": true
+    },
+    "failure_class": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "earliest_divergence_event_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "judges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    }
+  }
+}

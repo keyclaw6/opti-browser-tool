@@ -1,0 +1,67 @@
+{
+  "schema_version": "0.1-draft",
+  "experiment_id": "exp-0001-stale-reference-recovery",
+  "status": "proposed",
+  "hypothesis": "Rejecting stale structured references and forcing a fresh observation will reduce wrong-target clicks after dynamic page mutations.",
+  "trace_evidence": [
+    {
+      "run_id": "baseline-run-17",
+      "event_id": "evt-0042",
+      "finding": "The page re-rendered before the click and the old element reference resolved to a different control."
+    }
+  ],
+  "suspected_root_cause": "Element references are not scoped to a browser-state epoch.",
+  "treatment": {
+    "description": "Attach observation epochs to structured references and fail closed when the epoch is stale.",
+    "change_scope": [
+      "lane/cli/observation",
+      "runtime/action_dispatch"
+    ],
+    "activation_evidence": [
+      "Smoke task logs a stale_reference action result before re-observation."
+    ]
+  },
+  "baseline_ref": "harness@baseline-0001",
+  "fixed_variables": {
+    "executor_model": "exact-model-id-required",
+    "browser": "chromium",
+    "task_versions": "locked"
+  },
+  "predicted_improvements": [
+    {
+      "failure_class": "dynamic-update/wrong-target",
+      "tasks": [
+        "dynamic-menu",
+        "infinite-feed-action"
+      ]
+    }
+  ],
+  "regression_risks": [
+    {
+      "failure_class": "extra-observation-latency",
+      "tasks": [
+        "static-form"
+      ]
+    }
+  ],
+  "evaluation_plan": {
+    "task_sets": [
+      "smoke",
+      "dynamic-update-cluster",
+      "regression"
+    ],
+    "repetitions": {
+      "dynamic": 3,
+      "deterministic": 1
+    },
+    "pairing": "matched baseline-treatment",
+    "budget": {
+      "max_runs": 60
+    }
+  },
+  "acceptance_criteria": {
+    "implementation_audit": "pass",
+    "critical_regressions": 0,
+    "primary": "predeclared improvement after baseline variance calibration"
+  }
+}

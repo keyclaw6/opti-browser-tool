@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/opti-browser-tool/task.schema.json",
+  "title": "Browser Task",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task_id",
+    "task_version",
+    "executor_spec",
+    "evaluation_spec",
+    "environment",
+    "tags"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "0.1-draft"
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "executor_spec": {
+      "type": "object",
+      "required": [
+        "goal",
+        "start_url",
+        "constraints",
+        "allowed_side_effects",
+        "limits"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "goal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "start_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowed_side_effects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "limits": {
+          "type": "object",
+          "required": [
+            "max_wall_time_s",
+            "max_browser_actions"
+          ],
+          "properties": {
+            "max_wall_time_s": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_browser_actions": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_model_turns": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "evaluation_spec": {
+      "type": "object",
+      "required": [
+        "verifier",
+        "setup",
+        "teardown",
+        "forbidden_actions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "verifier": {
+          "type": "object",
+          "required": [
+            "kind",
+            "version"
+          ],
+          "additionalProperties": true
+        },
+        "setup": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "teardown": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "forbidden_actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "private_notes": {
+          "type": "string"
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "required": [
+        "kind",
+        "browser_requirements",
+        "locale",
+        "timezone",
+        "viewport"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "enum": [
+            "benchmark",
+            "replica",
+            "live"
+          ]
+        },
+        "browser_requirements": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "locale": {
+          "type": "string"
+        },
+        "timezone": {
+          "type": "string"
+        },
+        "viewport": {
+          "type": "object",
+          "required": [
+            "width",
+            "height"
+          ],
+          "properties": {
+            "width": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "session_ref": {
+          "type": "string"
+        }
+      }
+    },
+    "stability": {
+      "enum": [
+        "deterministic",
+        "mostly_stable",
+        "dynamic"
+      ]
+    },
+    "risk_tier": {
+      "enum": [
+        "none",
+        "low",
+        "moderate",
+        "high"
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    }
+  }
+}

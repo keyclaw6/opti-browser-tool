@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/opti-browser-tool/experiment.schema.json",
+  "title": "Harness Experiment",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "experiment_id",
+    "status",
+    "hypothesis",
+    "trace_evidence",
+    "suspected_root_cause",
+    "treatment",
+    "baseline_ref",
+    "fixed_variables",
+    "predicted_improvements",
+    "regression_risks",
+    "evaluation_plan",
+    "acceptance_criteria"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "0.1-draft"
+    },
+    "experiment_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "proposed",
+        "running",
+        "accepted",
+        "rejected",
+        "inconclusive",
+        "invalid"
+      ]
+    },
+    "hypothesis": {
+      "type": "string",
+      "minLength": 1
+    },
+    "trace_evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "suspected_root_cause": {
+      "type": "string",
+      "minLength": 1
+    },
+    "treatment": {
+      "type": "object",
+      "required": [
+        "description",
+        "change_scope",
+        "activation_evidence"
+      ],
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "change_scope": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "activation_evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "baseline_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "fixed_variables": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "predicted_improvements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "regression_risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "evaluation_plan": {
+      "type": "object",
+      "required": [
+        "task_sets",
+        "repetitions",
+        "pairing",
+        "budget"
+      ],
+      "additionalProperties": true
+    },
+    "acceptance_criteria": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": true
+    },
+    "result_ref": {
+      "type": "string"
+    },
+    "decision_notes": {
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/opti-browser-tool/trace-event.schema.json",
+  "title": "Trace Event",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "run_id",
+    "event_id",
+    "sequence",
+    "timestamp",
+    "monotonic_ms",
+    "actor",
+    "event_type",
+    "visibility",
+    "payload",
+    "artifact_refs"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "0.1-draft"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "parent_event_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "monotonic_ms": {
+      "type": "number",
+      "minimum": 0
+    },
+    "actor": {
+      "enum": [
+        "executor",
+        "browser",
+        "tool",
+        "orchestrator",
+        "verifier",
+        "judge",
+        "infrastructure"
+      ]
+    },
+    "event_type": {
+      "enum": [
+        "model_observation",
+        "model_response",
+        "action_requested",
+        "action_result",
+        "browser_state",
+        "browser_event",
+        "page_transition",
+        "tab_event",
+        "network_event",
+        "console_event",
+        "artifact_created",
+        "verifier_result",
+        "judge_result",
+        "error",
+        "metric",
+        "checkpoint"
+      ]
+    },
+    "visibility": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "executor",
+          "judge",
+          "orchestrator",
+          "restricted"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "browser_state_epoch": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "artifact_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "uri"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

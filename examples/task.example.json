@@ -1,0 +1,64 @@
+{
+  "schema_version": "0.1-draft",
+  "task_id": "smoke.popup-form-submit",
+  "task_version": "1",
+  "source": {
+    "kind": "project",
+    "license": "TBD"
+  },
+  "executor_spec": {
+    "goal": "Dismiss the blocking notice, enter the supplied text in the editor, and submit the form.",
+    "start_url": "https://example.invalid/tasks/popup-form-submit",
+    "constraints": [
+      "Do not navigate away from the task site."
+    ],
+    "allowed_side_effects": [
+      "Submit the local benchmark form."
+    ],
+    "limits": {
+      "max_wall_time_s": 120,
+      "max_browser_actions": 30,
+      "max_model_turns": 20
+    }
+  },
+  "evaluation_spec": {
+    "verifier": {
+      "kind": "browser_state",
+      "version": "1",
+      "checks": [
+        "submission_recorded",
+        "text_matches"
+      ]
+    },
+    "setup": {
+      "fixture": "popup-form-submit"
+    },
+    "teardown": {
+      "reset_fixture": true
+    },
+    "forbidden_actions": [
+      "external_navigation"
+    ],
+    "private_notes": "Never expose verifier checks to the executor."
+  },
+  "environment": {
+    "kind": "benchmark",
+    "browser_requirements": {
+      "javascript": true
+    },
+    "locale": "en-US",
+    "timezone": "UTC",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    }
+  },
+  "stability": "deterministic",
+  "risk_tier": "none",
+  "tags": [
+    "popup",
+    "form",
+    "editor",
+    "smoke"
+  ]
+}
