@@ -16,15 +16,15 @@ suite_hypothesis:
   smoke_is_subset_of_primary: true
   source_allocation:
     real: {primary: 25, smoke: 5}
-    webarena_verified_hard: {primary: 25, smoke: 4}
+    webarena_verified_hard: {primary: 20, smoke: 4}
     visualwebarena: {primary: 15, smoke: 3}
     workarena_plus_plus: {primary: 20, smoke: 4}
     webchorearena: {primary: 10, smoke: 2}
-    webforge_l3: {primary_max: 5, smoke_max: 2, conditional: true}
+    webforge_l3: {primary_max: 10, smoke_max: 2, conditional: true}
   constraints:
     max_tasks_per_source: 25
     max_tasks_per_rendered_site: 5
-    max_webarena_family_tasks: 50
+    max_webarena_family_tasks: 45
     min_state_changing_tasks: 60
     min_genuinely_visual_tasks: 20
     min_forms_filters_configuration_editor_tasks: 20
@@ -47,8 +47,8 @@ candidates:
       - property_search
     evaluator: programmatic_state_for_actions_and_llm_rubric_for_retrieval
     result_reference:
-      score_percent: 41.07
-      system: Claude 3.7 Sonnet Thinking with published v1 harness
+      score_percent_approximate_max: 41
+      system: frontier systems in the published v1 study
       caveat: REAL v2 is live and lacks a directly comparable public score in this review
     admission:
       - pin_v1_or_v2_and_all_revisions
@@ -179,6 +179,7 @@ candidates:
     sources:
       - https://github.com/WebChoreArena/WebChoreArena
       - https://docs.google.com/spreadsheets/d/1RGyJ0QOxGj196KTfUK0SZeVl5IkM928_38wzIkQVxCs/edit
+      - https://arxiv.org/abs/2506.01952
       - https://arxiv.org/abs/2601.07262
 
   - id: webforge_l3
@@ -203,6 +204,7 @@ candidates:
       - false_completion_and_shortcut_probes
     sources:
       - https://github.com/yuandaxia2001/WebForge
+      - https://arxiv.org/abs/2604.10988
 
 replacement_candidates:
   - id: warc_bench
@@ -224,6 +226,18 @@ separate_tracks:
     role: adapter_and_perturbation_diagnostics
     reason_not_primary: core tasks appear too simple for the hard primary aggregate
     source: https://github.com/facebookresearch/OpenApps
+  - id: websp_eval
+    role: high_priority_permitted_account_transfer
+    pool_size: 200
+    websites: 28
+    coverage:
+      - cookie_preferences
+      - privacy_settings
+      - session_revocation
+      - toggles_and_checkboxes
+      - account_state_management
+    reason_not_primary: live_site_drift_accounts_extension_state_and_separate_safety_regime
+    source: https://arxiv.org/abs/2604.06367
   - id: live_web
     role: permitted_account_transfer_suite
     reason_not_primary: drift_accounts_region_bot_defenses_and_judge_variance

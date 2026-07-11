@@ -18,14 +18,18 @@ Advance the following allocation to task-level audit:
 | Source | Proposed primary tasks | Proposed smoke tasks | Role |
 |---|---:|---:|---|
 | REAL | 25 | 5 | LinkedIn-like professional networking, checkout, booking, email, calendar, travel, rides, and other modern application workflows |
-| WebArena-Verified Hard | 25 | 4 | Audited, deterministic Reddit, shopping, administration, GitLab, and multi-site state-changing tasks |
+| WebArena-Verified Hard | 20 | 4 | Audited, deterministic Reddit, shopping, administration, GitLab, and multi-site state-changing tasks |
 | VisualWebArena | 15 | 3 | Visual grounding and screenshot-dependent social, shopping, and classifieds interaction |
 | WorkArena++ | 20 | 4 | Hard enterprise forms, records, filters, catalogs, menus, configuration, and compositional workflows |
 | WebChoreArena | 10 | 2 | Tedious long-horizon work involving memory, calculation, and multi-page state |
-| WebForge Level 3 | Up to 5 | Up to 2 | Popups, cookie dialogs, latency, layout noise, and risk-heavy tasks, conditional on deterministic verification |
+| WebForge Level 3 | Up to 10 | Up to 2 | Popups, cookie dialogs, latency, layout noise, and risk-heavy tasks, conditional on deterministic verification |
 | **Total** | **100** | **20** | The smoke set is nested in the primary set under ADR-0007 |
 
 This is a source-allocation hypothesis, not a frozen suite. The exact counts may change after task audits. WebForge has zero guaranteed slots: any rejected WebForge slot should first be offered to a runnable WARC-Bench release, then reallocated to the other approved sources if necessary.
+
+## Proposal revision history
+
+The first draft allocated 25 tasks to WebArena-Verified Hard and up to 5 to WebForge Level 3. Before acceptance, this was revised to 20 and up to 10 respectively. The reason was to cap the combined WebArena-derived family at 45 tasks instead of 50 and to reserve enough candidate capacity for the project's explicit popup, cookie-dialog, delay, and interface-noise requirements. The WebForge increase does not weaken the verifier standard: all ten slots remain conditional and must be replaced if independent deterministic verification is not achieved.
 
 ## Why this is proposed
 
@@ -38,7 +42,7 @@ No single benchmark covers the project objective without serious blind spots.
 - **WebChoreArena** adds long-horizon memory and calculation pressures that are weakly represented elsewhere.
 - **WebForge Level 3** uniquely exposes controlled popups, cookie dialogs, delays, and interface noise, but its default LLM answer judge is not sufficient for primary-gate use.
 
-The allocation caps every source at 25 tasks and limits the combined WebArena-derived family to 50 tasks. This reduces dependence on any one UI stack, task-writing style, action vocabulary, or evaluator family.
+The allocation caps every source at 25 tasks and limits the combined WebArena-derived family to 45 tasks. This reduces dependence on any one UI stack, task-writing style, action vocabulary, or evaluator family.
 
 ## What this ADR does not decide
 

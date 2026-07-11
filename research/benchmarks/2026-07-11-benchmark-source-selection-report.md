@@ -25,14 +25,16 @@ The proposed 100-task source portfolio is:
 | Source | Primary | Nested smoke | Principal coverage |
 |---|---:|---:|---|
 | REAL | 25 | 5 | LinkedIn-like networking, checkout, booking, email, calendar, travel, rides, modern app flows |
-| WebArena-Verified Hard | 25 | 4 | Reddit, shopping/admin, GitLab, multi-site mutation, audited deterministic evaluation |
+| WebArena-Verified Hard | 20 | 4 | Reddit, shopping/admin, GitLab, multi-site mutation, audited deterministic evaluation |
 | VisualWebArena | 15 | 3 | Visual grounding, spatial interaction, social/shopping/classifieds |
 | WorkArena++ | 20 | 4 | Enterprise forms, records, filters, menus, catalogs, configuration, compositional planning |
 | WebChoreArena | 10 | 2 | Long-horizon memory, calculation, tedious multi-page workflows |
-| WebForge Level 3 | Up to 5 | Up to 2 | Popups, cookie dialogs, latency, noise, risk-heavy workflows; conditional evaluator admission |
+| WebForge Level 3 | Up to 10 | Up to 2 | Popups, cookie dialogs, latency, noise, risk-heavy workflows; conditional evaluator admission |
 | **Total** | **100** | **20** | Smoke is a strict subset of primary |
 
 This is not a decision to admit 100 tasks immediately. It is the allocation to use when building a larger candidate pool and conducting task-level audits.
+
+The allocation was revised during review from 25 WebArena-Verified Hard / 5 WebForge tasks to 20 / up to 10. This reduces correlated WebArena-family exposure from 50 to 45 tasks and gives the candidate pool enough room to test disruptive UI conditions. WebForge still has no guaranteed slots; every admitted task needs independent deterministic verification.
 
 ## Decision boundary
 
@@ -62,7 +64,7 @@ The following are the strongest recent public results that could be verified fro
 
 | Benchmark | Recent public result | What it means for this project |
 |---|---|---|
-| REAL v1 | 41.07% with Claude 3.7 Sonnet Thinking in the original 112-task study | Large headroom on realistic replicas. REAL v2 is now live, but no directly comparable public v2 result was located. |
+| REAL v1 | Frontier systems reached at most 41% in the original 112-task study | Large headroom on realistic replicas. REAL v2 is now live, but no directly comparable public v2 result was located. |
 | WebArena-Verified, full | 53.7% single-round success with SKILL.nb | The verified family remains unsolved. This is not a score on the 258-task Hard subset, and SKILL.nb reuses governed workflows. |
 | VisualWebArena, all 910 tasks | 58.3% with PANDO; the official board separately lists SGV at 54.0% | Substantial visual headroom remains. PANDO distills online skills, so its result is a harness-plus-model result rather than a static model score. |
 | WorkArena++ Level 2 | 69.4% ± 3.0 with GenericAgent and GPT-5 under the recorded standard protocol | L2 is useful selectively, but random L2 sampling risks including tasks that are no longer discriminative. |
@@ -80,7 +82,7 @@ Every score above describes a complete system: model snapshot, prompt, observati
 
 REAL provides deterministic high-fidelity replicas across e-commerce, travel, communication, and professional networking. The current site lists Airbnb-, Amazon-, DoorDash-, Google Calendar-, Gmail-, OpenTable-, LinkedIn-, Uber-, United-, Upwork-, Zillow-, and Marriott-like applications. It advertises locked data, fixed dates, replayability, pre-authenticated sessions, cross-tab persistence, configurable latency, and unexpected-behavior flags.
 
-This is the closest controlled match to the project's stated interest in LinkedIn, checkout or payment-like steps, reservations, messaging, calendars, travel, and modern multipage applications. The published benchmark contains 112 tasks across 11 sites and evaluates action tasks with programmatic state checks while using rubric-based LLM evaluation for retrieval tasks.
+This is the closest controlled match to the project's stated interest in LinkedIn, checkout or payment-like steps, reservations, messaging, calendars, travel, and modern multipage applications. The published v1 benchmark contains 112 tasks across 11 sites and evaluates action tasks with programmatic state checks while using rubric-based LLM evaluation for retrieval tasks. Its paper reports that the tested frontier systems reached at most 41% overall; this review did not locate a directly comparable aggregate for v2.
 
 **Why 25 candidate slots**
 
@@ -96,7 +98,7 @@ Twenty-five tasks can cover many app families without allowing one shared modern
 
 **Open issue**
 
-REAL v2 is live, while the independently published 41.07% score belongs to v1. The task manifests and evaluator semantics must be compared before choosing a version.
+REAL v2 is live, while the independently published at-most-41% result belongs to v1. The task manifests and evaluator semantics must be compared before choosing a version.
 
 Primary sources:
 
@@ -207,13 +209,14 @@ Primary sources:
 
 - https://github.com/WebChoreArena/WebChoreArena
 - https://docs.google.com/spreadsheets/d/1RGyJ0QOxGj196KTfUK0SZeVl5IkM928_38wzIkQVxCs/edit
+- https://arxiv.org/abs/2506.01952
 - https://arxiv.org/abs/2601.07262
 
 ### 6. WebForge Level 3 — conditional source for controlled nuisance conditions
 
 WebForge provides 934 generated, self-contained tasks across seven domains and three difficulty levels. Its refinement pipeline injects popups, cookie dialogs, network delays, and other noise, and its validation agent replays solution paths in Chromium.
 
-**Why up to 5 candidate slots**
+**Why up to 10 candidate slots**
 
 It directly targets conditions missing from most controlled benchmarks. However, the default evaluator asks an LLM to compare the final answer with ground truth. That is insufficient for a primary gate whose purpose is to minimize false positives and false negatives.
 
@@ -223,15 +226,16 @@ It directly targets conditions missing from most controlled benchmarks. However,
 - Require a deterministic operation code or an independently implemented state verifier.
 - Reject direct-answer-only tasks unless their answer is mechanically checkable and navigation—not retrieval—is the dominant work.
 - Run false-completion and shortcut probes.
-- Treat all five slots as conditional until the independent evaluator passes calibration.
+- Treat all ten slots as conditional until the independent evaluator passes calibration.
 
 **Score evidence**
 
 The repository reports Gemini-3-Pro at 75.9% overall and 58.0% on Level 3. Its Level 3 risk-factor accuracy is only 23.1%, supporting selective use of disruptive tasks rather than random sampling.
 
-Primary source:
+Primary sources:
 
 - https://github.com/yuandaxia2001/WebForge
+- https://arxiv.org/abs/2604.10988
 
 ## First replacement candidate: WARC-Bench
 
@@ -257,7 +261,15 @@ Useful for lightweight state-based tests and controlled appearance/content varia
 
 Useful for atomic action-interface unit tests, but too synthetic and too saturated to represent the central objective.
 
-### WebVoyager, Online-Mind2Web, WebCanvas, and other live-web suites
+### WebSP-Eval
+
+A high-priority candidate for the later permitted-account transfer suite. It contributes 200 security and privacy configuration tasks across 28 live websites, including cookie preferences, privacy settings, session revocation, toggles, and checkboxes, with account-state management and automated evaluation. It is not proposed for the controlled primary score because website drift, account policy, regional variation, and extension-based state management create a different validity regime. Reassess it immediately after ADR-0006 and the live-site judge protocol are accepted.
+
+Primary source:
+
+- https://arxiv.org/abs/2604.06367
+
+### WebVoyager, Online-Mind2Web, WebCanvas, Odysseys, and other live-web suites
 
 Valuable for later transfer testing, but live drift, regional differences, account state, anti-bot measures, and judge dependence make them unsuitable for the repeatedly optimized controlled core. They belong in a separately reported permitted-account suite after the live-site policy and judge panel are accepted.
 
@@ -271,7 +283,7 @@ The final 100-task manifest should satisfy all of the following unless an explic
 
 - no source contributes more than 25 tasks;
 - no rendered site or application replica contributes more than 5 tasks;
-- WebArena-derived sources together contribute no more than 50 tasks;
+- WebArena-derived sources together contribute no more than 45 tasks;
 - at least 60 tasks require a state change rather than a final text answer;
 - at least 20 tasks contain genuinely visual or spatial evidence;
 - at least 20 tasks exercise forms, filters, configuration, or structured editors;
@@ -338,4 +350,4 @@ The recommendation should be revised if:
 
 ## Research conclusion
 
-Proceed to task-level inventory using the proposed 25/25/15/20/10/5 allocation, but keep ADR-0008 in **Proposed** status. The next legitimate decision is not “accept these benchmarks wholesale”; it is whether the audited candidate pool supports an exact, runnable, verifier-sound 100-task manifest.
+Proceed to task-level inventory using the proposed 25/20/15/20/10/10 allocation, but keep ADR-0008 in **Proposed** status. The next legitimate decision is not “accept these benchmarks wholesale”; it is whether the audited candidate pool supports an exact, runnable, verifier-sound 100-task manifest.
