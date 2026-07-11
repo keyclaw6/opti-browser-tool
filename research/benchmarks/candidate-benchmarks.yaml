@@ -15,14 +15,15 @@ suite_hypothesis:
   smoke_size: 20
   smoke_is_subset_of_primary: true
   source_allocation:
-    real: {primary: 25, smoke: 5}
+    real: {primary: 20, smoke: 4}
     webarena_verified_hard: {primary: 20, smoke: 4}
     visualwebarena: {primary: 15, smoke: 3}
     workarena_plus_plus: {primary: 20, smoke: 4}
     webchorearena: {primary: 10, smoke: 2}
-    webforge_l3: {primary_max: 10, smoke_max: 2, conditional: true}
+    warc_bench: {primary: 10, smoke: 2}
+    webforge_l3: {primary_max: 5, smoke_max: 1, conditional: true}
   constraints:
-    max_tasks_per_source: 25
+    max_tasks_per_source: 20
     max_tasks_per_rendered_site: 5
     max_webarena_family_tasks: 45
     min_state_changing_tasks: 60
@@ -182,6 +183,35 @@ candidates:
       - https://arxiv.org/abs/2506.01952
       - https://arxiv.org/abs/2601.07262
 
+  - id: warc_bench
+    role: core_proposed
+    pool_size: 438
+    coverage:
+      - archived_real_webpages
+      - date_pickers
+      - nested_scrolling
+      - dropdown_and_multilevel_menus
+      - forms
+      - hover
+      - sliders
+      - dynamic_javascript_controls
+    evaluator: per_task_programmatic_javascript_matchers_and_verifiable_rewards
+    result_reference:
+      test_score_percent: 64.8
+      system: Claude Sonnet 4.0 (2025-05-14)
+      sft_score_percent: 48.8
+      rlvr_score_percent: 52.8
+    admission:
+      - pin_repository_commit_wacz_task_and_evaluator
+      - deduplicate_by_site_and_ui_mechanism
+      - prefer_held_out_test_tasks
+      - adversarial_near_miss_and_shortcut_tests
+      - reject_out_of_lane_direct_script_or_dom_mutation_shortcuts
+      - report_subtask_score_separately
+    sources:
+      - https://github.com/sanjari-orb/warc-bench
+      - https://arxiv.org/abs/2510.09872
+
   - id: webforge_l3
     role: conditional_proposed
     pool_size: 934
@@ -207,13 +237,22 @@ candidates:
       - https://arxiv.org/abs/2604.10988
 
 replacement_candidates:
-  - id: warc_bench
-    priority: first
-    reason: archived real webpages plus deterministic GUI-subtask rewards
-    pool_size: 438
-    highest_observed_success_percent: 64.8
-    blocker: runnable public release and licensing path not located during this review
-    source: https://arxiv.org/abs/2510.09872
+  - id: entworld
+    priority: enterprise_first
+    reason: six enterprise domains with SQL-based deterministic state-transition verification
+    pool_size: 1756
+    reported_score_percent: 47.61
+    reported_system: GPT-4.1
+    blocker: authoritative public code and dataset repository not located during this review
+    source: https://arxiv.org/abs/2601.17722
+  - id: riskwebworld
+    priority: hostile_interface_first
+    reason: uncooperative sites and partial environmental hijackings in e-commerce risk workflows
+    pool_size: 1513
+    reported_score_percent: 49.1
+    reported_system: top-tier generalist systems
+    blocker: authoritative public release not located during this review
+    source: https://arxiv.org/abs/2604.13531
 
 separate_tracks:
   - id: timewarp

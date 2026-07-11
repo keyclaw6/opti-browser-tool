@@ -17,19 +17,22 @@ Advance the following allocation to task-level audit:
 
 | Source | Proposed primary tasks | Proposed smoke tasks | Role |
 |---|---:|---:|---|
-| REAL | 25 | 5 | LinkedIn-like professional networking, checkout, booking, email, calendar, travel, rides, and other modern application workflows |
+| REAL | 20 | 4 | LinkedIn-like professional networking, checkout, booking, email, calendar, travel, rides, and other modern application workflows |
 | WebArena-Verified Hard | 20 | 4 | Audited, deterministic Reddit, shopping, administration, GitLab, and multi-site state-changing tasks |
 | VisualWebArena | 15 | 3 | Visual grounding and screenshot-dependent social, shopping, and classifieds interaction |
 | WorkArena++ | 20 | 4 | Hard enterprise forms, records, filters, catalogs, menus, configuration, and compositional workflows |
 | WebChoreArena | 10 | 2 | Tedious long-horizon work involving memory, calculation, and multi-page state |
-| WebForge Level 3 | Up to 10 | Up to 2 | Popups, cookie dialogs, latency, layout noise, and risk-heavy tasks, conditional on deterministic verification |
+| WARC-Bench | 10 | 2 | Archived real-site date pickers, menus, nested scrolling, forms, hover, sliders, and dynamic controls with programmatic rewards |
+| WebForge Level 3 | Up to 5 | Up to 1 | Popups, cookie dialogs, latency, layout noise, and risk-heavy tasks, conditional on deterministic verification |
 | **Total** | **100** | **20** | The smoke set is nested in the primary set under ADR-0007 |
 
-This is a source-allocation hypothesis, not a frozen suite. The exact counts may change after task audits. WebForge has zero guaranteed slots: any rejected WebForge slot should first be offered to a runnable WARC-Bench release, then reallocated to the other approved sources if necessary.
+This is a source-allocation hypothesis, not a frozen suite. The exact counts may change after task audits. WebForge has zero guaranteed slots: rejected WebForge tasks must be replaced by another audited source rather than admitted with its default LLM judge.
 
 ## Proposal revision history
 
-The first draft allocated 25 tasks to WebArena-Verified Hard and up to 5 to WebForge Level 3. Before acceptance, this was revised to 20 and up to 10 respectively. The reason was to cap the combined WebArena-derived family at 45 tasks instead of 50 and to reserve enough candidate capacity for the project's explicit popup, cookie-dialog, delay, and interface-noise requirements. The WebForge increase does not weaken the verifier standard: all ten slots remain conditional and must be replaced if independent deterministic verification is not achieved.
+The first draft allocated 25 tasks to WebArena-Verified Hard and up to 5 to WebForge Level 3. It was revised to 20 and up to 10 respectively to cap the combined WebArena-derived family at 45 tasks and reserve capacity for popup, cookie-dialog, delay, and interface-noise requirements.
+
+A second review located the public WARC-Bench repository, bundled task files and archived environments, an MIT package declaration, and per-task programmatic JavaScript evaluators. The allocation was therefore revised again: WARC-Bench received 10 proposed slots, REAL was reduced from 25 to 20, and WebForge returned to up to 5 conditional slots. The reason is to obtain real-UI component diversity and deterministic rewards from WARC-Bench while reserving WebForge only for nuisance conditions not otherwise represented. Neither revision has been accepted by the project owner.
 
 ## Why this is proposed
 
@@ -40,9 +43,10 @@ No single benchmark covers the project objective without serious blind spots.
 - **VisualWebArena** prevents the suite from rewarding a harness that succeeds only when hidden structure or accessibility text makes the interface easy to parse.
 - **WorkArena++** contributes difficult configuration-heavy enterprise workflows and has substantial unsolved Level 3 headroom.
 - **WebChoreArena** adds long-horizon memory and calculation pressures that are weakly represented elsewhere.
+- **WARC-Bench** adds archived real-site GUI primitives such as date pickers, nested scrolling, menus, hover, sliders, forms, and dynamic controls, each with a programmatic reward.
 - **WebForge Level 3** uniquely exposes controlled popups, cookie dialogs, delays, and interface noise, but its default LLM answer judge is not sufficient for primary-gate use.
 
-The allocation caps every source at 25 tasks and limits the combined WebArena-derived family to 45 tasks. This reduces dependence on any one UI stack, task-writing style, action vocabulary, or evaluator family.
+The allocation caps every source at 20 tasks and limits the combined WebArena-derived family to 45 tasks. This reduces dependence on any one UI stack, task-writing style, action vocabulary, or evaluator family.
 
 ## What this ADR does not decide
 
@@ -67,19 +71,22 @@ ADR-0008 may be accepted only after:
 1. a versioned candidate pool materially larger than 100 tasks is exported;
 2. REAL v1 versus v2 is resolved and evaluator semantics are pinned;
 3. every proposed task passes licensing, safety, reset, oracle-solvability, verifier, duplication, and shortcut checks;
-4. WebForge tasks have deterministic state or operation-code verification independent of its default LLM answer judge;
-5. WorkArena access and reproducible instance reset are demonstrated;
-6. selected tasks are run with both a simple baseline and a known strong harness under recorded protocols;
-7. saturated, broken, unsafe, judge-fragile, or benchmark-leaking tasks are rejected;
-8. the exact 100-task manifest, replacement pool, and nested 20-task smoke subset are reviewed; and
-9. the project owner explicitly accepts this ADR or a revised portfolio.
+4. WARC-Bench tasks are deduplicated by site and UI mechanism, and their JavaScript rewards survive shortcut and near-miss tests;
+5. WebForge tasks have deterministic state or operation-code verification independent of its default LLM answer judge;
+6. WorkArena access and reproducible instance reset are demonstrated;
+7. selected tasks are run with both a simple baseline and a known strong harness under recorded protocols;
+8. saturated, broken, unsafe, judge-fragile, or benchmark-leaking tasks are rejected;
+9. the exact 100-task manifest, replacement pool, and nested 20-task smoke subset are reviewed; and
+10. the project owner explicitly accepts this ADR or a revised portfolio.
 
 Until then, this portfolio guides research only.
 
-## First replacement candidate
+## High-priority unallocated candidates
 
-WARC-Bench is the preferred replacement candidate because it offers archived real webpages, deterministic rewards, and difficult GUI subtasks across many sites. It is not in the proposed allocation because a runnable public release and licensing path were not located during this review. That operational fact must be rechecked before the final manifest is frozen.
+**EntWorld** is the first enterprise replacement candidate. Its paper reports 1,756 tasks across six enterprise domains, SQL-based deterministic verification, and 47.61% GPT-4.1 success. No authoritative public code or dataset repository was located, so access and reproducibility remain unverified.
+
+**RiskWebWorld** is the first hostile-interface replacement candidate. Its paper reports 1,513 e-commerce risk tasks, uncooperative sites, partial environmental hijackings, and 49.1% success for top generalist systems. No authoritative public release was located.
 
 ## Revisit triggers
 
-Revisit the allocation if task-level auditing finds insufficient hard tasks, correlated templates, evaluator defects, inaccessible infrastructure, licensing restrictions, or local strong-harness success above the desired discrimination range.
+Revisit the allocation if task-level auditing finds insufficient hard tasks, correlated templates, evaluator defects, inaccessible infrastructure, licensing restrictions, WARC-Bench shortcut susceptibility, or local strong-harness success above the desired discrimination range. Also revisit when EntWorld, RiskWebWorld, or another better-verified source becomes runnable.

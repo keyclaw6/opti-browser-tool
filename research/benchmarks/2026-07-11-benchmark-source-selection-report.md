@@ -24,17 +24,18 @@ The proposed 100-task source portfolio is:
 
 | Source | Primary | Nested smoke | Principal coverage |
 |---|---:|---:|---|
-| REAL | 25 | 5 | LinkedIn-like networking, checkout, booking, email, calendar, travel, rides, modern app flows |
+| REAL | 20 | 4 | LinkedIn-like networking, checkout, booking, email, calendar, travel, rides, modern app flows |
 | WebArena-Verified Hard | 20 | 4 | Reddit, shopping/admin, GitLab, multi-site mutation, audited deterministic evaluation |
 | VisualWebArena | 15 | 3 | Visual grounding, spatial interaction, social/shopping/classifieds |
 | WorkArena++ | 20 | 4 | Enterprise forms, records, filters, menus, catalogs, configuration, compositional planning |
 | WebChoreArena | 10 | 2 | Long-horizon memory, calculation, tedious multi-page workflows |
-| WebForge Level 3 | Up to 10 | Up to 2 | Popups, cookie dialogs, latency, noise, risk-heavy workflows; conditional evaluator admission |
+| WARC-Bench | 10 | 2 | Archived real-site date pickers, menus, nested scrolling, forms, dynamic controls, deterministic rewards |
+| WebForge Level 3 | Up to 5 | Up to 1 | Popups, cookie dialogs, latency, noise, risk-heavy workflows; conditional evaluator admission |
 | **Total** | **100** | **20** | Smoke is a strict subset of primary |
 
 This is not a decision to admit 100 tasks immediately. It is the allocation to use when building a larger candidate pool and conducting task-level audits.
 
-The allocation was revised during review from 25 WebArena-Verified Hard / 5 WebForge tasks to 20 / up to 10. This reduces correlated WebArena-family exposure from 50 to 45 tasks and gives the candidate pool enough room to test disruptive UI conditions. WebForge still has no guaranteed slots; every admitted task needs independent deterministic verification.
+The allocation changed twice during review, and both changes are retained in ADR-0008. First, WebArena-Verified Hard was reduced from 25 to 20 while conditional WebForge capacity increased from 5 to 10, capping correlated WebArena-family exposure at 45 tasks. Second, after the public WARC-Bench repository, task files, MIT package declaration, and programmatic JavaScript evaluators were located, WARC-Bench received 10 proposed slots. REAL was reduced from 25 to 20 and WebForge returned to up to 5 conditional slots. This adds archived-real UI diversity and deterministic component-level tests without reducing coverage of the project's major workflow classes.
 
 ## Decision boundary
 
@@ -70,6 +71,7 @@ The following are the strongest recent public results that could be verified fro
 | WorkArena++ Level 2 | 69.4% ± 3.0 with GenericAgent and GPT-5 under the recorded standard protocol | L2 is useful selectively, but random L2 sampling risks including tasks that are no longer discriminative. |
 | WorkArena++ Level 3 | 11.5% ± 2.1 with the same system after increasing the step budget from 50 to 100 | L3 has exceptional headroom, but this public number is explicitly non-protocol and cannot be used as a clean baseline. |
 | WebChoreArena, full | 47.4% with ColorBrowserAgent plus GPT-5; 44.9% with BrowserGym plus Gemini 2.5 Pro | The 47.4% system includes a human-in-the-loop knowledge-adaptation mechanism. The 44.9% BrowserGym result is the cleaner autonomous reference. |
+| WARC-Bench, test | 64.8% with Claude Sonnet 4.0 (2025-05-14) | The benchmark remains discriminative while supplying deterministic, real-UI component checks. It is short-horizon, so it complements rather than replaces workflow benchmarks. |
 | WebForge, all / L3 | 75.9% overall and 58.0% on L3 with Gemini-3-Pro; only 23.1% on the L3 risk-factor dimension | Only difficult and risk-heavy tasks are suitable. The default final-answer LLM judge is not acceptable without independent verification. |
 
 ### Interpretation rule
@@ -84,9 +86,9 @@ REAL provides deterministic high-fidelity replicas across e-commerce, travel, co
 
 This is the closest controlled match to the project's stated interest in LinkedIn, checkout or payment-like steps, reservations, messaging, calendars, travel, and modern multipage applications. The published v1 benchmark contains 112 tasks across 11 sites and evaluates action tasks with programmatic state checks while using rubric-based LLM evaluation for retrieval tasks. Its paper reports that the tested frontier systems reached at most 41% overall; this review did not locate a directly comparable aggregate for v2.
 
-**Why 25 candidate slots**
+**Why 20 candidate slots**
 
-Twenty-five tasks can cover many app families without allowing one shared modern front-end stack to dominate the suite. The target should include several state-changing workflows from at least eight replicas, with no single replica supplying more than five primary tasks.
+Twenty tasks can still cover at least eight app families while limiting dependence on one shared modern front-end stack. The five slots removed during review were reassigned to WARC-Bench after its runnable release and deterministic evaluators were verified.
 
 **Admission restrictions**
 
@@ -212,13 +214,38 @@ Primary sources:
 - https://arxiv.org/abs/2506.01952
 - https://arxiv.org/abs/2601.07262
 
-### 6. WebForge Level 3 — conditional source for controlled nuisance conditions
+### 6. WARC-Bench — core source for realistic component execution
+
+WARC-Bench provides 438 short-horizon GUI tasks rendered from archived real webpages. It covers date pickers, nested scrolling, dropdown and multi-level menus, forms, sliders, hover, and asynchronous JavaScript controls. Each task carries a programmatic reward; the public task files include explicit JavaScript matchers, and the repository includes the archived environments, evaluation runner, and trajectory viewer.
+
+**Why 10 candidate slots**
+
+Most workflow benchmarks reveal that an agent failed but do not isolate whether it failed at a date picker, nested scroll region, dropdown, hover interaction, or dynamic control. Ten WARC-Bench tasks give the suite a realistic component-skill layer with deterministic rewards. The cap prevents short-horizon subtasks from displacing the project's main long-horizon objective.
+
+**Admission restrictions**
+
+- Sample distinct UI mechanisms and unrelated archived sites rather than near-duplicate parameter variations.
+- Prefer the held-out test split and pin the repository commit, WACZ archive, task file, and JavaScript evaluator.
+- Inspect every matcher for hidden-state shortcuts and verify that a visually plausible near miss fails.
+- Reject tasks that can be solved by direct script execution or DOM mutation if that mechanism is outside the lane being evaluated.
+- Keep WARC subtasks as 10% of the aggregate and report their score separately.
+
+**Score evidence**
+
+The official repository reports 64.8% test success for Claude Sonnet 4.0 (2025-05-14), 48.8% for its 72B SFT system, and 52.8% after RLVR. This leaves useful headroom while giving us reproducible, realistic UI primitives.
+
+Primary sources:
+
+- https://github.com/sanjari-orb/warc-bench
+- https://arxiv.org/abs/2510.09872
+
+### 7. WebForge Level 3 — conditional source for controlled nuisance conditions
 
 WebForge provides 934 generated, self-contained tasks across seven domains and three difficulty levels. Its refinement pipeline injects popups, cookie dialogs, network delays, and other noise, and its validation agent replays solution paths in Chromium.
 
-**Why up to 10 candidate slots**
+**Why up to 5 candidate slots**
 
-It directly targets conditions missing from most controlled benchmarks. However, the default evaluator asks an LLM to compare the final answer with ground truth. That is insufficient for a primary gate whose purpose is to minimize false positives and false negatives.
+It directly targets conditions missing from most controlled benchmarks. However, the default evaluator asks an LLM to compare the final answer with ground truth. That is insufficient for a primary gate whose purpose is to minimize false positives and false negatives. WARC-Bench now supplies the main realistic component layer, so WebForge is reserved for nuisance conditions not otherwise covered.
 
 **Admission restrictions**
 
@@ -226,7 +253,7 @@ It directly targets conditions missing from most controlled benchmarks. However,
 - Require a deterministic operation code or an independently implemented state verifier.
 - Reject direct-answer-only tasks unless their answer is mechanically checkable and navigation—not retrieval—is the dominant work.
 - Run false-completion and shortcut probes.
-- Treat all ten slots as conditional until the independent evaluator passes calibration.
+- Treat all five slots as conditional until the independent evaluator passes calibration.
 
 **Score evidence**
 
@@ -237,15 +264,23 @@ Primary sources:
 - https://github.com/yuandaxia2001/WebForge
 - https://arxiv.org/abs/2604.10988
 
-## First replacement candidate: WARC-Bench
+## High-priority candidates not yet admitted
 
-WARC-Bench contains 438 archived-real-web GUI subtasks and reports a highest observed success rate of 64.8%. It targets short-horizon skills such as date pickers, menus, container scrolling, spreadsheets, hover, sliders, and forms, with deterministic verifiable rewards.
+### EntWorld
 
-Conceptually, it is an excellent fit and should replace conditional WebForge slots if a runnable public release, data access, and licensing path are confirmed. It is not currently allocated because those artifacts were not located during this review.
+EntWorld reports 1,756 enterprise tasks across six domains, schema-grounded generation, SQL-based state-transition verification, and 47.61% success for GPT-4.1. It could diversify or partly replace WorkArena++ because it covers CRM, ITIL, ERP, and other enterprise interfaces without relying on one ServiceNow product family. No authoritative public code or dataset repository was located in this review, so reproducibility, licensing, and task access remain unverified.
 
 Primary source:
 
-- https://arxiv.org/abs/2510.09872
+- https://arxiv.org/abs/2601.17722
+
+### RiskWebWorld
+
+RiskWebWorld reports 1,513 tasks across eight e-commerce risk domains, uncooperative sites, partial environmental hijackings, a Gymnasium-compatible environment, and 49.1% success for top generalist systems. It is highly relevant to recovery and hostile-interface research. No authoritative public release was located, so it cannot yet supply primary tasks.
+
+Primary source:
+
+- https://arxiv.org/abs/2604.13531
 
 ## Sources not proposed for the first primary aggregate
 
@@ -281,7 +316,7 @@ Not central because they measure information discovery more than reliable browse
 
 The final 100-task manifest should satisfy all of the following unless an explicit exception is approved:
 
-- no source contributes more than 25 tasks;
+- no source contributes more than 20 tasks;
 - no rendered site or application replica contributes more than 5 tasks;
 - WebArena-derived sources together contribute no more than 45 tasks;
 - at least 60 tasks require a state change rather than a final text answer;
@@ -299,12 +334,13 @@ These are proposed audit constraints, not accepted quotas.
 
 The smoke set should be selected only after the primary manifest is stable. The provisional source split is:
 
-- 5 REAL;
+- 4 REAL;
 - 4 WebArena-Verified Hard;
 - 3 VisualWebArena;
 - 4 WorkArena++;
-- 2 WebChoreArena; and
-- up to 2 deterministically verified WebForge tasks.
+- 2 WebChoreArena;
+- 2 WARC-Bench; and
+- up to 1 deterministically verified WebForge task.
 
 Smoke tasks should be stable and reasonably fast while still covering every adapter and major interaction mechanism. They do not need to estimate the primary score accurately.
 
@@ -343,11 +379,12 @@ The recommendation should be revised if:
 - WebArena-derived tasks remain too correlated after deduplication;
 - WorkArena cannot be provisioned and reset reliably;
 - WebChore evaluators cannot meet the judge-calibration standard;
+- WARC-Bench tasks are too short-horizon, duplicated, or shortcut-prone to provide ten useful slots;
 - WebForge tasks cannot be independently verified;
 - a known strong harness already exceeds 80% on most selected tasks;
-- WARC-Bench or another source becomes runnable and provides better real-UI diversity with deterministic rewards; or
+- EntWorld, RiskWebWorld, or another source becomes runnable and offers better diversity or verification than an allocated source; or
 - the resulting suite undercovers a failure class central to the project charter.
 
 ## Research conclusion
 
-Proceed to task-level inventory using the proposed 25/20/15/20/10/10 allocation, but keep ADR-0008 in **Proposed** status. The next legitimate decision is not “accept these benchmarks wholesale”; it is whether the audited candidate pool supports an exact, runnable, verifier-sound 100-task manifest.
+Proceed to task-level inventory using the proposed 20/20/15/20/10/10/5 allocation, but keep ADR-0008 in **Proposed** status. The next legitimate decision is not “accept these benchmarks wholesale”; it is whether the audited candidate pool supports an exact, runnable, verifier-sound 100-task manifest.

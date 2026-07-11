@@ -8,7 +8,7 @@
 - [Machine-readable candidate record](candidate-benchmarks.yaml)
 - [Task audit template](TASK_AUDIT_TEMPLATE.md)
 
-The source portfolio is proposed, not accepted. Individual task IDs have not been selected.
+The source portfolio is proposed, not accepted. Individual task IDs have not been selected. The latest revision promotes WARC-Bench into the candidate allocation after locating its public archived environments and programmatic evaluators; EntWorld and RiskWebWorld remain unallocated until authoritative runnable releases can be verified.
 
 ## Next execution step
 
