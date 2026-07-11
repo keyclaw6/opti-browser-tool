@@ -2,7 +2,7 @@
 
 - Status: Superseded by ADR-0011
 - Date opened: 2026-07-11
-- Date accepted: 2026-07-11
+- Date accepted: —
 - Date superseded: 2026-07-11
 - Decision owner: project owner
 - Supersedes: no earlier ADR
@@ -10,13 +10,13 @@
 
 ## Supersession note
 
-Later on 2026-07-11, the project owner replaced the closed 35–70% admission band with a simpler minimum-success rule: prioritize sources and tasks at or above 40%, while leaving the upper saturation ceiling open for later calibration. The original reasoning is retained here so a review agent can reconstruct the sequence of decisions. ADR-0011 is the active rule.
+This 35–70% band was drafted during candidate construction but was **never explicitly accepted by the project owner**. On 2026-07-11, the owner gave a clear replacement rule: prioritize sources and tasks at or above 40%, while leaving the upper saturation ceiling open for later calibration. The unaccepted proposal is retained so a review agent can reconstruct the sequence of reasoning. ADR-0011 is the active rule.
 
 ## Context
 
 The evaluation suite must leave enough headroom for harness improvements while still producing enough successful runs to detect regressions and diagnose why a treatment helped. Tasks that nearly every strong system passes are saturated. Tasks that nearly every strong system fails give weak experimental resolution because most harness changes still produce a zero.
 
-The project owner first discussed a broader range and then explicitly corrected the desired target on 2026-07-11.
+The closed band was an internal proposal intended to balance headroom against measurable successes. It did not satisfy the repository acceptance protocol because the project owner had not approved it.
 
 ## Decision
 
