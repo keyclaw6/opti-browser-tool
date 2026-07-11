@@ -1,0 +1,60 @@
+{
+  "created": "2026-07-11",
+  "sources": [
+    {
+      "source": "REAL",
+      "source_version": "agisdk 0.3.5 / REAL v1",
+      "public_benchmark_reference_percent": 41.0,
+      "public_benchmark_reference_system": "Frontier systems in the published REAL study (reported maximum: at most 41%)",
+      "public_reference_date": "2025-04-15",
+      "public_reference_status": "latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof",
+      "score_source": "https://arxiv.org/abs/2504.11543",
+      "source_manifest": "agisdk/REAL/browsergym/webclones/v1/tasks/*.json",
+      "source_checksum_sha256": "1331f3b5b53d6d167cb3fe06c35f15ad811cf0b43c9e3500cbefb39012babe73"
+    },
+    {
+      "source": "WorkArena++ L2",
+      "source_version": "browsergym-workarena 0.5.3 / L2 sampled set (meta seed 42)",
+      "public_benchmark_reference_percent": 69.4,
+      "public_benchmark_reference_system": "GenericAgent + GPT-5 (official BrowserGym leaderboard, protocol-compliant)",
+      "public_reference_date": "2025-08-07",
+      "public_reference_status": "latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof",
+      "score_source": "https://huggingface.co/spaces/ServiceNow/browsergym-leaderboard/blob/main/results/GenericAgent-GPT-5/workarena-l2.json",
+      "source_manifest": "get_all_tasks_agents(filter=\"l2\", meta_seed=42) materialized as task class + seed",
+      "source_checksum_sha256": "becccb6bbdba4df6d04c9a53cf9d62a767cca52ba6a0291247b10f883263319a"
+    },
+    {
+      "source": "WebArena-Verified",
+      "source_version": "webarena-verified 1.2.3 / full 812-task dataset",
+      "public_benchmark_reference_percent": 53.7,
+      "public_benchmark_reference_system": "SKILL.nb single-round success",
+      "public_reference_date": "2026-06-06",
+      "public_reference_status": "latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof",
+      "score_source": "https://arxiv.org/abs/2606.08049",
+      "source_manifest": "webarena_verified/assets/dataset/webarena-verified.json",
+      "source_checksum_sha256": "d65275660814663375028e9017e1f929e3c38321041b125795e2713b52243d30"
+    },
+    {
+      "source": "VisualWebArena",
+      "source_version": "libvisualwebarena 0.0.15 / 910-task test_raw.json",
+      "public_benchmark_reference_percent": 58.3,
+      "public_benchmark_reference_system": "PANDO on the full 910-task benchmark",
+      "public_reference_date": "2026-05-24",
+      "public_reference_status": "latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof",
+      "score_source": "https://arxiv.org/abs/2605.24785",
+      "source_manifest": "visualwebarena/test_raw.json",
+      "source_checksum_sha256": "00cde63c75d752f8ba023237327e2c087e243aad2541b2b43cb17fce0142f6d0"
+    },
+    {
+      "source": "WARC-Bench",
+      "source_version": "Git commit 98d213ccd2b4380761738e1d144467a8695e37c5",
+      "public_benchmark_reference_percent": 64.8,
+      "public_benchmark_reference_system": "Claude Sonnet 4.0 (2025-05-14), held-out test split",
+      "public_reference_date": "2025-10-10",
+      "public_reference_status": "latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof",
+      "score_source": "https://github.com/sanjari-orb/warc-bench",
+      "source_manifest": "src/orby/subtask_benchmark/environments/benchmark.json",
+      "source_checksum_sha256": "git-blob:6b2bc7ee04b3231325fe3a84b195d26d0c589287"
+    }
+  ]
+}

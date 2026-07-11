@@ -5,6 +5,17 @@ related_adrs:
   source_portfolio: docs/adr/0008-primary-benchmark-source-shortlist.md
   regression_policy: docs/adr/0009-regression-suite-seeding-and-promotion.md
 
+
+task_difficulty_target:
+  decision: accepted
+  related_adr: docs/adr/0010-task-difficulty-calibration-band.md
+  task_level_success_rate_percent: {minimum: 35, maximum: 70}
+  evidence_boundary: >-
+    Benchmark-level aggregate scores may be used to source candidates, but they
+    do not establish an individual task's success rate. Final admission requires
+    task-level calibration under a pinned strong reference system and protocol.
+  current_candidate_batch: research/benchmarks/task-candidates/batch-1-candidates.csv
+
 score_interpretation: >-
   Every published score is a model-plus-harness-plus-protocol result. Record the
   model snapshot, observations, actions, prompt, memory or skill mechanism,

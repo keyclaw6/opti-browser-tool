@@ -1,0 +1,402 @@
+{
+  "schema_version": "0.1",
+  "created": "2026-07-11",
+  "status": "provisional_candidate_batch_not_final_suite",
+  "task_level_target_success_rate_percent": {
+    "minimum": 35.0,
+    "maximum": 70.0
+  },
+  "important_evidence_boundary": "Public scores currently support benchmark-level sourcing only. Every task requires local task-level calibration before final admission.",
+  "sources": {
+    "real_v1": {
+      "selected_task_ids": [
+        "dashdish-4",
+        "dashdish-7",
+        "dashdish-10",
+        "fly-unified-4",
+        "fly-unified-5",
+        "fly-unified-6",
+        "gocalendar-1",
+        "gocalendar-4",
+        "gocalendar-7",
+        "gomail-7",
+        "gomail-8",
+        "networkin-1",
+        "networkin-6",
+        "networkin-9",
+        "networkin-10",
+        "omnizon-2",
+        "omnizon-4",
+        "omnizon-9",
+        "omnizon-10",
+        "opendining-4",
+        "opendining-5",
+        "opendining-10",
+        "staynb-5",
+        "staynb-6",
+        "staynb-8",
+        "topwork-1",
+        "topwork-2",
+        "udriver-9",
+        "udriver-10",
+        "zilloft-6"
+      ]
+    },
+    "workarena_l2": {
+      "selected_task_seed_pairs": [
+        {
+          "task_id": "workarena.servicenow.basic-filter-problems-and-mark-duplicates-medium-l2",
+          "seed": 102
+        },
+        {
+          "task_id": "workarena.servicenow.high-priority-filter-problems-and-mark-duplicates-medium-l2",
+          "seed": 435
+        },
+        {
+          "task_id": "workarena.servicenow.workload-balancing-medium-l2",
+          "seed": 102
+        },
+        {
+          "task_id": "workarena.servicenow.work-assignment-medium-l2",
+          "seed": 435
+        },
+        {
+          "task_id": "workarena.servicenow.priority-assignment-medium-l2",
+          "seed": 102
+        },
+        {
+          "task_id": "workarena.servicenow.two-changes-wide-basic-uniform-risk-change-request-scheduling-l2",
+          "seed": 102
+        },
+        {
+          "task_id": "workarena.servicenow.three-changes-fix-basic-varied-risk-change-request-scheduling-l2",
+          "seed": 435
+        },
+        {
+          "task_id": "workarena.servicenow.dashboard-retrieve-catalog-and-max-order-developer-laptop-l2",
+          "seed": 860
+        },
+        {
+          "task_id": "workarena.servicenow.dashboard-retrieve-incident-and-min-create-incident-l2",
+          "seed": 270
+        },
+        {
+          "task_id": "workarena.servicenow.dashboard-retrieve-incident-and-min-create-problem-l2",
+          "seed": 106
+        },
+        {
+          "task_id": "workarena.servicenow.dashboard-retrieve-incident-and-min-filter-user-list-l2",
+          "seed": 71
+        },
+        {
+          "task_id": "workarena.servicenow.dashboard-retrieve-incident-and-max-filter-hardware-list-l2",
+          "seed": 700
+        },
+        {
+          "task_id": "workarena.servicenow.dashboard-retrieve-incident-and-max-request-apple-ipad3-l2",
+          "seed": 614
+        },
+        {
+          "task_id": "workarena.servicenow.filter-requested-items-and-order-standard-laptop-l2",
+          "seed": 700
+        },
+        {
+          "task_id": "workarena.servicenow.get-warranty-expiration-date-l2",
+          "seed": 860
+        },
+        {
+          "task_id": "workarena.servicenow.amount-based-expense-management-medium-l2",
+          "seed": 121
+        },
+        {
+          "task_id": "workarena.servicenow.date-based-expense-management-medium-l2",
+          "seed": 121
+        },
+        {
+          "task_id": "workarena.servicenow.filter-random-expenses-find-total-return-and-select-investments-medium-l2",
+          "seed": 121
+        },
+        {
+          "task_id": "workarena.servicenow.filter-three-items-uniform-expenses-and-select-investments-medium-l2",
+          "seed": 121
+        },
+        {
+          "task_id": "workarena.servicenow.filter-random-expenses-and-delete-wrong-investments-medium-l2",
+          "seed": 121
+        },
+        {
+          "task_id": "workarena.servicenow.dashboard-retrieve-catalog-and-mean-order-development-laptop-p-c-l2",
+          "seed": 121
+        },
+        {
+          "task_id": "workarena.servicenow.dashboard-retrieve-incident-and-mean-create-incident-l2",
+          "seed": 121
+        },
+        {
+          "task_id": "workarena.servicenow.dashboard-retrieve-incident-and-median-create-problem-l2",
+          "seed": 121
+        },
+        {
+          "task_id": "workarena.servicenow.dashboard-retrieve-incident-and-mean-lesser-filter-incident-list-l2",
+          "seed": 121
+        },
+        {
+          "task_id": "workarena.servicenow.navigate-and-create-hardware-asset-l2",
+          "seed": 466
+        },
+        {
+          "task_id": "workarena.servicenow.navigate-and-order-apple-watch-l2",
+          "seed": 466
+        },
+        {
+          "task_id": "workarena.servicenow.navigate-and-filter-user-list-l2",
+          "seed": 466
+        },
+        {
+          "task_id": "workarena.servicenow.navigate-and-sort-user-list-l2",
+          "seed": 466
+        },
+        {
+          "task_id": "workarena.servicenow.off-board-user-l2",
+          "seed": 466
+        },
+        {
+          "task_id": "workarena.servicenow.on-board-user-l2",
+          "seed": 466
+        }
+      ]
+    },
+    "webarena_verified": {
+      "selected_task_ids": [
+        580,
+        582,
+        595,
+        600,
+        605,
+        610,
+        615,
+        630,
+        436,
+        506,
+        510,
+        531,
+        573,
+        588,
+        794,
+        423,
+        459,
+        470,
+        486,
+        491,
+        543,
+        441,
+        447,
+        475,
+        480,
+        567,
+        593,
+        661,
+        666,
+        742
+      ]
+    },
+    "visualwebarena": {
+      "selected_task_ids": [
+        32,
+        45,
+        59,
+        73,
+        88,
+        103,
+        157,
+        208,
+        268,
+        275,
+        303,
+        314,
+        318,
+        394,
+        405,
+        428,
+        487,
+        495,
+        529,
+        543,
+        550,
+        597,
+        604,
+        625,
+        633,
+        635,
+        657,
+        697,
+        708,
+        714
+      ]
+    },
+    "warc_bench": {
+      "selected_tasks": [
+        {
+          "task_id": "online.4",
+          "site": "Alaska Airlines",
+          "goal": "Select March 21 2025 as the departing date",
+          "interaction_class": "date_picker",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/alaska_airlines/alaska_airlines_flight_booking.wacz"
+        },
+        {
+          "task_id": "online.6",
+          "site": "Alaska Airlines",
+          "goal": "Set the adults count to 3 and add 1 child of age 14",
+          "interaction_class": "passenger_picker",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/alaska_airlines/alaska_airlines_flight_booking.wacz"
+        },
+        {
+          "task_id": "online.7",
+          "site": "Alaska Airlines",
+          "goal": "Continue filling the search form using one way, use miles, and MVP Gold 75K upgrade options",
+          "interaction_class": "form_controls",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/alaska_airlines/alaska_airlines_flight_booking.wacz"
+        },
+        {
+          "task_id": "online.8",
+          "site": "Alaska Airlines",
+          "goal": "Swap the From and To airports in one step",
+          "interaction_class": "compound_control",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/alaska_airlines/alaska_airlines_flight_booking.wacz"
+        },
+        {
+          "task_id": "online.9",
+          "site": "Zendesk",
+          "goal": "Display only tickets with open status and keep the filter dropdown open",
+          "interaction_class": "filter_dropdown",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/zendesk/zendesk_home.wacz"
+        },
+        {
+          "task_id": "online.12",
+          "site": "Zendesk",
+          "goal": "Write “Thank you for your business.” and bold it in the reply editor",
+          "interaction_class": "rich_text_editor",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/zendesk/zendesk_ticket.wacz"
+        },
+        {
+          "task_id": "online.13",
+          "site": "Zendesk",
+          "goal": "Change the ticket type to Task",
+          "interaction_class": "record_form_dropdown",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/zendesk/zendesk_ticket.wacz"
+        },
+        {
+          "task_id": "online.14",
+          "site": "Zendesk",
+          "goal": "Add a ticket with type Question, topic Delivery, normal priority, assignee Michael S, and tag speedup; leave everything else blank",
+          "interaction_class": "complex_form",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/zendesk/zendesk_home.wacz"
+        },
+        {
+          "task_id": "online.17",
+          "site": "American Airlines",
+          "goal": "Sort the main cabin ticket price in descending order",
+          "interaction_class": "sort_control",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/american_airlines/american_airlines_flights.wacz"
+        },
+        {
+          "task_id": "online.20",
+          "site": "GitHub",
+          "goal": "Select neftune from the branch dropdown menu",
+          "interaction_class": "searchable_dropdown",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/github/github_1.wacz"
+        },
+        {
+          "task_id": "online.23",
+          "site": "GitHub",
+          "goal": "Filter my repositories by programming language so only TypeScript repositories remain",
+          "interaction_class": "multi_filter",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/github/github_1.wacz"
+        },
+        {
+          "task_id": "online.26",
+          "site": "GitHub",
+          "goal": "Find 0000_snapshot.json in the migrations folder using only directory-tree down arrows",
+          "interaction_class": "tree_navigation",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/github/github_2.wacz"
+        },
+        {
+          "task_id": "online.27",
+          "site": "GitHub",
+          "goal": "Display only commits made by me for 0000_snapshot.json",
+          "interaction_class": "history_filter",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/github/github_2.wacz"
+        },
+        {
+          "task_id": "online.28",
+          "site": "GitHub",
+          "goal": "Select the option to add a README to a new repository",
+          "interaction_class": "repository_form",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/github/github_2.wacz"
+        },
+        {
+          "task_id": "online.29",
+          "site": "GitHub",
+          "goal": "Mark a new repository as private",
+          "interaction_class": "repository_form",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/github/github_2.wacz"
+        },
+        {
+          "task_id": "online.30",
+          "site": "GitHub",
+          "goal": "Add the highest available version of the GNU license to a new repository",
+          "interaction_class": "searchable_dropdown",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/github/github_2.wacz"
+        },
+        {
+          "task_id": "online.44",
+          "site": "NetSuite",
+          "goal": "Remove the Billing Links widget from the dashboard",
+          "interaction_class": "dashboard_widget",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/netsuite_samsara/netsuite_samsara_billing.wacz"
+        },
+        {
+          "task_id": "online.51",
+          "site": "Airbnb",
+          "goal": "Select 4 guests and 1 pet, leave the dropdown open, and do not submit",
+          "interaction_class": "counter_dropdown",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/airbnb/airbnb_search.wacz"
+        },
+        {
+          "task_id": "online.55",
+          "site": "Wellcare",
+          "goal": "Select MD as the degree type",
+          "interaction_class": "custom_dropdown",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/wellcare/wellcare_form.wacz"
+        },
+        {
+          "task_id": "online.57",
+          "site": "Wellcare",
+          "goal": "Select Neurology as specialty from the dropdown list",
+          "interaction_class": "custom_dropdown",
+          "eval_type": "js_matcher",
+          "data_path": "environments/web_archives/wellcare/wellcare_form.wacz"
+        }
+      ]
+    }
+  }
+}

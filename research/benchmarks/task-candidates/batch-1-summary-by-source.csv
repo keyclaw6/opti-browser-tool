@@ -1,0 +1,6 @@
+source,candidate_count,public_benchmark_reference_percent,score_scope
+REAL,30,41.0,benchmark aggregate; task calibration required
+WorkArena++ L2,30,69.4,benchmark aggregate; task calibration required
+WebArena-Verified,30,53.7,benchmark aggregate; task calibration required
+VisualWebArena,30,58.3,benchmark aggregate; task calibration required
+WARC-Bench,20,64.8,benchmark aggregate; task calibration required

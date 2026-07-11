@@ -24,3 +24,11 @@ Build a versioned candidate pool of roughly 200–250 tasks using the proposed a
 - replacement pool;
 - separate regression and hidden-holdout protocols; and
 - validation results from a known working harness.
+
+## Task candidate batches
+
+- [Batch 1 report](task-candidates/batch-1-report.md)
+- [Batch 1 candidate CSV](task-candidates/batch-1-candidates.csv)
+- [Batch 1 machine-readable JSONL](task-candidates/batch-1-candidates.jsonl)
+
+Batch 1 is provisional. Benchmark-level scores are used only for sourcing; task-level calibration is required under ADR-0010.

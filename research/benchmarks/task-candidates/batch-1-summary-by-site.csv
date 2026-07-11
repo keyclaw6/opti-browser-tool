@@ -1,0 +1,27 @@
+source,site,candidate_count
+REAL,dashdish,3
+REAL,fly-unified,3
+REAL,gocalendar,3
+REAL,gomail,2
+REAL,networkin,4
+REAL,omnizon,4
+REAL,opendining,3
+REAL,staynb,3
+REAL,topwork,2
+REAL,udriver,2
+REAL,zilloft,1
+WorkArena++ L2,ServiceNow,30
+WebArena-Verified,gitlab,9
+WebArena-Verified,reddit,8
+WebArena-Verified,shopping,7
+WebArena-Verified,shopping_admin,6
+VisualWebArena,classifieds,8
+VisualWebArena,reddit,8
+VisualWebArena,shopping,14
+WARC-Bench,Airbnb,1
+WARC-Bench,Alaska Airlines,4
+WARC-Bench,American Airlines,1
+WARC-Bench,GitHub,7
+WARC-Bench,NetSuite,1
+WARC-Bench,Wellcare,2
+WARC-Bench,Zendesk,4

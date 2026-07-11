@@ -388,3 +388,9 @@ The recommendation should be revised if:
 ## Research conclusion
 
 Proceed to task-level inventory using the proposed 20/20/15/20/10/10/5 allocation, but keep ADR-0008 in **Proposed** status. The next legitimate decision is not “accept these benchmarks wholesale”; it is whether the audited candidate pool supports an exact, runnable, verifier-sound 100-task manifest.
+
+## 2026-07-11 task-candidate update
+
+The project owner subsequently accepted a preferred task-level success band of 35–70% under a current strong reproducible system (ADR-0010). A 140-task provisional candidate inventory has therefore been exported from five sources whose recent benchmark-level aggregate results fall inside that band: REAL v1, WorkArena++ L2, WebArena-Verified, VisualWebArena, and WARC-Bench.
+
+The aggregate score is only a source-screening proxy. None of the 140 tasks is represented as having a known task-level rate. Every task is marked for local calibration before final-suite admission. The exact inventory and rationale are in [`task-candidates/batch-1-report.md`](task-candidates/batch-1-report.md).

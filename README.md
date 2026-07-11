@@ -2,7 +2,7 @@
 
 Research infrastructure for discovering which browser-agent harness designs produce the most reliable computer and browser use.
 
-**Repository status:** the first benchmark-source research pass is complete and task-level evaluation-suite construction is next. The project charter and the nesting of the smoke suite inside the primary suite are accepted. The benchmark source portfolio and regression-seeding policy are proposed but not accepted. No browser backend, control library, lane architecture, trace store, experiment gate, or detailed live-site operating policy has been selected yet.
+**Repository status:** benchmark-source research has produced a first exact candidate batch of 140 tasks, but no task has entered the frozen evaluation suite. The next gate is task-level calibration and verifier/environment auditing under the accepted 35–70% difficulty band. The project charter, nested smoke-suite rule, and task-difficulty band are accepted. The benchmark source portfolio and regression-seeding policy remain proposed. No browser backend, control library, lane architecture, trace store, experiment gate, or detailed live-site operating policy has been selected yet.
 
 ## Mission
 
@@ -15,7 +15,7 @@ Task success and repeatability come first. Time, tokens, cost, action count, ret
 The project will not start the outer optimization loop until four prerequisite workstreams are complete enough to support trustworthy experiments:
 
 1. **Harness landscape and baseline selection.** Study existing browser-agent implementations, including the repositories collected for this project. Extract their browser/control stack, observation and action interfaces, recovery methods, instrumentation, and known tradeoffs. Turn those findings into falsifiable hypotheses and select the first baseline only after review.
-2. **Evaluation-suite construction.** Audit relevant benchmarks and tasks by failure-mode coverage. Build an approximately 100-task primary suite containing a nested 20-task smoke subset. Define regression and hidden-holdout handling separately. Verify the selected tasks by running them through a known working harness before treating the suite as valid. The current benchmark-level shortlist is recorded under `research/benchmarks/`, but exact task IDs are not yet selected.
+2. **Evaluation-suite construction.** Audit relevant benchmarks and tasks by failure-mode coverage. Build an approximately 100-task primary suite containing a nested 20-task smoke subset. Define regression and hidden-holdout handling separately. Batch 1 records 140 exact provisional candidates under `research/benchmarks/task-candidates/`; none is admitted until its environment, verifier, and task-level strong-system success rate are calibrated.
 3. **Verifier and judge construction.** Prefer deterministic state verifiers, define the evidence available to each judge, calibrate the judge panel on labeled traces, and test false-positive, false-negative, disagreement, and evaluator-gaming cases.
 4. **Research-loop integration.** Reuse the proven loop structure from `neosigmaai/auto-harness` and the trace-driven, falsifiable change process from `china-qijizhifeng/agentic-harness-engineering`, then add the browser-specific observability, implementation-audit, and evaluator safeguards required here.
 
@@ -23,11 +23,11 @@ These workstreams are described in `docs/PRE_RESEARCH_WORKSTREAMS.md`. They are 
 
 ## Decision discipline
 
-ADR-0001 (project constitution) and ADR-0007 (the smoke suite is a subset of the primary suite) are accepted. ADR-0002 through ADR-0006 remain open. ADR-0008 (benchmark sources) and ADR-0009 (regression seeding and promotion) are proposed and are not binding until explicitly accepted.
+ADR-0001 (project constitution), ADR-0007 (the smoke suite is a subset of the primary suite), and ADR-0010 (prioritize tasks with 35–70% task-level success under a strong reproducible reference system) are accepted. ADR-0002 through ADR-0006 remain open. ADR-0008 (benchmark sources) and ADR-0009 (regression seeding and promotion) are proposed and are not binding until explicitly accepted.
 
 See `docs/DECISION_PROCESS.md` and `docs/DECISION_REGISTER.md`.
 
-The current benchmark evidence and proposed source allocation are in [`research/benchmarks/2026-07-11-benchmark-source-selection-report.md`](research/benchmarks/2026-07-11-benchmark-source-selection-report.md).
+The benchmark evidence and proposed source allocation are in [`research/benchmarks/2026-07-11-benchmark-source-selection-report.md`](research/benchmarks/2026-07-11-benchmark-source-selection-report.md). The exact Batch 1 inventory and its evidence limitations are in [`research/benchmarks/task-candidates/batch-1-report.md`](research/benchmarks/task-candidates/batch-1-report.md) and [`batch-1-index.md`](research/benchmarks/task-candidates/batch-1-index.md).
 
 ## Repository map
 
