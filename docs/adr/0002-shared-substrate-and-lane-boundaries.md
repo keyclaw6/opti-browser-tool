@@ -17,6 +17,8 @@ Each lane owns its observation compiler, action vocabulary, prompt/policy, plann
 
 The executor receives only capabilities declared by its lane. Shared instrumentation may collect richer data for judges without exposing it to the executor.
 
+Do not use long-lived Git branches as the primary lane boundary. Keep lanes in explicit directories or packages, pin every experiment to a commit and configuration, and use short-lived branches for reviewable changes. Long-lived lane branches would drift in shared evaluator and trace code and weaken comparisons.
+
 ## Alternatives considered
 
 - Separate repositories per lane: clearer isolation but high duplication and weak comparability.
