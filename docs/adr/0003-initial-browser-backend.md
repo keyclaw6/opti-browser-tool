@@ -1,30 +1,37 @@
 # ADR-0003: Initial browser backend and action mechanisms
 
-- Status: Proposed
-- Date proposed: 2026-07-11
+- Status: Open
+- Date opened: 2026-07-11
+- Approval state: Not accepted
 
-## Context
+## Question
 
-The first backend must support difficult interfaces, detailed instrumentation, reproducible sessions, and later cross-browser comparison. Native pointer and keyboard events may behave differently from DOM-triggered actions.
+Which existing browser, automation substrate, or browser-agent harness should form the first runnable baseline, and which action mechanisms should it expose?
 
-## Decision
+## Current position
 
-Start research execution on Chromium through Playwright, with Chrome DevTools Protocol instrumentation where Playwright does not expose sufficient observability. Put both behind a browser-neutral session interface.
+No browser backend or control library is preferred. In particular, Playwright is not selected as the default starting point merely because it is familiar or well instrumented.
 
-Treat `native`, `playwright`, and `dom` as explicit action mechanisms recorded in every action event. Do not silently convert one mechanism into another. A policy may request a fallback, but the trace must preserve the attempted mechanism, failure, fallback decision, and final mechanism.
+The first choice must follow a structured review of current browser-agent harnesses and the repositories collected for this project. The project may adopt an existing harness, reuse selected components, or build a thin experimental layer over a lower-level browser interface. That outcome remains open.
 
-Provide a backend capability manifest so tests can declare requirements without assuming Chromium. Add Firefox and WebKit adapters only after the vertical slice is stable.
+## Research required
 
-## Alternatives considered
+For each serious candidate, record and compare:
 
-- Selenium first: broad ecosystem, weaker integrated tracing for this research use.
-- Raw CDP first: maximal control, excessive early implementation surface and Chromium lock-in.
-- OS-level automation only: human-like input, but poor deterministic state management and slower debugging.
+- browser engine and control layer;
+- structured, accessibility, screenshot, and multimodal observations;
+- DOM-triggered, protocol-level, and native pointer/keyboard actions;
+- tabs, frames, downloads, dialogs, login, and persistent sessions;
+- dynamic-page and stale-reference handling;
+- recovery behavior and action verification;
+- tracing, network, console, and browser-state observability;
+- cross-browser support and transfer;
+- benchmark integration and reproducibility;
+- implementation maturity, maintenance, extensibility, and license; and
+- known failure modes or evidence from published evaluations.
 
-## Consequences
+The review should produce falsifiable hypotheses, not only a feature checklist. Small comparison tests should then target the differences predicted to matter.
 
-Chromium is a research baseline, not a declared final production browser. Cross-browser compatibility remains an explicit later test. The action mechanism becomes an experimental variable rather than an implementation detail.
+## Decision gate
 
-## Validation and revisit trigger
-
-Validate on tasks involving popups, scrolling, dynamic updates, tabs, forms, content-editable fields, failed clicks, and session state. Revisit if Playwright materially interferes with native behavior or cannot capture required evidence.
+A first-baseline decision memo must name the evidence, alternatives, hypotheses, expected advantages, likely regressions, and the minimum test needed to reconsider the choice. Explicit project approval is required before implementation treats any backend as the baseline.

@@ -1,31 +1,30 @@
 # ADR-0006: Live-site testing isolation and safety
 
-- Status: Proposed
-- Date proposed: 2026-07-11
+- Status: Open
+- Date opened: 2026-07-11
+- Approval state: Not accepted
 
-## Context
+## Question
 
-Real social and dynamic platforms are important, but they create account, privacy, policy, nondeterminism, and irreversible-side-effect risks that ordinary benchmark replicas do not.
+What detailed operating policy, account isolation, evidence handling, side-effect controls, and incident process are required before testing on permitted live platforms?
 
-## Decision
+## Accepted constraints from the charter
 
-Keep live-site suites outside default CI and require an explicit opt-in profile. Use permitted accounts, documented platform constraints, isolated browser profiles, secret references instead of embedded credentials, and task-specific side-effect allowlists.
+Live-platform testing must use permitted accounts, respect platform rules and access controls, protect credentials and sensitive data from model-visible traces, and explicitly control destructive or externally visible actions.
 
-Prefer dedicated test communities, drafts, private messages to controlled accounts, and reversible changes. Posting publicly, sending unsolicited messages, changing security settings, purchasing, deleting user data, or bypassing access controls is prohibited unless a separately reviewed task explicitly authorizes the exact action and provides safe cleanup.
+Those constraints do not yet settle the implementation policy.
 
-Redact credentials, private messages, personal identifiers, session tokens, and sensitive screenshots before judge or optimizer access. Keep raw restricted artifacts under a separate retention and access policy.
+## Candidate controls to investigate
 
-Each task defines setup, permitted side effects, forbidden actions, teardown, and a maximum impact tier. A failed or interrupted teardown is surfaced as a safety incident, not hidden as a normal task failure.
+Possible controls include isolated profiles, secret references rather than embedded credentials, task-specific side-effect allowlists, reversible/private actions, separate live-site reporting, teardown checks, redaction, restricted artifact storage, and explicit incident classification.
 
-## Alternatives considered
+## Research required
 
-- Treat live sites like ordinary benchmarks: operationally convenient but unsafe and irreproducible.
-- Avoid live sites entirely: safer but misses compatibility and session-state failures central to the research goal.
+- Review the operational and safety practices of existing live-site browser-agent projects and benchmarks.
+- Define task impact tiers, authorization boundaries, teardown guarantees, and prohibited actions.
+- Decide how account state, rate limits, policy changes, and nondeterminism affect evaluation validity.
+- Test credential redaction and failure containment on a non-public or replica environment before any live pilot.
 
-## Consequences
+## Decision gate
 
-Live results are reported separately from deterministic replicas. Some tasks require human account preparation or review. Safety and platform-policy violations cannot be traded for higher task success.
-
-## Validation and revisit trigger
-
-Run an initial pilot only on reversible, private actions. Revisit after the project has proven credential redaction, teardown, and incident reporting.
+No live-site task may run until the detailed policy, account plan, artifact controls, and incident procedure are explicitly approved.

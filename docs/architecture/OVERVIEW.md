@@ -1,5 +1,9 @@
 # Architecture Overview
 
+## Status
+
+Provisional problem decomposition only. It does not select a browser backend, control library, repository structure, or implementation architecture. Relevant ADRs remain open.
+
 ## System layers
 
 ```text

@@ -24,7 +24,7 @@
   "baseline_ref": "harness@baseline-0001",
   "fixed_variables": {
     "executor_model": "exact-model-id-required",
-    "browser": "chromium",
+    "browser": "exact-browser-backend-and-version-required",
     "task_versions": "locked"
   },
   "predicted_improvements": [

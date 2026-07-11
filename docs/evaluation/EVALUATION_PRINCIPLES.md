@@ -1,5 +1,9 @@
 # Evaluation Principles
 
+## Status
+
+Draft principles derived from the project charter. Exact suite composition, thresholds, repeat counts, judge models, and experiment gates remain open.
+
 ## Unit of evaluation
 
 A run is a versioned tuple of task, task environment, lane, harness revision, executor model and settings, browser backend and version, observation policy, action policy, seed or replicate identifier, and verifier version.

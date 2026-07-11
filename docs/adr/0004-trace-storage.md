@@ -1,32 +1,26 @@
 # ADR-0004: Trace event log and artifact storage
 
-- Status: Proposed
-- Date proposed: 2026-07-11
+- Status: Open
+- Date opened: 2026-07-11
+- Approval state: Not accepted
 
-## Context
+## Question
 
-Browser runs produce structured events and large binary artifacts. The project needs exact reconstruction, efficient cross-run analysis, privacy controls, and schema evolution.
+What trace and artifact representation will let the project reconstruct runs, analyze failures, protect restricted evidence, and compare different browser harnesses without excessive complexity?
 
-## Decision
+## Candidate direction under consideration
 
-Make an append-only JSONL event stream the canonical trace. Store screenshots, DOM/accessibility snapshots, Playwright traces, HAR files, console logs, network summaries, and video as immutable content-addressed artifacts referenced from events.
+A possible design is an append-oriented structured event stream with separately stored screenshots, browser traces, DOM or accessibility snapshots, network records, console logs, video, and other artifacts. Visibility metadata could separate executor-visible evidence from judge-only or restricted evidence. Analytical indexes could be derived from the canonical trace.
 
-Build derived DuckDB/Parquet indexes for analysis and dashboards. Derived stores are disposable; the event stream and referenced artifacts are authoritative.
+JSONL, content-addressed artifacts, DuckDB, Parquet, Playwright traces, HAR, CDP events, and equivalent formats are candidates rather than accepted choices.
 
-Every event includes a schema version, run and event identifiers, sequence and timestamps, actor, visibility class, browser-state epoch, payload, artifact references, and redaction metadata.
+## Research required
 
-Separate visibility classes include `executor`, `judge`, `orchestrator`, and `secret`. Executor prompts are constructed only from `executor`-visible events and artifacts.
+- Inspect trace formats and debuggers used by existing browser harnesses and the two reference auto-research projects.
+- Derive concrete replay and diagnosis requirements from the candidate evaluation tasks.
+- Compare streaming, partial-failure recovery, schema evolution, queryability, storage cost, redaction, and cross-browser neutrality.
+- Prototype only the minimum needed to validate synchronized model, action, browser-state, verifier, and infrastructure evidence.
 
-## Alternatives considered
+## Decision gate
 
-- One large JSON document per run: simple but fragile for streaming and partial failures.
-- Database-only canonical storage: queryable but harder to inspect, migrate, and recover.
-- Playwright trace as the sole trace: valuable but insufficient for model calls, judge evidence, and backend neutrality.
-
-## Consequences
-
-Trace volume will be substantial, so retention and compression policies are required. Canonical traces remain human-inspectable. Debug data can be collected without accidentally becoming executor-visible.
-
-## Validation and revisit trigger
-
-A replay/debug tool must locate the browser state before and after an action, connect it to the relevant model observation, and identify missing or corrupted artifacts. Revisit if JSONL throughput or schema migration becomes a bottleneck.
+Select the canonical trace only after the baseline candidates and bring-up task requirements are understood. Explicit project approval is required.

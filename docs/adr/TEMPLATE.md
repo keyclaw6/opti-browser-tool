@@ -1,17 +1,18 @@
 # ADR-NNNN: Title
 
-- Status: Proposed
-- Date proposed: YYYY-MM-DD
+- Status: Open
+- Date opened: YYYY-MM-DD
+- Date proposed: —
 - Date accepted: —
 - Supersedes: —
 - Superseded by: —
 
-## Context
+## Question
 
-## Decision
+## Candidate directions
 
-## Alternatives considered
+## Evidence required
 
-## Consequences
+## Decision gate
 
-## Validation and revisit trigger
+<!-- When accepted, add: Decision, Alternatives considered, Consequences, Validation, and Revisit triggers. -->

@@ -1,36 +1,30 @@
 # ADR-0005: Experiment validity and acceptance gate
 
-- Status: Proposed
-- Date proposed: 2026-07-11
+- Status: Open
+- Date opened: 2026-07-11
+- Approval state: Not accepted
 
-## Context
+## Question
 
-A treatment can appear ineffective because it was not activated, can appear effective because of environment drift, and can improve aggregate score while causing important regressions.
+What sequence of implementation checks, evaluations, regression tests, repeats, and holdout tests is strong enough to accept or reject a harness change without confusing noise, broken implementation, or evaluator error with research evidence?
 
-## Decision
+## Source ideas to adapt
 
-Every experiment is paired with an immutable baseline configuration and passes these stages:
+`neosigmaai/auto-harness` supplies a useful benchmark → analyze → improve → gate → record → learn structure with regression promotion. `china-qijizhifeng/agentic-harness-engineering` supplies trace-driven diagnosis, constrained component changes, implementation activation concerns, predicted task flips, and change attribution.
 
-1. **Manifest validation:** hypothesis, evidence, predicted improvements, regression risks, fixed variables, task selector, repeats, budget, and acceptance criteria are complete before evaluation.
-2. **Implementation audit:** changed components are present, loaded, reachable, and exercised by at least one audit or smoke task. Failure here makes the experiment `invalid`.
-3. **Smoke gate:** deterministic fast tasks detect broken setup, browser launch, tracing, action dispatch, and verifier wiring.
-4. **Regression gate:** critical tasks have zero tolerance; the broader regression suite uses an explicitly versioned threshold.
-5. **Main paired evaluation:** baseline and treatment run under matched environment conditions with repeats appropriate to task instability.
-6. **Holdout gate:** used only for candidates that pass visible gates; optimizing agents receive scores and limited diagnostics, not holdout traces.
-7. **Decision:** `accepted`, `rejected`, `inconclusive`, or `invalid`.
+The browser project will reuse these ideas, but their exact gate is not yet selected. Browser tasks introduce extra issues including dynamic state, failed clicks, session loss, screenshots, action-mechanism fallbacks, and evaluator visibility boundaries.
 
-Primary acceptance is based on task success. Efficiency can break ties or reject pathological waste among treatments with comparable reliability. Infrastructure-affected runs are rerun or excluded under a predeclared policy.
+## Candidate stages to investigate
 
-## Alternatives considered
+Potential stages include manifest validation, implementation activation audit, smoke tests, regression checks, paired primary evaluation, hidden holdout, infrastructure classification, and a result category such as accepted, rejected, inconclusive, or invalid. These remain candidates pending calibration.
 
-- Accept any higher mean score: fast but highly vulnerable to noise and regressions.
-- Require every metric to improve: overly strict and blocks reliability gains.
-- Let an LLM judge choose globally: weak reproducibility and hard-to-audit incentives.
+## Research required
 
-## Consequences
+- Map the two reference projects' gates and records into browser-specific requirements.
+- Measure variance and infrastructure failure on the validated bring-up set before setting thresholds or repeats.
+- Inject disabled changes, broken tools, targeted regressions, evaluator false positives, and infrastructure failures to test classification.
+- Decide how the 10–20-task smoke suite, approximately 100-task primary suite, regression suite, and holdout interact.
 
-Early iterations cost more but produce interpretable evidence. Acceptance thresholds must be calibrated after baseline variance is measured rather than invented once and treated as universal.
+## Decision gate
 
-## Validation and revisit trigger
-
-Validate by injecting a treatment that is present but disabled, an infrastructure failure, a targeted improvement with a known regression, and an evaluator false positive. The gate should classify each correctly.
+Approve the gate only after it correctly handles known synthetic and real failure cases on the bring-up infrastructure. Explicit project approval is required.

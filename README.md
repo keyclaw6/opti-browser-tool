@@ -2,7 +2,7 @@
 
 Research infrastructure for discovering which browser-agent harness designs produce the most reliable computer and browser use.
 
-**Repository status:** groundwork. The project charter is accepted from the initiating brief. Technical choices not explicitly accepted are recorded as proposals, not as settled policy.
+**Repository status:** pre-research groundwork. The project charter is accepted. No browser backend, control library, lane architecture, trace store, experiment gate, or detailed live-site operating policy has been selected yet.
 
 ## Mission
 
@@ -10,38 +10,35 @@ Optimize the complete harness around a mostly fixed language model so that an ag
 
 Task success and repeatability come first. Time, tokens, cost, action count, retries, and latency are measured to explain behavior and compare equally reliable systems; lower cost does not compensate for lower reliability.
 
-## First milestone
+## Work required before auto-research begins
 
-Build a trustworthy auto-research substrate before attempting a final hybrid browser agent. The milestone is complete when the project can:
+The project will not start the outer optimization loop until four prerequisite workstreams are complete enough to support trustworthy experiments:
 
-1. run a versioned browser task against an immutable baseline and a treatment;
-2. emit synchronized, replayable traces and browser artifacts;
-3. verify completion without trusting the executor's claim;
-4. distinguish executor failure, browser/tool failure, evaluator failure, and invalid implementation;
-5. gate a proposed change through smoke, regression, main-suite, and holdout evaluation; and
-6. record a falsifiable experiment and its result for the next research iteration.
+1. **Harness landscape and baseline selection.** Study existing browser-agent implementations, including the repositories collected for this project. Extract their browser/control stack, observation and action interfaces, recovery methods, instrumentation, and known tradeoffs. Turn those findings into falsifiable hypotheses and select the first baseline only after review.
+2. **Evaluation-suite construction.** Audit relevant benchmarks and tasks by failure-mode coverage. Build a provisional 20-task bring-up set, then a stable 10–20-task smoke suite and an approximately 100-task primary suite. Define regression and hidden-holdout handling separately. Verify the selected tasks by running them through a known working harness before treating the suite as valid.
+3. **Verifier and judge construction.** Prefer deterministic state verifiers, define the evidence available to each judge, calibrate the judge panel on labeled traces, and test false-positive, false-negative, disagreement, and evaluator-gaming cases.
+4. **Research-loop integration.** Reuse the proven loop structure from `neosigmaai/auto-harness` and the trace-driven, falsifiable change process from `china-qijizhifeng/agentic-harness-engineering`, then add the browser-specific observability, implementation-audit, and evaluator safeguards required here.
 
-## Research lanes
-
-- **Visual-first:** screenshots and visible state are primary.
-- **Terminal/CLI:** concise observations and a compact command language are primary.
-- **Hybrid:** deferred until the first two lanes have credible independent baselines.
-
-The lanes share task, trace, metric, verifier, and experiment contracts but keep their observation and action policies separate.
+These workstreams are described in `docs/PRE_RESEARCH_WORKSTREAMS.md`. They are planning boundaries, not completed research.
 
 ## Decision discipline
 
-Accepted decisions live in `docs/adr/`. Proposals remain marked `Proposed` until explicitly accepted. See `docs/DECISION_PROCESS.md` and `docs/DECISION_REGISTER.md`.
+Only ADR-0001, the project constitution, is accepted. ADR-0002 through ADR-0006 are open questions and contain candidate directions or research requirements only. Nothing in an open ADR is active policy until explicitly accepted.
+
+See `docs/DECISION_PROCESS.md` and `docs/DECISION_REGISTER.md`.
 
 ## Repository map
 
 ```text
-docs/adr/                 accepted and proposed architecture decisions
-docs/architecture/        shared system design
-docs/evaluation/          evaluation and gating rules
-docs/safety/              permitted live-site testing policy
-schemas/                  draft machine-readable contracts
-examples/                 example task and experiment records
+docs/adr/                    accepted and open architecture decisions
+docs/architecture/           provisional problem decomposition
+docs/evaluation/             evaluation principles and suite planning
+docs/PRE_RESEARCH_WORKSTREAMS.md
+research/harnesses/           future harness surveys and hypotheses
+research/benchmarks/          future benchmark and task reviews
+research/judges/              future verifier and judge studies
+schemas/                      draft machine-readable contracts
+examples/                     example task and experiment records
 ```
 
 ## Reference projects
@@ -49,4 +46,4 @@ examples/                 example task and experiment records
 - `neosigmaai/auto-harness`: benchmark → analyze → improve → gate → record → learnings.
 - `china-qijizhifeng/agentic-harness-engineering`: trace-first observability, component-level evolution, change manifests, and falsifiable predictions.
 
-See `docs/REFERENCES.md` for the ideas adopted and the differences required for browser agents.
+See `docs/REFERENCES.md` for the ideas to reuse and the browser-specific additions under consideration.

@@ -1,8 +1,10 @@
-# Live-Site Testing Policy
+# Draft Live-Site Testing Controls
 
-This policy applies to Reddit, Facebook, LinkedIn, and other real platforms.
+**Status:** draft only. ADR-0006 is open. No live-site task is authorized by this document.
 
-## Required controls
+The project charter already requires permitted accounts, respect for platform rules and access controls, protection of credentials and sensitive data, and explicit control of destructive or externally visible actions. The detailed controls below are candidates for later review.
+
+## Candidate controls
 
 - The account is owned or explicitly permitted for testing.
 - The task records platform, account alias, environment, permitted side effects, forbidden actions, teardown, and data-retention class.
@@ -11,10 +13,12 @@ This policy applies to Reddit, Facebook, LinkedIn, and other real platforms.
 - Public or irreversible side effects are disabled by default.
 - A task cannot bypass authentication, rate limits, access controls, CAPTCHAs, or platform restrictions.
 
-## Preferred test design
+## Candidate test design
 
-Use reversible changes, drafts, private test groups, controlled recipient accounts, and synthetic content. Verify cleanup. Report live-site results separately because the environment is not fully reproducible.
+Prefer reversible changes, drafts, private test groups, controlled recipient accounts, and synthetic content. Verify cleanup. Report live-site results separately because the environment is not fully reproducible.
 
-## Incident conditions
+## Candidate incident conditions
 
-Unexpected external communication, public posting, purchase, account lockout, credential exposure, privacy leakage, failed cleanup, or action outside the allowlist is a safety incident. Stop the affected run, preserve restricted evidence, and do not classify it as an ordinary executor failure.
+Unexpected external communication, public posting, purchase, account lockout, credential exposure, privacy leakage, failed cleanup, or action outside the allowlist should be treated as a safety incident rather than an ordinary executor failure.
+
+These controls must be researched, tested in a safe environment, and explicitly approved before live-site execution.

@@ -1,31 +1,60 @@
 # Roadmap
 
-## Phase 0 — Alignment and contracts
+This roadmap deliberately separates the prerequisites for trustworthy research from the later auto-research loop. Phases 1–3 may overlap where useful, but none should be treated as complete without its review gate.
 
-Accept or amend ADRs 0002–0006. Finalize versioned task, experiment, trace-event, and result contracts. Choose repository visibility and license. Define benchmark-source inventory and task-selection rubric.
+## Phase 0 — Repository and alignment groundwork
 
-Exit criterion: two people can read the same experiment record and agree on what is fixed, what changes, what evidence is allowed, and how the result will be classified.
+Record the charter, decision process, open decisions, research workstreams, draft contracts, and terminology. Keep technical choices open unless explicitly approved.
 
-## Phase 1 — Minimal vertical slice
+Exit criterion: the repository clearly distinguishes accepted constraints, open questions, future research, and implementation work.
 
-Implement one browser backend, deterministic environment reset, artifact recording, one visual observation adapter, one CLI observation adapter, explicit action mechanisms, deterministic verifiers, and a small smoke suite.
+## Phase 1 — Existing-harness research and first-baseline decision
 
-Start with approximately 12–20 tasks chosen to exercise popups, dynamic updates, scrolling, tabs, forms, content-editable controls, stale references, and recovery. Do not begin with a 100-task suite or uncontrolled live sites.
+Inventory the browser-agent repositories collected for this project and other directly relevant implementations. Review each with a common rubric covering browser and control substrate, observation format, action mechanism, vision/DOM/accessibility use, native input, state handling, recovery, instrumentation, evaluation, maintenance, and licensing.
 
-Exit criterion: the same versioned tasks run through both lanes, traces replay coherently, evaluator mistakes can be detected, and implementation activation can be audited.
+Produce:
 
-## Phase 2 — Credible baseline suite
+- a sourced harness inventory;
+- comparable architecture summaries;
+- reusable implementation ideas;
+- explicit failure and tradeoff hypotheses;
+- a shortlist of candidate starting points; and
+- a decision memo for the first baseline.
 
-Audit candidate benchmarks and licenses, select roughly 100 difficult interaction tasks by failure-mode coverage, measure instability, create hidden holdout handling, and establish baseline distributions.
+Exit criterion: the first baseline recommendation is supported by evidence and testable hypotheses, then explicitly approved. No backend is selected before this gate.
 
-Exit criterion: task coverage and variance are understood well enough to predeclare meaningful acceptance gates.
+## Phase 2 — Evaluation-suite design and validation
 
-## Phase 3 — Auto-research loop
+Audit candidate benchmarks and individual tasks. Select tasks by interaction difficulty and failure-mode coverage rather than random sampling or benchmark reputation alone.
 
-Add trace summarization, root-cause clustering, hypothesis generation, constrained implementation, activation audit, paired scheduling, gating, experiment ledger, and learning updates.
+Build the evaluation layers in this order:
 
-Exit criterion: at least three consecutive research iterations are executed without manual repair of the experiment record, and accepted changes survive regression plus holdout.
+1. a provisional **20-task bring-up set** for validating runners, reset logic, traces, and verifiers;
+2. a stable **10–20-task smoke suite**, likely drawn from the bring-up work, for fast implementation checks;
+3. an approximately **100-task primary suite** for meaningful comparisons;
+4. a separate **regression suite** that grows when previously failing cases are fixed; and
+5. a **hidden holdout** whose traces and verifier internals are not exposed to the optimizer.
 
-## Phase 4 — Expansion
+Before freezing any suite, run the selected tasks through a known working harness and confirm setup, completion conditions, verifier behavior, reproducibility, and artifact capture.
 
-Add Firefox/WebKit or other backends, permitted live-site suites, stronger recovery policies, model routing, hybrid architecture, code-generated repetitive workflows, and cross-model transfer studies.
+Exit criterion: the 20-task bring-up set works end to end; the 100-task selection and suite roles are documented; verifier defects and unstable tasks are identified rather than counted as agent failures.
+
+## Phase 3 — Verifier and judge construction
+
+Define objective browser-state measurements first. Then design specialized LLM judges only for interpretation that cannot be computed directly. Build a labeled calibration corpus containing true successes, false completion claims, near misses, tool failures, browser-state loss, judge disagreements, and intentionally misleading traces.
+
+Validate false-positive and false-negative rates, evidence sufficiency, blinding, independence, adjudication, and resistance to evaluator gaming.
+
+Exit criterion: the panel reliably distinguishes completion, process quality, root cause, implementation failure, and infrastructure failure on held-back calibration cases.
+
+## Phase 4 — Auto-research substrate integration
+
+Reuse the loop, regression, recording, and learning structure from `auto-harness`; reuse the trace-first analysis, component-level changes, activation checks, and predicted-impact manifests from `agentic-harness-engineering`; add browser-specific observation boundaries, synchronized artifacts, action-mechanism tracking, and evaluator safeguards.
+
+Integrate only enough executor functionality to prove a vertical slice against the validated bring-up set. This phase does not assume the final hybrid architecture.
+
+Exit criterion: baseline and treatment can be run, audited, judged, compared, and recorded without manual repair of the experiment record.
+
+## Phase 5 — Controlled auto-research
+
+Begin focused, falsifiable iterations on the validated suites. Promote fixed failures into regression coverage, protect the hidden holdout, and expand toward cross-browser, live-site, hybrid-routing, and cross-model studies only after the core loop is credible.
