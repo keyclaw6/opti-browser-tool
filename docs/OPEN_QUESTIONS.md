@@ -9,6 +9,6 @@ These are intentionally unresolved.
 5. Who controls the hidden holdout and private verifier definitions?
 6. Which infrastructure will host browser workers, artifact storage, and model endpoints?
 7. What budget and concurrency limits apply to baseline/treatment repeats?
-8. Which executor and judge models are approved? Exact model and API identifiers must be recorded.
+8. Which executor and judge models are approved? Initial candidates are `MiniMax-M3` and `MiMo-V2.5`; exact API identifiers and snapshots must be recorded.
 9. What retention and access rules apply to raw screenshots, HAR files, and live-site traces?
 10. What minimum evidence is required before a visual/CLI feature is eligible for the hybrid lane?
