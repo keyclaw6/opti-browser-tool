@@ -16,8 +16,10 @@ ROOT = Path(__file__).resolve().parents[1]
 EXCLUDED_DIRS = {".venv", "__pycache__", ".pytest_cache", "runs"}
 
 
-def run(command: list[str], *, cwd: Path) -> None:
-    completed = subprocess.run(command, cwd=cwd, text=True, capture_output=True, check=False)
+def run(command: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> None:
+    completed = subprocess.run(
+        command, cwd=cwd, env=env, text=True, capture_output=True, check=False
+    )
     if completed.returncode != 0:
         raise SystemExit(
             f"Command failed ({completed.returncode}): {' '.join(command)}\n"
@@ -62,9 +64,17 @@ def main() -> None:
     if status and not args.allow_dirty:
         raise SystemExit("Refusing to archive a dirty repository. Commit or use --allow-dirty.")
 
+    source_env = os.environ.copy()
+    source_env["PYTHONPATH"] = str(ROOT / "eval_harness" / "src")
+    source_env["OPTI_BROWSER_REPO_ROOT"] = str(ROOT)
     run([sys.executable, "scripts/verify_documentation.py", "--repo-root", "."], cwd=ROOT)
     run([sys.executable, "scripts/verify_repository_completeness.py", "--repo-root", "."], cwd=ROOT)
     run([sys.executable, "scripts/verify_file_manifest.py", "--repo-root", "."], cwd=ROOT)
+    run(
+        [sys.executable, "-m", "unittest", "discover", "-s", "eval_harness/tests", "-v"],
+        cwd=ROOT,
+        env=source_env,
+    )
 
     if output.exists():
         output.unlink()
@@ -83,10 +93,18 @@ def main() -> None:
         with zipfile.ZipFile(output) as archive:
             archive.extractall(tmp_path)
         extracted = tmp_path / root_name
+        extracted_env = os.environ.copy()
+        extracted_env["PYTHONPATH"] = str(extracted / "eval_harness" / "src")
+        extracted_env["OPTI_BROWSER_REPO_ROOT"] = str(extracted)
         run(["git", "fsck", "--full", "--no-dangling"], cwd=extracted)
         run([sys.executable, "scripts/verify_documentation.py", "--repo-root", "."], cwd=extracted)
         run([sys.executable, "scripts/verify_repository_completeness.py", "--repo-root", "."], cwd=extracted)
         run([sys.executable, "scripts/verify_file_manifest.py", "--repo-root", "."], cwd=extracted)
+        run(
+            [sys.executable, "-m", "unittest", "discover", "-s", "eval_harness/tests", "-v"],
+            cwd=extracted,
+            env=extracted_env,
+        )
 
     digest = sha256(output)
     sidecar = output.with_name(output.name + ".sha256")

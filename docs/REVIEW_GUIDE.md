@@ -107,4 +107,4 @@ python scripts/build_repository_archive.py \
   --bundle
 ```
 
-The builder includes `.git`, verifies the source repository, tests ZIP integrity, extracts into a fresh directory, reruns documentation/completeness/checksum/Git checks there, and writes SHA-256 sidecars.
+The builder includes `.git`, verifies the source repository, tests ZIP integrity, extracts into a fresh directory, reruns documentation, completeness, checksum, Git, and unit-test checks there, and writes SHA-256 sidecars.

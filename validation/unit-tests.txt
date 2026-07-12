@@ -3,6 +3,6 @@ test_runs_all_140_tasks (test_fixture_runner.FixtureRunnerTest.test_runs_all_140
 test_complete_repository (test_repository_validation.RepositoryValidationTest.test_complete_repository) ... ok
 
 ----------------------------------------------------------------------
-Ran 3 tests in 2.438s
+Ran 3 tests in 2.205s
 
 OK

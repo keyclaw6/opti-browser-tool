@@ -59,4 +59,4 @@ The repository is accepted as reconstructable only if all of the following pass:
 
 ## Rebuilding the complete archive
 
-Use `scripts/build_repository_archive.py` from a clean repository. It includes `.git`, verifies the source tree, extracts the ZIP into a temporary directory, reruns repository and documentation checks, and writes SHA-256 sidecars.
+Use `scripts/build_repository_archive.py` from a clean repository. It includes `.git`, verifies the source tree, extracts the ZIP into a temporary directory, reruns repository, documentation, checksum, Git, and unit-test checks, and writes SHA-256 sidecars.
