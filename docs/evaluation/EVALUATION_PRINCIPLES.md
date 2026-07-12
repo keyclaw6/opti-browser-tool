@@ -2,7 +2,7 @@
 
 ## Status
 
-Draft principles derived from the project charter. Exact suite composition, thresholds, repeat counts, judge models, and experiment gates remain open.
+Draft principles derived from the project charter. The provisional 140-task candidate pool, nested 20-task smoke set, and 35–70% calibration band are recorded, but the final suite composition, repeat counts, judge models, holdout, and experiment gates remain open.
 
 ## Unit of evaluation
 

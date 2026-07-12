@@ -1,6 +1,6 @@
 # Batch 1 exact task candidates
 
-This directory preserves the first 140 exact candidates and the source evidence used to find them. The rows are not final admissions.
+This directory preserves the first 140 exact candidate identities, textual task intents, and source evidence used to find them. The rows are not final admissions and are not complete vendored benchmark environments. See [`../../../docs/TASK_DATA_GUIDE.md`](../../../docs/TASK_DATA_GUIDE.md) for exact completeness by source.
 
 ## Accepted calibration rule
 
@@ -23,3 +23,9 @@ The candidate files predate the correction and retain a legacy field named `publ
 ## Current suite relationship
 
 All 140 candidates are present in the active provisional candidate/primary manifests. The 20 smoke tasks are nested inside them. The superseded 100-task draft is preserved under `archive/superseded/runnable-suite-v0-100/`.
+
+## Are these the actual task records?
+
+Yes. Each raw row contains the selected task's textual `task_intent`, exact upstream native ID, source version, site, evaluator metadata, rationale, audit flags, manifest locator, and checksum. The normalized runner form is under `evals/catalog/`, and the complete inclusion boundary is documented in `docs/TASK_DATA_GUIDE.md`.
+
+The upstream browser environments and source assets are not all vendored. Visual input images, website containers, WACZ archives, ServiceNow instances, accounts, and native verifier code must be resolved through the pinned source.

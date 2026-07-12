@@ -1,12 +1,13 @@
 {
   "ok": true,
   "repo_root": "/mnt/data/opti-browser-tool-reconstruction/opti-browser-tool",
-  "required_file_count": 29,
+  "required_file_count": 50,
   "suite_validation": {
     "ok": true,
     "repo_root": "/mnt/data/opti-browser-tool-reconstruction/opti-browser-tool",
     "candidate_count": 140,
     "catalog_count": 140,
+    "individual_task_file_count": 140,
     "source_counts": {
       "real_v1": 30,
       "visualwebarena": 30,
@@ -17,6 +18,32 @@
     "primary_count": 140,
     "smoke_count": 20,
     "regression_count": 20,
+    "errors": [],
+    "warnings": []
+  },
+  "documentation_validation": {
+    "ok": true,
+    "repo_root": "/mnt/data/opti-browser-tool-reconstruction/opti-browser-tool",
+    "required_document_count": 19,
+    "checked_markdown_files": 53,
+    "checked_local_links": 76,
+    "adr_count": 14,
+    "raw_task_count": 140,
+    "normalized_task_count": 140,
+    "individual_task_file_count": 140,
+    "source_counts": {
+      "real_v1": 30,
+      "workarena_l2": 30,
+      "webarena_verified": 30,
+      "visualwebarena": 30,
+      "warc_bench": 20
+    },
+    "suite_counts": {
+      "candidate-pool": 140,
+      "primary": 140,
+      "smoke": 20,
+      "regression": 20
+    },
     "errors": [],
     "warnings": []
   },

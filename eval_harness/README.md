@@ -4,6 +4,8 @@ This package provides a backend-neutral runner for the current **140-task provis
 
 The suite is runnable at the orchestration layer now. Real browser evaluation still requires one audited bridge for each benchmark family.
 
+All exact task records and upstream locators are included. See [`docs/TASK_DATA_GUIDE.md`](../docs/TASK_DATA_GUIDE.md) for what is present and which runtime assets remain external.
+
 ## Install
 
 From the repository root:
@@ -57,6 +59,8 @@ opti-eval run \
 
 Supported placeholders are `{task_json}`, `{result_json}`, `{task_id}`, `{source}`, and `{output_dir}`.
 
+The included `fixture_bridge.py` marks every result synthetic and non-reportable. A command-adapter run using that example verifies the bridge contract only; the summary remains `benchmark_reportable=false`.
+
 A real bridge must reset its source environment, resolve the upstream task, run the chosen browser harness, invoke the native or audited verifier, and write:
 
 ```json
@@ -80,6 +84,8 @@ A real bridge must reset its source environment, resolve the upstream task, run 
 ```
 
 Allowed statuses are `passed`, `failed`, `invalid`, `error`, and `skipped`. Infrastructure, reset, account, and verifier failures must use `invalid` or `error`, never `failed`.
+
+A bridge may set `metadata.benchmark_reportable=false` for synthetic or diagnostic results. The run summary honors that marker even when the generic command adapter itself is capable of reportable execution.
 
 ## Source registry
 

@@ -4,16 +4,48 @@
   "title": "Opti Browser Tool run summary",
   "type": "object",
   "required": [
-    "schema_version", "task_count", "status_counts", "run_valid",
-    "benchmark_reportable", "acceptance_decision_eligible"
+    "schema_version",
+    "task_count",
+    "status_counts",
+    "run_valid",
+    "benchmark_reportable",
+    "acceptance_decision_eligible",
+    "non_reportable_result_count"
   ],
   "properties": {
-    "task_count": {"type": "integer", "minimum": 0},
-    "run_valid": {"type": "boolean"},
-    "benchmark_reportable": {"type": "boolean"},
-    "acceptance_decision_eligible": {"type": "boolean"},
-    "strict_success_rate": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
-    "valid_outcome_success_rate": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+    "task_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "run_valid": {
+      "type": "boolean"
+    },
+    "benchmark_reportable": {
+      "type": "boolean"
+    },
+    "acceptance_decision_eligible": {
+      "type": "boolean"
+    },
+    "strict_success_rate": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "valid_outcome_success_rate": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "non_reportable_result_count": {
+      "type": "integer",
+      "minimum": 0
+    }
   },
   "additionalProperties": true
 }

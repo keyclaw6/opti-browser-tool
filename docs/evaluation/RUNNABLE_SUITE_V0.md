@@ -4,6 +4,10 @@ Status: **Provisional and runnable at the orchestration layer**
 
 This release materializes all 140 exact candidates into a backend-neutral evaluation package. It does not claim that any task is finally admitted: per-task success calibration, environment reset checks, known-good completion, and adversarial verifier tests remain pending.
 
+“Runnable” currently means that manifests, task resolution, scheduling, adapters, result collection, validation, and summary generation execute. It does not mean that the five upstream browser environments and native verifiers are bundled. Real browser execution requires source bridges and upstream assets.
+
+The task goals themselves are present in `evals/catalog/tasks.jsonl` and as one file per task under `evals/catalog/by-id/`. Source-specific completeness is documented in [`../TASK_DATA_GUIDE.md`](../TASK_DATA_GUIDE.md).
+
 ## Accepted difficulty rule
 
 The benchmark-family reference used to source a candidate must lie between **35% and 70%, inclusive**. Benchmark-level scores are not task-level scores. Every task keeps `per_task_success_percent: null` until repeated local calibration under a pinned strong reference protocol.
@@ -50,6 +54,7 @@ opti-eval run --suite primary --adapter registry --config evals/config.local.jso
 ```
 
 Fixture runs test orchestration only and are never reportable benchmark results.
+Synthetic command-bridge results must also set `metadata.benchmark_reportable=false`; result-level non-reportable markers override adapter capability.
 
 ## Remaining admission work
 

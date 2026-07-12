@@ -1,0 +1,94 @@
+{
+  "schema_version": "0.2.0",
+  "id": "warc-bench-online-12",
+  "source": "warc_bench",
+  "source_display_name": "WARC-Bench",
+  "upstream": {
+    "benchmark": "WARC-Bench",
+    "version": "Git commit 98d213ccd2b4380761738e1d144467a8695e37c5",
+    "native_task_id": "online.12",
+    "site": "Zendesk",
+    "source_manifest": "src/orby/subtask_benchmark/environments/benchmark.json",
+    "source_checksum": "6b2bc7ee04b3231325fe3a84b195d26d0c589287",
+    "data_path": "environments/web_archives/zendesk/zendesk_ticket.wacz"
+  },
+  "goal": "Write “Thank you for your business.” and bold it in the reply editor",
+  "site": "Zendesk",
+  "interaction_class": "rich_text_editor",
+  "state_change_expected": true,
+  "source_difficulty": "held_out_test_candidate",
+  "candidate_priority": "A",
+  "audit_flags": [
+    "matcher_shortcut_and_visual_near_miss_test_required"
+  ],
+  "suite_membership": [
+    "candidate-pool",
+    "primary"
+  ],
+  "selection_history": {
+    "included_in_superseded_100_task_draft": false,
+    "included_in_current_140_task_candidate_pool": true
+  },
+  "difficulty_evidence": {
+    "accepted_reference_band_percent": {
+      "minimum_percent": 35.0,
+      "maximum_percent": 70.0,
+      "inclusive": true
+    },
+    "reference_success_percent": 64.8,
+    "reference_system": "Claude Sonnet 4.0 (2025-05-14), held-out test split",
+    "reference_date": "2025-10-10",
+    "reference_source": "https://github.com/sanjari-orb/warc-bench",
+    "reference_status": "latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof",
+    "source_reference_in_accepted_band": true,
+    "evidence_scope": "benchmark_aggregate_not_task_level",
+    "per_task_success_percent": null,
+    "per_task_calibration_status": "pending",
+    "note": "The published score screens the benchmark family only. This task must be calibrated locally before final admission."
+  },
+  "verification": {
+    "status": "pending",
+    "expected_verifier_type": "js_matcher",
+    "expected_verifier_strength": "programmatic_javascript_state",
+    "environment_reset_status": "pending",
+    "oracle_or_known_good_run_status": "pending",
+    "adversarial_verifier_audit_status": "pending",
+    "fail_closed": true
+  },
+  "runtime": {
+    "bridge_key": "warc_bench",
+    "default_timeout_seconds": 600
+  },
+  "provenance": {
+    "candidate_inventory": "research/benchmarks/task-candidates/batch-1-candidates.jsonl",
+    "raw_candidate_record": {
+      "candidate_id": "warc-bench-online-12",
+      "source": "WARC-Bench",
+      "source_version": "Git commit 98d213ccd2b4380761738e1d144467a8695e37c5",
+      "native_task_id": "online.12",
+      "seed": "",
+      "site": "Zendesk",
+      "task_intent": "Write “Thank you for your business.” and bold it in the reply editor",
+      "source_difficulty": "held_out_test_candidate",
+      "interaction_class": "rich_text_editor",
+      "mutates_state": "yes",
+      "evaluator_type": "js_matcher",
+      "evaluator_strength": "programmatic_javascript_state",
+      "public_benchmark_reference_percent": 64.8,
+      "public_benchmark_reference_system": "Claude Sonnet 4.0 (2025-05-14), held-out test split",
+      "public_reference_date": "2025-10-10",
+      "public_reference_status": "latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof",
+      "score_evidence_scope": "benchmark_aggregate_not_task_level",
+      "per_task_reference_success_percent": "",
+      "per_task_calibration_status": "required_before_final_admission",
+      "candidate_priority": "A",
+      "selection_rationale": "Held-out archived real-site GUI subtask with deterministic JavaScript state reward; selected for a distinct control or interface mechanism and screened against the repository known-issue skip list.",
+      "audit_flags": "matcher_shortcut_and_visual_near_miss_test_required",
+      "score_source": "https://github.com/sanjari-orb/warc-bench",
+      "source_manifest": "src/orby/subtask_benchmark/environments/benchmark.json",
+      "source_checksum": "6b2bc7ee04b3231325fe3a84b195d26d0c589287",
+      "data_path": "environments/web_archives/zendesk/zendesk_ticket.wacz",
+      "public_benchmark_reference_at_least_40_percent": true
+    }
+  }
+}

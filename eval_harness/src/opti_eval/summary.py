@@ -19,7 +19,13 @@ def summarize_results(
     valid_count = passed + failed
     invalid_count = sum(counts[status] for status in INVALIDATING_STATUSES)
     run_valid = invalid_count == 0 and total > 0
-    benchmark_reportable = run_valid and adapter_reportable
+    non_reportable_result_count = sum(
+        1
+        for result in results
+        if result.get("metadata", {}).get("benchmark_reportable") is False
+    )
+    results_reportable = non_reportable_result_count == 0
+    benchmark_reportable = run_valid and adapter_reportable and results_reportable
 
     source_counts: dict[str, Counter[str]] = defaultdict(Counter)
     for result in results:
@@ -46,6 +52,7 @@ def summarize_results(
         "valid_outcome_success_rate": passed / valid_count if valid_count else None,
         "valid_outcome_count": valid_count,
         "invalidating_outcome_count": invalid_count,
+        "non_reportable_result_count": non_reportable_result_count,
         "run_valid": run_valid,
         "benchmark_reportable": benchmark_reportable,
         "acceptance_decision_eligible": benchmark_reportable,
@@ -54,9 +61,13 @@ def summarize_results(
             "Fixture/plumbing result; never report as benchmark performance."
             if not adapter_reportable
             else (
-                "Eligible for benchmark comparison."
-                if benchmark_reportable
-                else "Not eligible for benchmark comparison because one or more tasks were invalid, errored, or skipped."
+                "One or more bridge results explicitly marked the run as synthetic or non-reportable."
+                if not results_reportable
+                else (
+                    "Eligible for benchmark comparison."
+                    if benchmark_reportable
+                    else "Not eligible for benchmark comparison because one or more tasks were invalid, errored, or skipped."
+                )
             )
         ),
     }

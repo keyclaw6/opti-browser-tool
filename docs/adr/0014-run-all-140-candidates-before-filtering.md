@@ -22,7 +22,7 @@ The active provisional primary manifest and candidate-pool manifest each contain
 
 The 20-task smoke suite remains a strict subset. The provisional regression seed initially equals the smoke suite. The target final primary suite remains approximately 100 tasks, but no candidate is removed until environment setup, reset, solvability, verifier quality, duplication, stability, and repeated task-level reference performance have been assessed.
 
-The backend-neutral bridge architecture, standardized results, and fail-closed validity rules from ADR-0013 remain in force.
+The backend-neutral bridge implementation, standardized results, and fail-closed validity rules from ADR-0013 remain the current provisional execution convention. This preserves runnable evaluation work without selecting a browser substrate. It is not acceptance of a final harness architecture and may be revised after the baseline-harness research.
 
 ## Why
 

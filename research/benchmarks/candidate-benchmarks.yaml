@@ -1,5 +1,10 @@
 review_date: 2026-07-11
-decision_status: proposed_not_accepted
+decision_status: mixed_current_decisions_and_historical_proposals
+current_status_notice: >-
+  ADR-0012 governs the 35–70% inclusive reference-success band, and
+  ADR-0014 keeps all 140 exact candidates in the active provisional pool.
+  The source allocation under historical_source_allocation_proposal is an
+  earlier nonbinding proposal and must not be mistaken for the active suite.
 related_adrs:
   smoke_nesting: docs/adr/0007-nested-smoke-suite.md
   source_portfolio: docs/adr/0008-primary-benchmark-source-shortlist.md
@@ -8,11 +13,12 @@ related_adrs:
 
 task_difficulty_target:
   decision: accepted
-  related_adr: docs/adr/0011-minimum-success-floor-for-task-candidates.md
-  source_screening_minimum_public_strong_system_success_percent: 40
-  final_task_admission_minimum_local_strong_system_success_percent: 40
-  upper_saturation_ceiling_percent: null
-  upper_saturation_ceiling_status: open_decision
+  related_adr: docs/adr/0012-reference-success-band-35-to-70.md
+  minimum_percent: 35
+  maximum_percent: 70
+  inclusive: true
+  source_screening_scope: benchmark_family_aggregate_only
+  final_admission_scope: repeated_local_task_level_measurement
   evidence_boundary: >-
     Benchmark-level aggregate scores may be used to source candidates, but they
     do not establish an individual task's success rate. Final admission requires
@@ -24,8 +30,17 @@ score_interpretation: >-
   model snapshot, observations, actions, prompt, memory or skill mechanism,
   step budget, retries, evaluator, benchmark revision, and any human assistance.
 
-suite_hypothesis:
-  primary_size: 100
+active_suite_state:
+  provisional_primary_size: 140
+  candidate_pool_size: 140
+  smoke_size: 20
+  provisional_regression_size: 20
+  target_final_primary_size_approximate: 100
+  related_adr: docs/adr/0014-run-all-140-candidates-before-filtering.md
+
+historical_source_allocation_proposal:
+  status: proposed_not_accepted_and_not_the_active_manifest
+  original_primary_size: 100
   smoke_size: 20
   smoke_is_subset_of_primary: true
   source_allocation:

@@ -1,0 +1,95 @@
+{
+  "schema_version": "0.2.0",
+  "id": "workarena-l2-navigate-and-filter-user-list-l2-seed-466",
+  "source": "workarena_l2",
+  "source_display_name": "WorkArena++ Level 2",
+  "upstream": {
+    "benchmark": "WorkArena++ L2",
+    "version": "browsergym-workarena 0.5.3 / L2 sampled set (meta seed 42)",
+    "native_task_id": "workarena.servicenow.navigate-and-filter-user-list-l2",
+    "site": "ServiceNow",
+    "source_manifest": "get_all_tasks_agents(filter=\"l2\", meta_seed=42) materialized as task class + seed",
+    "source_checksum": "71abe43ca5fa186dc9f58f29110a534e8dbd5bf85090df39d962fe14e7b0d521",
+    "seed": 466,
+    "task_family_description": "A base class for tasks that interacts with the ServiceNow instance"
+  },
+  "goal": "navigate and filter user list",
+  "site": "ServiceNow",
+  "interaction_class": "menu_navigation_and_list_filter",
+  "state_change_expected": true,
+  "source_difficulty": "L2 compositional",
+  "candidate_priority": "A",
+  "audit_flags": [
+    "requires_gated_servicenow_instance_and_goal_materialization"
+  ],
+  "suite_membership": [
+    "candidate-pool",
+    "primary"
+  ],
+  "selection_history": {
+    "included_in_superseded_100_task_draft": true,
+    "included_in_current_140_task_candidate_pool": true
+  },
+  "difficulty_evidence": {
+    "accepted_reference_band_percent": {
+      "minimum_percent": 35.0,
+      "maximum_percent": 70.0,
+      "inclusive": true
+    },
+    "reference_success_percent": 69.4,
+    "reference_system": "GenericAgent + GPT-5 (official BrowserGym leaderboard, protocol-compliant)",
+    "reference_date": "2025-08-07",
+    "reference_source": "https://huggingface.co/spaces/ServiceNow/browsergym-leaderboard/blob/main/results/GenericAgent-GPT-5/workarena-l2.json",
+    "reference_status": "latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof",
+    "source_reference_in_accepted_band": true,
+    "evidence_scope": "benchmark_aggregate_not_task_level",
+    "per_task_success_percent": null,
+    "per_task_calibration_status": "pending",
+    "note": "The published score screens the benchmark family only. This task must be calibrated locally before final admission."
+  },
+  "verification": {
+    "status": "pending",
+    "expected_verifier_type": "WorkArena task.validate oracle",
+    "expected_verifier_strength": "programmatic_environment_state",
+    "environment_reset_status": "pending",
+    "oracle_or_known_good_run_status": "pending",
+    "adversarial_verifier_audit_status": "pending",
+    "fail_closed": true
+  },
+  "runtime": {
+    "bridge_key": "workarena_l2",
+    "default_timeout_seconds": 1200
+  },
+  "provenance": {
+    "candidate_inventory": "research/benchmarks/task-candidates/batch-1-candidates.jsonl",
+    "raw_candidate_record": {
+      "candidate_id": "workarena-l2-navigate-and-filter-user-list-l2-seed-466",
+      "source": "WorkArena++ L2",
+      "source_version": "browsergym-workarena 0.5.3 / L2 sampled set (meta seed 42)",
+      "native_task_id": "workarena.servicenow.navigate-and-filter-user-list-l2",
+      "seed": 466,
+      "site": "ServiceNow",
+      "task_intent": "navigate and filter user list",
+      "source_difficulty": "L2 compositional",
+      "interaction_class": "menu_navigation_and_list_filter",
+      "mutates_state": "yes",
+      "evaluator_type": "WorkArena task.validate oracle",
+      "evaluator_strength": "programmatic_environment_state",
+      "public_benchmark_reference_percent": 69.4,
+      "public_benchmark_reference_system": "GenericAgent + GPT-5 (official BrowserGym leaderboard, protocol-compliant)",
+      "public_reference_date": "2025-08-07",
+      "public_reference_status": "latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof",
+      "score_evidence_scope": "benchmark_aggregate_not_task_level",
+      "per_task_reference_success_percent": "",
+      "per_task_calibration_status": "required_before_final_admission",
+      "candidate_priority": "A",
+      "selection_rationale": "Exact L2 task-class and seed pair from the package sampled set; chosen for medium/compositional enterprise navigation, forms, lists, scheduling, or record updates rather than L3 tasks below the target score band.",
+      "audit_flags": "requires_gated_servicenow_instance_and_goal_materialization",
+      "score_source": "https://huggingface.co/spaces/ServiceNow/browsergym-leaderboard/blob/main/results/GenericAgent-GPT-5/workarena-l2.json",
+      "source_manifest": "get_all_tasks_agents(filter=\"l2\", meta_seed=42) materialized as task class + seed",
+      "source_checksum": "71abe43ca5fa186dc9f58f29110a534e8dbd5bf85090df39d962fe14e7b0d521",
+      "task_family_description": "A base class for tasks that interacts with the ServiceNow instance",
+      "public_benchmark_reference_at_least_40_percent": true
+    }
+  }
+}

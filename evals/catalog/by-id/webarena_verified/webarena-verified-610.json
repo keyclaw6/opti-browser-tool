@@ -1,0 +1,99 @@
+{
+  "schema_version": "0.2.0",
+  "id": "webarena-verified-610",
+  "source": "webarena_verified",
+  "source_display_name": "WebArena-Verified",
+  "upstream": {
+    "benchmark": "WebArena-Verified",
+    "version": "webarena-verified 1.2.3 / full 812-task dataset",
+    "native_task_id": "610",
+    "site": "reddit",
+    "source_manifest": "webarena_verified/assets/dataset/webarena-verified.json",
+    "source_checksum": "d65275660814663375028e9017e1f929e3c38321041b125795e2713b52243d30",
+    "task_revision": 2,
+    "intent_template_id": 9
+  },
+  "goal": "Post a review of my recent reading, titled \"To Kill a Mockingbird by Harper Lee\" in f/books and then comment \"good book!\" on the created post",
+  "site": "reddit",
+  "interaction_class": "social_post_and_comment",
+  "state_change_expected": true,
+  "source_difficulty": "hard_subset",
+  "candidate_priority": "B",
+  "audit_flags": [
+    "task_level_rate_unknown",
+    "near_miss_network_evaluator_test_required",
+    "predicted_harder_task",
+    "calibrate_after_priority_A_screen"
+  ],
+  "suite_membership": [
+    "candidate-pool",
+    "primary"
+  ],
+  "selection_history": {
+    "included_in_superseded_100_task_draft": true,
+    "included_in_current_140_task_candidate_pool": true
+  },
+  "difficulty_evidence": {
+    "accepted_reference_band_percent": {
+      "minimum_percent": 35.0,
+      "maximum_percent": 70.0,
+      "inclusive": true
+    },
+    "reference_success_percent": 53.7,
+    "reference_system": "SKILL.nb single-round success",
+    "reference_date": "2026-06-06",
+    "reference_source": "https://arxiv.org/abs/2606.08049",
+    "reference_status": "latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof",
+    "source_reference_in_accepted_band": true,
+    "evidence_scope": "benchmark_aggregate_not_task_level",
+    "per_task_success_percent": null,
+    "per_task_calibration_status": "pending",
+    "note": "The published score screens the benchmark family only. This task must be calibrated locally before final admission."
+  },
+  "verification": {
+    "status": "pending",
+    "expected_verifier_type": "AgentResponseEvaluator+NetworkEventEvaluator+NetworkEventEvaluator",
+    "expected_verifier_strength": "network_trace_and_structured_response",
+    "environment_reset_status": "pending",
+    "oracle_or_known_good_run_status": "pending",
+    "adversarial_verifier_audit_status": "pending",
+    "fail_closed": true
+  },
+  "runtime": {
+    "bridge_key": "webarena_verified",
+    "default_timeout_seconds": 900
+  },
+  "provenance": {
+    "candidate_inventory": "research/benchmarks/task-candidates/batch-1-candidates.jsonl",
+    "raw_candidate_record": {
+      "candidate_id": "webarena-verified-610",
+      "source": "WebArena-Verified",
+      "source_version": "webarena-verified 1.2.3 / full 812-task dataset",
+      "native_task_id": "610",
+      "seed": "",
+      "site": "reddit",
+      "task_intent": "Post a review of my recent reading, titled \"To Kill a Mockingbird by Harper Lee\" in f/books and then comment \"good book!\" on the created post",
+      "source_difficulty": "hard_subset",
+      "interaction_class": "social_post_and_comment",
+      "mutates_state": "yes",
+      "evaluator_type": "AgentResponseEvaluator+NetworkEventEvaluator+NetworkEventEvaluator",
+      "evaluator_strength": "network_trace_and_structured_response",
+      "public_benchmark_reference_percent": 53.7,
+      "public_benchmark_reference_system": "SKILL.nb single-round success",
+      "public_reference_date": "2026-06-06",
+      "public_reference_status": "latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof",
+      "score_evidence_scope": "benchmark_aggregate_not_task_level",
+      "per_task_reference_success_percent": "",
+      "per_task_calibration_status": "required_before_final_admission",
+      "candidate_priority": "B",
+      "selection_rationale": "State-changing Reddit, shopping, administration, or GitLab task with audited structured/network evaluation; selected from a mix of hard and non-hard tasks to avoid an all-extreme pool.",
+      "audit_flags": "task_level_rate_unknown;near_miss_network_evaluator_test_required;predicted_harder_task;calibrate_after_priority_A_screen",
+      "score_source": "https://arxiv.org/abs/2606.08049",
+      "source_manifest": "webarena_verified/assets/dataset/webarena-verified.json",
+      "source_checksum": "d65275660814663375028e9017e1f929e3c38321041b125795e2713b52243d30",
+      "task_revision": 2,
+      "intent_template_id": 9,
+      "public_benchmark_reference_at_least_40_percent": true
+    }
+  }
+}

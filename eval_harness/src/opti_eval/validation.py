@@ -49,6 +49,22 @@ def validate_repository(repo_root: Path) -> dict[str, Any]:
     source_counts = Counter(str(task.get("source")) for task in catalog_rows)
     _check(dict(source_counts) == EXPECTED_SOURCE_COUNTS, f"Unexpected catalog source counts: {dict(source_counts)}", errors)
 
+    by_id_root = repo_root / "evals" / "catalog" / "by-id"
+    by_id_paths = sorted(by_id_root.rglob("*.json")) if by_id_root.is_dir() else []
+    _check(len(by_id_paths) == EXPECTED_CANDIDATE_COUNT, f"Expected 140 individual by-ID task files, found {len(by_id_paths)}", errors)
+    by_id_ids: set[str] = set()
+    for path in by_id_paths:
+        try:
+            record = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            errors.append(f"Invalid individual task file {path}: {exc}")
+            continue
+        task_id = str(record.get("id"))
+        by_id_ids.add(task_id)
+        if task_id in catalog_index:
+            _check(record == catalog_index[task_id], f"{task_id}: individual task file differs from canonical catalog", errors)
+    _check(by_id_ids == set(catalog_index), "Individual by-ID task files do not exactly match catalog IDs", errors)
+
     for task_id, task in catalog_index.items():
         raw = task.get("provenance", {}).get("raw_candidate_record")
         _check(isinstance(raw, dict), f"{task_id}: missing raw candidate provenance", errors)
@@ -103,6 +119,7 @@ def validate_repository(repo_root: Path) -> dict[str, Any]:
         "repo_root": str(repo_root),
         "candidate_count": len(candidates),
         "catalog_count": len(catalog_rows),
+        "individual_task_file_count": len(by_id_paths),
         "source_counts": dict(sorted(source_counts.items())),
         "primary_count": len(primary_ids),
         "smoke_count": len(smoke_ids),

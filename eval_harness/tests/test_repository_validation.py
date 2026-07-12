@@ -14,6 +14,7 @@ class RepositoryValidationTest(unittest.TestCase):
         self.assertTrue(report["ok"], report["errors"])
         self.assertEqual(report["candidate_count"], 140)
         self.assertEqual(report["catalog_count"], 140)
+        self.assertEqual(report["individual_task_file_count"], 140)
         self.assertEqual(report["primary_count"], 140)
         self.assertEqual(report["smoke_count"], 20)
 

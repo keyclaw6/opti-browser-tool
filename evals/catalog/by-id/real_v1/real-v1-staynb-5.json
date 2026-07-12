@@ -1,0 +1,90 @@
+{
+  "schema_version": "0.2.0",
+  "id": "real-v1-staynb-5",
+  "source": "real_v1",
+  "source_display_name": "REAL v1",
+  "upstream": {
+    "benchmark": "REAL",
+    "version": "agisdk 0.3.5 / REAL v1",
+    "native_task_id": "staynb-5",
+    "site": "staynb",
+    "source_manifest": "agisdk/REAL/browsergym/webclones/v1/tasks/*.json",
+    "source_checksum": "1331f3b5b53d6d167cb3fe06c35f15ad811cf0b43c9e3500cbefb39012babe73"
+  },
+  "goal": "Use the search bar to look for a stay. For the \"Where\" section, use the \"Search by region\" popover and select \"Europe\". Set the check-in date to October 13th and the check-out date to October 23rd. For the \"Who\" section, select 1 infant, 2 children, and 2 adults. Press the search button, select the first stay, and book it.",
+  "site": "staynb",
+  "interaction_class": "accommodation_booking",
+  "state_change_expected": true,
+  "source_difficulty": "medium",
+  "candidate_priority": "A",
+  "audit_flags": [],
+  "suite_membership": [
+    "candidate-pool",
+    "primary"
+  ],
+  "selection_history": {
+    "included_in_superseded_100_task_draft": true,
+    "included_in_current_140_task_candidate_pool": true
+  },
+  "difficulty_evidence": {
+    "accepted_reference_band_percent": {
+      "minimum_percent": 35.0,
+      "maximum_percent": 70.0,
+      "inclusive": true
+    },
+    "reference_success_percent": 41.0,
+    "reference_system": "Frontier systems in the published REAL study (reported maximum: at most 41%)",
+    "reference_date": "2025-04-15",
+    "reference_source": "https://arxiv.org/abs/2504.11543",
+    "reference_status": "latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof",
+    "source_reference_in_accepted_band": true,
+    "evidence_scope": "benchmark_aggregate_not_task_level",
+    "per_task_success_percent": null,
+    "per_task_calibration_status": "pending",
+    "note": "The published score screens the benchmark family only. This task must be calibrated locally before final admission."
+  },
+  "verification": {
+    "status": "pending",
+    "expected_verifier_type": "jmespath+jmespath+jmespath+jmespath+jmespath",
+    "expected_verifier_strength": "programmatic_state",
+    "environment_reset_status": "pending",
+    "oracle_or_known_good_run_status": "pending",
+    "adversarial_verifier_audit_status": "pending",
+    "fail_closed": true
+  },
+  "runtime": {
+    "bridge_key": "real_v1",
+    "default_timeout_seconds": 900
+  },
+  "provenance": {
+    "candidate_inventory": "research/benchmarks/task-candidates/batch-1-candidates.jsonl",
+    "raw_candidate_record": {
+      "candidate_id": "real-v1-staynb-5",
+      "source": "REAL",
+      "source_version": "agisdk 0.3.5 / REAL v1",
+      "native_task_id": "staynb-5",
+      "seed": "",
+      "site": "staynb",
+      "task_intent": "Use the search bar to look for a stay. For the \"Where\" section, use the \"Search by region\" popover and select \"Europe\". Set the check-in date to October 13th and the check-out date to October 23rd. For the \"Who\" section, select 1 infant, 2 children, and 2 adults. Press the search button, select the first stay, and book it.",
+      "source_difficulty": "medium",
+      "interaction_class": "accommodation_booking",
+      "mutates_state": "yes",
+      "evaluator_type": "jmespath+jmespath+jmespath+jmespath+jmespath",
+      "evaluator_strength": "programmatic_state",
+      "public_benchmark_reference_percent": 41.0,
+      "public_benchmark_reference_system": "Frontier systems in the published REAL study (reported maximum: at most 41%)",
+      "public_reference_date": "2025-04-15",
+      "public_reference_status": "latest_verified_public_aggregate_in_this_pass_not_exhaustive_sota_proof",
+      "score_evidence_scope": "benchmark_aggregate_not_task_level",
+      "per_task_reference_success_percent": "",
+      "per_task_calibration_status": "required_before_final_admission",
+      "candidate_priority": "A",
+      "selection_rationale": "Medium/hard action or retrieval-action task from the exact REAL v1 version tied to the published score; selected for realistic state-changing workflow coverage.",
+      "audit_flags": "",
+      "score_source": "https://arxiv.org/abs/2504.11543",
+      "source_manifest": "agisdk/REAL/browsergym/webclones/v1/tasks/*.json",
+      "source_checksum": "1331f3b5b53d6d167cb3fe06c35f15ad811cf0b43c9e3500cbefb39012babe73",
+      "public_benchmark_reference_at_least_40_percent": true
+    }
+  }
+}

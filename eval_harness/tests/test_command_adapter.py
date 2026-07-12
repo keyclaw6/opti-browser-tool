@@ -26,7 +26,8 @@ class CommandAdapterTest(unittest.TestCase):
                 output_dir=out,
             )
             self.assertTrue(record["summary"]["run_valid"])
-            self.assertTrue(record["summary"]["benchmark_reportable"])
+            self.assertFalse(record["summary"]["benchmark_reportable"])
+            self.assertEqual(record["summary"]["non_reportable_result_count"], 1)
             self.assertEqual(record["summary"]["status_counts"], {"passed": 1})
             self.assertTrue((out / "tasks" / tasks[0]["id"] / "bridge-result.json").is_file())
 

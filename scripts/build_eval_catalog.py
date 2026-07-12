@@ -9,7 +9,6 @@ from __future__ import annotations
 import csv
 import json
 from collections import Counter
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +25,8 @@ SOURCE_MAP = {
     "VisualWebArena": ("visualwebarena", "VisualWebArena"),
     "WARC-Bench": ("warc_bench", "WARC-Bench"),
 }
+
+CATALOG_CREATED_AT = "2026-07-11T23:24:37Z"
 
 DEFAULT_TIMEOUTS = {
     "real_v1": 900,
@@ -154,6 +155,16 @@ def main() -> None:
     CATALOG_DIR.mkdir(parents=True, exist_ok=True)
     write_jsonl(CATALOG_DIR / "tasks.jsonl", catalog)
     write_json(CATALOG_DIR / "task-index.json", {task["id"]: task for task in catalog})
+
+    # Materialize one pretty-printed record per task for audit and handoff.
+    # These are derived review copies; tasks.jsonl remains canonical.
+    by_id_dir = CATALOG_DIR / "by-id"
+    if by_id_dir.exists():
+        for path in sorted(by_id_dir.rglob("*.json")):
+            path.unlink()
+    for task in catalog:
+        write_json(by_id_dir / task["source"] / f"{task['id']}.json", task)
+
     by_source_dir = CATALOG_DIR / "by-source"
     by_source_dir.mkdir(parents=True, exist_ok=True)
     for source, tasks in by_source.items():
@@ -198,7 +209,7 @@ def main() -> None:
 
     all_ids = [task["id"] for task in catalog]
     counts = Counter(task["source"] for task in catalog)
-    created = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    created = CATALOG_CREATED_AT
     common_policy = {
         "reference_success_band_percent": {
             "minimum_percent": 35.0,

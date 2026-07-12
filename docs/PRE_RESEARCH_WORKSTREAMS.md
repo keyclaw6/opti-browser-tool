@@ -1,5 +1,9 @@
 # Pre-Research Workstreams
 
+## Current status
+
+The workstream structure remains active, but the project is no longer at the initial planning-only boundary. Workstream B has produced a 140-task provisional pool and orchestration runner; those candidates are selected for validation, not finally admitted. Environment, verifier, calibration, and final-filtering work remain. Workstreams A and C remain largely unexecuted, and the auto-research loop has not started.
+
 ## Purpose
 
 The project has several difficult prerequisites. They should be solved as separate research and engineering workstreams before the auto-research loop is allowed to optimize the browser harness. This document defines how each workstream will be approached; it does not perform the research or settle its conclusions.
@@ -107,4 +111,6 @@ A minimal end-to-end baseline/treatment run on the bring-up set, with complete t
 
 ## Current boundary
 
-At this stage the repository records the workstreams and their outputs. It does not select the browser foundation, choose benchmark tasks, approve judge prompts, or start auto-research.
+The project has moved beyond initial benchmark discovery: 140 exact provisional candidates have been selected, normalized, and placed in a runnable orchestration suite. They are not finally admitted, and this is not a frozen benchmark. The tasks still require real environment setup, reset checks, known-good runs, adversarial verifier audits, repeated task-level calibration, and filtering.
+
+The repository still does not select the browser foundation, approve judge prompts, freeze the final primary/regression/holdout suites, or start the auto-research loop. Those choices require the remaining workstream evidence and explicit decisions.

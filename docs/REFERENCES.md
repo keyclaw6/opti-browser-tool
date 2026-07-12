@@ -38,3 +38,7 @@ Source repositories:
 
 - https://github.com/neosigmaai/auto-harness
 - https://github.com/china-qijizhifeng/agentic-harness-engineering
+
+## Benchmark and task-source provenance
+
+The benchmark-family findings are recorded in `research/benchmarks/2026-07-11-benchmark-source-selection-report.md`. Exact source revisions, manifests, and checksums for the 140 candidates are pinned in `research/benchmarks/task-candidates/batch-1-sources.lock.json`; task-level rationale and audit flags are in the adjacent candidate files. Public aggregate results are source-screening evidence only and must not be treated as task-level success.

@@ -3,6 +3,7 @@
   "repo_root": "/mnt/data/opti-browser-tool-reconstruction/opti-browser-tool",
   "candidate_count": 140,
   "catalog_count": 140,
+  "individual_task_file_count": 140,
   "source_counts": {
     "real_v1": 30,
     "visualwebarena": 30,

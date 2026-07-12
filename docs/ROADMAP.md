@@ -1,5 +1,9 @@
 # Roadmap
 
+## Current progress
+
+Phase 0 is complete. Phase 2 is active: the 140-task provisional pool and orchestration runner exist, but source bridges, real environment checks, verifier audits, repeated task-level calibration, and final filtering remain incomplete. Phase 1 baseline research and Phase 3 judge construction are still pending. The auto-research loop has not started.
+
 This roadmap deliberately separates the prerequisites for trustworthy research from the later auto-research loop. Phases 1–3 may overlap where useful, but none should be treated as complete without its review gate.
 
 ## Phase 0 — Repository and alignment groundwork

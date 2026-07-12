@@ -2,6 +2,12 @@
 
 Only entries marked **Accepted** are active project decisions. **Open** means intentionally unresolved. **Proposed** means documented for review but not binding. **Superseded** entries remain for audit history.
 
+- Read [`DECISION_TIMELINE.md`](DECISION_TIMELINE.md) for chronological rationale and corrections.
+- Read [`AGENT_HANDOFF.md`](AGENT_HANDOFF.md) for the compact current-state interpretation.
+- Read [`REVIEW_GUIDE.md`](REVIEW_GUIDE.md) for independent verification.
+
+The codebase may contain provisional scaffolding for an unresolved question; implementation existence does not change ADR status.
+
 | ADR | Title | Status | Why or next step |
 |---|---|---|---|
 | [0001](adr/0001-project-constitution.md) | Project constitution | Accepted | Governing objective and constraints from the project brief |
@@ -16,5 +22,5 @@ Only entries marked **Accepted** are active project decisions. **Open** means in
 | [0010](adr/0010-task-difficulty-calibration-band.md) | Task difficulty calibration band | Superseded | Original 35–70 proposal; sequence clarified by ADR-0012 |
 | [0011](adr/0011-minimum-success-floor-for-task-candidates.md) | Minimum 40% success floor | Superseded | Numeric floor corrected by project owner |
 | [0012](adr/0012-reference-success-band-35-to-70.md) | Reference success band is 35–70% | Accepted | Explicit project-owner correction and approval |
-| [0013](adr/0013-runnable-evaluation-suite-v0.md) | Runnable suite uses manifests and benchmark bridges | Superseded in count | Bridge architecture retained; 100-task count replaced by ADR-0014 |
+| [0013](adr/0013-runnable-evaluation-suite-v0.md) | Runnable 100-task suite draft and bridge convention | Superseded | 100-task suite replaced by ADR-0014; bridge code remains provisional infrastructure, not a browser-foundation decision |
 | [0014](adr/0014-run-all-140-candidates-before-filtering.md) | Run all 140 candidates before filtering | Accepted | Explicit project-owner direction; final filtering follows validation |

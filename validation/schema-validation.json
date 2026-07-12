@@ -1,0 +1,737 @@
+{
+  "ok": true,
+  "validated_document_count": 146,
+  "checks": [
+    {
+      "label": "tasks.jsonl:1",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:2",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:3",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:4",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:5",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:6",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:7",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:8",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:9",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:10",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:11",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:12",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:13",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:14",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:15",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:16",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:17",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:18",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:19",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:20",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:21",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:22",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:23",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:24",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:25",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:26",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:27",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:28",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:29",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:30",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:31",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:32",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:33",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:34",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:35",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:36",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:37",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:38",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:39",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:40",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:41",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:42",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:43",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:44",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:45",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:46",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:47",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:48",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:49",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:50",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:51",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:52",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:53",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:54",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:55",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:56",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:57",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:58",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:59",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:60",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:61",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:62",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:63",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:64",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:65",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:66",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:67",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:68",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:69",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:70",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:71",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:72",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:73",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:74",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:75",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:76",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:77",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:78",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:79",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:80",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:81",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:82",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:83",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:84",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:85",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:86",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:87",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:88",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:89",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:90",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:91",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:92",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:93",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:94",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:95",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:96",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:97",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:98",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:99",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:100",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:101",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:102",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:103",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:104",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:105",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:106",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:107",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:108",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:109",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:110",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:111",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:112",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:113",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:114",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:115",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:116",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:117",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:118",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:119",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:120",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:121",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:122",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:123",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:124",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:125",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:126",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:127",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:128",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:129",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:130",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:131",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:132",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:133",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:134",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:135",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:136",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:137",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:138",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:139",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "tasks.jsonl:140",
+      "schema": "evals/schemas/normalized-task.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "suite:candidate-pool",
+      "schema": "evals/schemas/suite.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "suite:primary",
+      "schema": "evals/schemas/suite.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "suite:smoke",
+      "schema": "evals/schemas/suite.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "suite:regression",
+      "schema": "evals/schemas/suite.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "fixture-140-summary",
+      "schema": "evals/schemas/run-summary.schema.json",
+      "error_count": 0
+    },
+    {
+      "label": "command-bridge-summary",
+      "schema": "evals/schemas/run-summary.schema.json",
+      "error_count": 0
+    }
+  ],
+  "errors": []
+}

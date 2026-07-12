@@ -8,9 +8,9 @@ These are intentionally unresolved. They should be answered through research and
 4. How should visual-first, terminal/CLI, and later hybrid research be isolated?
 5. Should ADR-0008's proposed source allocation be accepted, revised, or rejected after task-level evidence is available?
 6. Which REAL task version—v1, v2, or a pinned mixture—has suitable programmatic action evaluators and published-score comparability?
-7. Which exact tasks from each candidate source are relevant, runnable, safely redistributable, nonduplicative, difficult, and backed by reliable verifiers?
+7. Which of the 140 selected provisional candidates are runnable, safely usable, nonduplicative, stable, inside the 35–70% task-level band, and backed by reliable verifiers?
 8. Can WebChoreArena evaluators be independently audited or ported to verified semantics, and can up to five WebForge Level 3 tasks be made deterministic?
-9. Which ten WARC-Bench tasks provide distinct real-UI mechanisms without template duplication, verifier shortcuts, or excessive short-horizon bias?
+9. Which of the 20 selected WARC-Bench candidates survive replay setup, verifier audit, duplication analysis, and task-level calibration?
 10. Do EntWorld or RiskWebWorld obtain authoritative public releases that justify replacing part of WorkArena++, WebForge, or another allocated source?
 11. When ADR-0006 is ready, should WebSP-Eval become the first permitted-account configuration and privacy transfer suite?
 12. Which of the current 20 smoke candidates remain stable after real environment and verifier validation?
