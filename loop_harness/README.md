@@ -1,15 +1,16 @@
 # opti-loop — the Auto Research harness shell
 
-**Status: provisional infrastructure.** This package implements the loop
-architecture proposed in [ADR-0015](../docs/adr/0015-auto-research-loop-architecture.md),
-the gate ladder proposed in [ADR-0005](../docs/adr/0005-experiment-gating.md),
-and the evaluation-layer boundaries proposed in
-[ADR-0016](../docs/adr/0016-judge-panel-and-verifier-audit-protocol.md).
-Those ADRs are **Proposed, not Accepted** — per
-[`docs/DECISION_PROCESS.md`](../docs/DECISION_PROCESS.md), the existence of this
-code does not settle them. Like the eval-harness bridge code before it
-(ADR-0013 pattern), this shell exists so the design can be exercised and
-falsified, not to pre-empt the decision.
+**Status: reference implementation of accepted architecture; loop NOT yet
+authorized to run.** This package implements the loop architecture of
+[ADR-0015](../docs/adr/0015-auto-research-loop-architecture.md), the gate
+ladder of [ADR-0005](../docs/adr/0005-experiment-gating.md), and the
+evaluation-layer boundaries of
+[ADR-0016](../docs/adr/0016-judge-panel-and-verifier-audit-protocol.md) — all
+**Accepted 2026-07-13**. Activation is separately gated: bridges must emit
+conforming traces (ADR-0004), verifiers must pass probe-kit admission, the
+suite and noise band must be calibrated, and the ADR-0005 synthetic
+failure-injection catalog must pass on real infrastructure before the first
+campaign runs.
 
 ## What it is
 

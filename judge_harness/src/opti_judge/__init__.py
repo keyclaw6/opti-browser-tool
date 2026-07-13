@@ -1,9 +1,9 @@
 """opti-judge: evaluation-plane judge instrumentation (T0 admission, T1
 deterministic cross-checks, T2 panel scaffolding, T3 quarantine).
 
-Provisional infrastructure implementing the layering proposed in ADR-0016.
-That ADR is Proposed, not Accepted; this package's existence does not change
-its status (docs/DECISION_PROCESS.md).
+Reference implementation of the layering in ADR-0016 (Accepted 2026-07-13).
+Calibration-before-trust remains operative: nothing consumes an uncalibrated
+judge.
 
 Structural guarantees carried by this code:
 

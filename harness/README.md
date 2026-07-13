@@ -1,9 +1,8 @@
 # harness/ — the harness-under-test (provisional scaffold)
 
-**Status:** provisional scaffold implementing `docs/architecture/COMPONENT_TREE.md`
-in support of ADR-0015 (Proposed). It contains **no browser code** and selects
-**no backend** — ADR-0003 remains open, and this scaffold's existence does not
-change any ADR status (docs/DECISION_PROCESS.md).
+**Status:** scaffold implementing `docs/architecture/COMPONENT_TREE.md`
+in support of ADR-0015 (Accepted 2026-07-13). It contains **no browser code** and selects
+**no backend** — ADR-0003 remains open; accepting ADR-0015 did not settle it.
 
 - `components/` — the eight optimizer-evolvable components. **The only surface
   the optimizer may write** (enforced by the loop's git file guard).

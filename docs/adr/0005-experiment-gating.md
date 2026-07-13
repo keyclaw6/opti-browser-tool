@@ -1,10 +1,10 @@
 # ADR-0005: Experiment validity and acceptance gate
 
-- Status: Proposed
+- Status: Accepted
 - Date opened: 2026-07-11
 - Date proposed: 2026-07-13
-- Date accepted: —
-- Approval state: Not accepted
+- Date accepted: 2026-07-13
+- Approval state: Accepted — explicit project-owner approval (2026-07-13). The synthetic failure-injection catalog in the decision gate carries forward as a pre-activation requirement; numeric thresholds remain TBD-from-measurement.
 - Supersedes: —
 - Superseded by: —
 

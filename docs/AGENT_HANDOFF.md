@@ -39,9 +39,13 @@ Browser-specific additions still need to be designed and validated: executor-ver
 Only decisions marked **Accepted** in `docs/DECISION_REGISTER.md` are binding:
 
 - ADR-0001 — governing objective and constraints;
+- ADR-0004 — trace event log and artifact storage (accepted 2026-07-13);
+- ADR-0005 — the E0–E5 experiment gate (accepted 2026-07-13; thresholds from measurement);
 - ADR-0007 — smoke is a subset of primary;
 - ADR-0012 — locally calibrated task-level success should be 35–70%, inclusive;
-- ADR-0014 — execute all 140 candidates before filtering.
+- ADR-0014 — execute all 140 candidates before filtering;
+- ADR-0015 — auto-research loop architecture (accepted 2026-07-13);
+- ADR-0016 — judge panel and verifier audit protocol (accepted 2026-07-13).
 
 The 35–70 rule has an important evidence boundary: current public percentages are benchmark-family aggregates. They screened source families only. No individual task has yet been shown to fall inside the band.
 

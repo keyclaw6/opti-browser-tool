@@ -1,9 +1,8 @@
 """opti-loop: deterministic conductor for the auto-research loop.
 
-Provisional infrastructure implementing the architecture proposed in
-ADR-0015 (loop), ADR-0005 (gate ladder), and ADR-0016 (evaluation layering).
-Those ADRs are Proposed, not Accepted; the existence of this package does not
-change their status (see docs/DECISION_PROCESS.md).
+Reference implementation of ADR-0015 (loop), ADR-0005 (gate ladder), and
+ADR-0016 (evaluation layering), all Accepted 2026-07-13. Loop activation is
+separately gated on the pre-activation requirements recorded in those ADRs.
 
 Design provenance:
 - loop skeleton, file guard, regression promotion: neosigmaai/auto-harness;

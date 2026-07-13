@@ -1,10 +1,10 @@
 # ADR-0016: Judge panel and verifier audit protocol
 
-- Status: Proposed
+- Status: Accepted
 - Date opened: 2026-07-13
 - Date proposed: 2026-07-13
-- Date accepted: —
-- Approval state: Not accepted
+- Date accepted: 2026-07-13
+- Approval state: Accepted — explicit project-owner approval (2026-07-13). Calibration-before-trust remains operative: no judge flag is consumed until its measured operating point is met.
 - Supersedes: —
 - Superseded by: —
 - Answers: Open Question 14 (Workstream C)

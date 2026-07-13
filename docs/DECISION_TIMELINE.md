@@ -86,12 +86,24 @@ An independent adversarial review of the loop/judge shells found the machinery c
 
 The shells were rewritten to a v2 **trusted experiment boundary**: an owner-only store outside the repo, a captured base SHA with an isolated candidate worktree, a commit-diff file guard with path-safety, a single atomic gate+record transaction, a typed verdict where only `(accepted, benchmark)` advances state, mandatory verifier admission plus auto-T1 before benchmark eligibility, identity-bound validated noise bands, whole-tree generality lint, corpus dedupe/class-balance for judge trust, restricted-tag redaction in the evidence API, exploration/pivot enforcement in the gate, and a pre-registered transfer-checkpoint falsification protocol. These remain provisional infrastructure for the still-Proposed ADRs; the change settles no open decision.
 
+## 11. Auto-research architecture accepted (2026-07-13)
+
+**ADR-0004, ADR-0005, ADR-0015, ADR-0016 — Accepted.**
+
+The project owner explicitly accepted the proposed architecture set: trace storage (0004), the E0–E5 experiment gate (0005), the auto-research loop architecture with trusted boundary and exploration policy (0015), and the judge panel with probe-kit admission and calibration-before-trust (0016).
+
+Two clarifications recorded with the acceptance: (a) each ADR's empirical decision-gate checks (first-bridge trace conformance, the synthetic failure-injection catalog, judge calibration) carry forward as **pre-activation requirements** — the loop still may not start until they pass; numeric thresholds remain TBD-from-measurement. (b) **ADR-0008 and ADR-0009 remain Proposed**: their own decision gates require task-level calibration evidence from the 140-candidate runs (ADR-0014), which does not exist yet; they will be revisited when it does.
+
 ## Current accepted decisions
 
 - ADR-0001: project constitution.
+- ADR-0004: canonical trace = JSONL event stream + content-addressed artifacts, visibility enforced at the read boundary.
+- ADR-0005: the E0–E5 experiment gate (thresholds from measurement; injection catalog before activation).
 - ADR-0007: smoke is nested in primary.
 - ADR-0012: task-level reference-success band is 35–70%, inclusive.
 - ADR-0014: run all 140 provisional candidates before filtering.
+- ADR-0015: auto-research loop architecture (five planes, phases A–F, trusted experiment boundary, exploration policy).
+- ADR-0016: judge panel and verifier audit protocol (T0–T3, probe-kit admission, quarantine, calibration-before-trust).
 
 ## Current non-decisions
 
@@ -100,8 +112,6 @@ The repository has **not** selected:
 - a browser engine or control library;
 - visual-first, CLI, or hybrid as the first winning architecture;
 - native input versus DOM-triggered actions as a default;
-- the final trace format and artifact store;
-- the final baseline/treatment gate;
 - permanent regression promotion thresholds;
 - the hidden holdout tasks;
 - executor or judge models;

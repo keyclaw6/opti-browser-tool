@@ -27,7 +27,7 @@ This directory is the review surface for Opti Browser Tool. A new implementation
 ## Historical and nonbinding records
 
 - Open and proposed ADRs are not defaults.
-- `loop_harness/` (the auto-research loop conductor), `harness/` (the component-tree scaffold), and `judge_harness/` (probe-kit admission, T1 cross-checks, quarantine, calibration corpus, T2 panel scaffolding per **Proposed** ADR-0016) are provisional implementation shells; their existence does not accept any ADR, no judge is calibrated or trusted, and no loop verdict over synthetic adapters is benchmark evidence.
+- `loop_harness/` (the auto-research loop conductor), `harness/` (the component-tree scaffold), and `judge_harness/` (probe-kit admission, T1 cross-checks, quarantine, calibration corpus, T2 panel scaffolding) are reference implementations of the **Accepted** ADR-0015/0005/0016 architecture — but the loop is NOT yet authorized to run: pre-activation requirements stand, no judge is calibrated or trusted, and no verdict over synthetic adapters is benchmark evidence.
 - The loop runs against a **trusted experiment boundary** (v2, after the adversarial review in `docs/AUTO_RESEARCH_REVIEW_PROMPT.md`): conductor state lives in an owner-only store OUTSIDE the repo, the optimizer works in an isolated worktree, the file guard is authoritative over the base→candidate commit diff, and only a typed `(accepted, benchmark)` verdict advances state. See `loop_harness/README.md`.
 - Superseded ADRs remain only to explain how the project changed.
 - `archive/superseded/runnable-suite-v0-100/` preserves the incomplete 100-task implementation for audit; it is not active.
@@ -36,8 +36,12 @@ This directory is the review surface for Opti Browser Tool. A new implementation
 ## Current accepted decisions
 
 - ADR-0001: project constitution.
+- ADR-0004: trace event log and artifact storage (JSONL stream + content-addressed artifacts).
+- ADR-0005: the E0–E5 experiment gate (thresholds TBD-from-measurement; injection catalog before activation).
 - ADR-0007: the smoke suite is nested in the primary suite.
 - ADR-0012: the target task-level reference-success band is 35–70%, inclusive.
 - ADR-0014: run all 140 provisional candidates before filtering toward the final suite.
+- ADR-0015: the auto-research loop architecture (trusted experiment boundary, exploration policy).
+- ADR-0016: the judge panel and verifier audit protocol (probe-kit admission, calibration-before-trust).
 
-No browser backend, browser-control library, final lane architecture, trace store, complete experiment gate, or live-site operating policy has been accepted.
+No browser backend, browser-control library, final lane architecture, or live-site operating policy has been accepted, and the auto-research loop is not yet authorized to run (pre-activation requirements in ADR-0004/0005 stand).

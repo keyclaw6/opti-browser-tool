@@ -13,8 +13,8 @@ The codebase may contain provisional scaffolding for an unresolved question; imp
 | [0001](adr/0001-project-constitution.md) | Project constitution | Accepted | Governing objective and constraints from the project brief |
 | [0002](adr/0002-shared-substrate-and-lane-boundaries.md) | Shared substrate and lane boundaries | Open | Research existing harness structures before choosing |
 | [0003](adr/0003-initial-browser-backend.md) | Initial browser backend and action mechanisms | Open | Compare current browser/control foundations and hypotheses first |
-| [0004](adr/0004-trace-storage.md) | Trace event log and artifact storage | Proposed | JSONL canonical stream + content-addressed artifacts; accept after first bridge emits a conforming trace |
-| [0005](adr/0005-experiment-gating.md) | Experiment validity and acceptance gate | Proposed | E0–E5 ladder proposed; thresholds await measurement on the bring-up set |
+| [0004](adr/0004-trace-storage.md) | Trace event log and artifact storage | Accepted | Explicit owner approval 2026-07-13; first-bridge trace conformance is a pre-activation checkpoint |
+| [0005](adr/0005-experiment-gating.md) | Experiment validity and acceptance gate | Accepted | Explicit owner approval 2026-07-13; thresholds TBD-from-measurement; injection catalog must pass before loop activation |
 | [0006](adr/0006-live-site-testing-policy.md) | Live-site testing isolation and safety | Open | Define detailed controls before live-site execution |
 | [0007](adr/0007-nested-smoke-suite.md) | Smoke suite is nested in the primary suite | Accepted | Explicit project-owner direction |
 | [0008](adr/0008-primary-benchmark-source-shortlist.md) | Primary evaluation benchmark-source portfolio | Proposed | Source allocation remains subject to task-level validation |
@@ -24,5 +24,5 @@ The codebase may contain provisional scaffolding for an unresolved question; imp
 | [0012](adr/0012-reference-success-band-35-to-70.md) | Reference success band is 35–70% | Accepted | Explicit project-owner correction and approval |
 | [0013](adr/0013-runnable-evaluation-suite-v0.md) | Runnable 100-task suite draft and bridge convention | Superseded | 100-task suite replaced by ADR-0014; bridge code remains provisional infrastructure, not a browser-foundation decision |
 | [0014](adr/0014-run-all-140-candidates-before-filtering.md) | Run all 140 candidates before filtering | Accepted | Explicit project-owner direction; final filtering follows validation |
-| [0015](adr/0015-auto-research-loop-architecture.md) | Auto-research loop architecture | Proposed | Adapts the two reference frameworks; answers Open Question 16; awaiting owner review |
-| [0016](adr/0016-judge-panel-and-verifier-audit-protocol.md) | Judge panel and verifier audit protocol | Proposed | T0–T3 layering with probe-kit admission; answers Open Question 14; awaiting owner review |
+| [0015](adr/0015-auto-research-loop-architecture.md) | Auto-research loop architecture | Accepted | Explicit owner approval 2026-07-13; five planes, A–F, trusted boundary, exploration policy binding |
+| [0016](adr/0016-judge-panel-and-verifier-audit-protocol.md) | Judge panel and verifier audit protocol | Accepted | Explicit owner approval 2026-07-13; T0–T3 binding; no judge flag trusted before its measured operating point |

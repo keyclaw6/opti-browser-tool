@@ -1,6 +1,6 @@
 # PROGRAM.md — Optimizer Runbook (v0)
 
-- Status: **v0 draft. The auto-research loop is NOT active.** This runbook is governed by [ADR-0015](docs/adr/0015-auto-research-loop-architecture.md), [ADR-0016](docs/adr/0016-judge-panel-and-verifier-audit-protocol.md), and [ADR-0005](docs/adr/0005-experiment-gating.md), all currently **Proposed**. It becomes operative only after those ADRs are accepted, source bridges exist, the suite is calibrated, and the project owner explicitly starts the loop.
+- Status: **The auto-research loop is NOT yet active.** This runbook is governed by [ADR-0015](docs/adr/0015-auto-research-loop-architecture.md), [ADR-0016](docs/adr/0016-judge-panel-and-verifier-audit-protocol.md), [ADR-0005](docs/adr/0005-experiment-gating.md), and [ADR-0004](docs/adr/0004-trace-storage.md) — all **Accepted 2026-07-13**. It becomes operative only after the pre-activation requirements pass: source bridges emitting conforming traces, verifiers admitted via probe kits, the suite and noise band calibrated, the ADR-0005 injection catalog green, and the project owner explicitly starting the loop.
 - Audience: the external coding agent acting as the **Optimizer**.
 - Binding constraints you inherit regardless of this document: [ADR-0001](docs/adr/0001-project-constitution.md) (constitution), [ADR-0007](docs/adr/0007-nested-smoke-suite.md), [ADR-0012](docs/adr/0012-reference-success-band-35-to-70.md), [ADR-0014](docs/adr/0014-run-all-140-candidates-before-filtering.md), and [`PROJECT_CHARTER.md`](PROJECT_CHARTER.md).
 

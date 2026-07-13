@@ -1,6 +1,6 @@
 # The Analyst — Trace Analysis Pipeline Specification
 
-- Status: specification draft supporting [ADR-0015](../adr/0015-auto-research-loop-architecture.md) and [ADR-0016](../adr/0016-judge-panel-and-verifier-audit-protocol.md) (both Proposed). Not binding.
+- Status: specification under [ADR-0015](../adr/0015-auto-research-loop-architecture.md) and [ADR-0016](../adr/0016-judge-panel-and-verifier-audit-protocol.md) (both Accepted 2026-07-13).
 - Role: the loop's phase-C DISTILL pipeline and, identically, the **root-cause analyst** seat on the T2 judge panel. The Analyst is the browser-native equivalent of AHE's Agent Debugger, rebuilt on this project's trace contract instead of the reference project's closed tooling.
 
 ## 1. Guarantees

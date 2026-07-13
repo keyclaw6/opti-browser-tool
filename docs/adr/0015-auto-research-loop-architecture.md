@@ -1,11 +1,11 @@
 # ADR-0015: Auto-research loop architecture
 
-- Status: Proposed
+- Status: Accepted
 - Date opened: 2026-07-13
 - Date proposed: 2026-07-13
-- Amended: 2026-07-13 — §9 exploration policy added and executor confirmation recorded per project-owner direction
-- Date accepted: —
-- Approval state: Not accepted
+- Amended: 2026-07-13 — §9 exploration policy added and executor confirmation recorded per project-owner direction; trusted-boundary containment added after adversarial review
+- Date accepted: 2026-07-13
+- Approval state: Accepted — explicit project-owner approval (2026-07-13). Loop activation remains separately gated on bridges, calibration, and the ADR-0005 injection catalog.
 - Supersedes: —
 - Superseded by: —
 - Answers: Open Question 16

@@ -1,6 +1,6 @@
 # Harness-Under-Test Component Tree
 
-- Status: specification draft supporting [ADR-0015](../adr/0015-auto-research-loop-architecture.md) (Proposed). Not binding. This document does **not** select a browser backend or control library; [ADR-0003](../adr/0003-initial-browser-backend.md) remains open, and this layout must be implementable over any backend that satisfies the session interface.
+- Status: specification under [ADR-0015](../adr/0015-auto-research-loop-architecture.md) (Accepted 2026-07-13) — the binding component-tree contract. This document does **not** select a browser backend or control library; [ADR-0003](../adr/0003-initial-browser-backend.md) remains open, and this layout must be implementable over any backend that satisfies the session interface.
 - Purpose: define the directory layout, file contracts, registration format, trace hooks, and seed harness so that (a) the optimizer's writable surface is mechanically checkable, (b) every failure cluster maps to exactly one component, and (c) attribution stays clean.
 
 ## 1. Layout
@@ -92,4 +92,4 @@ Rationale: a minimal seed protects attribution — early gains are attributable 
 
 ## 7. What this scaffold deliberately defers
 
-Backend selection (ADR-0003), trace store selection (ADR-0004), the concrete session-interface API surface, and all implementation of the directories above. This document constrains their shape; it does not build them.
+Backend selection (ADR-0003, open), the concrete session-interface API surface, and all implementation of the directories above. Trace storage is decided (ADR-0004, accepted) but not yet implemented. This document constrains their shape; it does not build them.

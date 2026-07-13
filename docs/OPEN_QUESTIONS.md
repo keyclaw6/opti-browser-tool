@@ -15,9 +15,9 @@ These are intentionally unresolved. They should be answered through research and
 11. When ADR-0006 is ready, should WebSP-Eval become the first permitted-account configuration and privacy transfer suite?
 12. Which of the current 20 smoke candidates remain stable after real environment and verifier validation?
 13. How should unstable tasks, repeated trials, initial regression membership, later regression promotion, and the hidden holdout be managed?
-14. Which completion verifiers and LLM judges are needed, what evidence may each see, and how will false-positive and false-negative rates be calibrated? A proposed answer is recorded in [ADR-0016](adr/0016-judge-panel-and-verifier-audit-protocol.md); the question closes only if that ADR is accepted.
-15. What trace and artifact representation best supports replay, diagnosis, redaction, and cross-harness comparison?
-16. How should the two reference auto-research frameworks be adapted rather than copied blindly? A proposed answer is recorded in [ADR-0015](adr/0015-auto-research-loop-architecture.md); the question closes only if that ADR is accepted.
+14. Which completion verifiers and LLM judges are needed, what evidence may each see, and how will false-positive and false-negative rates be calibrated? **Answered by [ADR-0016](adr/0016-judge-panel-and-verifier-audit-protocol.md) (accepted 2026-07-13);** per-benchmark calibration measurements remain to be produced.
+15. What trace and artifact representation best supports replay, diagnosis, redaction, and cross-harness comparison? **Answered by [ADR-0004](adr/0004-trace-storage.md) (accepted 2026-07-13);** first-bridge conformance pending.
+16. How should the two reference auto-research frameworks be adapted rather than copied blindly? **Answered by [ADR-0015](adr/0015-auto-research-loop-architecture.md) (accepted 2026-07-13).**
 17. Which executor and judge models are approved, with which exact API identifiers, snapshots, settings, and data policies?
 18. Which infrastructure will host browser workers, artifacts, model endpoints, and hidden evaluation?
 19. What detailed policy is required before permitted live-site testing?

@@ -1,10 +1,10 @@
 # ADR-0004: Trace event log and artifact storage
 
-- Status: Proposed
+- Status: Accepted
 - Date opened: 2026-07-11
 - Date proposed: 2026-07-13
-- Date accepted: —
-- Approval state: Not accepted
+- Date accepted: 2026-07-13
+- Approval state: Accepted — explicit project-owner approval (2026-07-13). The decision gate's empirical check (first real bridge emits a conforming trace, probe kit + T1 run over it) carries forward as a pre-activation requirement.
 - Supersedes: —
 - Superseded by: —
 

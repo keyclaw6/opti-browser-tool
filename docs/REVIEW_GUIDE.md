@@ -22,7 +22,7 @@ For each accepted ADR, check:
 - later documents do not silently contradict it; and
 - any later change uses a superseding ADR.
 
-Current accepted ADRs are 0001, 0007, 0012, and 0014.
+Current accepted ADRs are 0001, 0004, 0005, 0007, 0012, 0014, 0015, and 0016.
 
 ## 3. Check non-decisions
 
@@ -30,8 +30,6 @@ Confirm that the repository does not falsely claim selection of:
 
 - browser engine or automation library;
 - visual-first, CLI, or hybrid foundation;
-- trace storage format;
-- final experiment gate;
 - detailed live-site policy;
 - reference calibration harness and trial count;
 - judge models/prompts; or

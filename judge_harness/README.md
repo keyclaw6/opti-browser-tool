@@ -1,11 +1,12 @@
 # opti-judge — evaluation-plane judge instrumentation
 
-**Status: provisional infrastructure.** Implements the T0–T3 layering proposed
-in [ADR-0016](../docs/adr/0016-judge-panel-and-verifier-audit-protocol.md)
-(Proposed, not Accepted — per [`docs/DECISION_PROCESS.md`](../docs/DECISION_PROCESS.md)
-this code settles nothing). No judge model is pinned (Open Question 17), no
-judge is calibrated, and no verifier exists yet to admit — what exists is the
-machinery that makes those steps mechanical when bridges arrive.
+**Status: reference implementation of accepted architecture.** Implements the
+T0–T3 layering of [ADR-0016](../docs/adr/0016-judge-panel-and-verifier-audit-protocol.md)
+(**Accepted 2026-07-13**). Calibration-before-trust remains operative: no judge
+model is pinned yet (Open Question 17), no judge is calibrated, and no verifier
+exists yet to admit — what exists is the machinery that makes those steps
+mechanical when bridges arrive, and nothing downstream consumes an
+uncalibrated judge.
 
 ## What is real today
 
