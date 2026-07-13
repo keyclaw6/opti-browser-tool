@@ -94,6 +94,10 @@ The project owner explicitly accepted the proposed architecture set: trace stora
 
 Two clarifications recorded with the acceptance: (a) each ADR's empirical decision-gate checks (first-bridge trace conformance, the synthetic failure-injection catalog, judge calibration) carry forward as **pre-activation requirements** — the loop still may not start until they pass; numeric thresholds remain TBD-from-measurement. (b) **ADR-0008 and ADR-0009 remain Proposed**: their own decision gates require task-level calibration evidence from the 140-candidate runs (ADR-0014), which does not exist yet; they will be revisited when it does.
 
+## 12. Model and infrastructure pins accepted (2026-07-13)
+
+**ADR-0017 — Accepted** on explicit project-owner direction: MiniMax-M3 as the loop executor via the owner's OpenCode Go subscription; the judge panel and Analyst as Codex-spawned sub-agents on the GPT-5.6 Sol Ultra preset; GPT-4 Pro (via OpenCode Go) for research/exploration tasks; BrowserGym GenericAgent + GPT-5.6 Sol Ultra as the calibration reference; a GPT-5.6 Sol Ultra + GPT-4 Pro transfer panel. The owner delegated the hidden-holdout location to automation; it is chosen by the CONDUCTOR-side setup before iteration 1 (default: inside the owner-only trusted store) — never by the optimizer, preserving the holdout invariant. Compute home: one dedicated Linux host with two-user confinement (conductor/store owner vs. optimizer restricted to its worktree components).
+
 ## Current accepted decisions
 
 - ADR-0001: project constitution.
@@ -104,6 +108,7 @@ Two clarifications recorded with the acceptance: (a) each ADR's empirical decisi
 - ADR-0014: run all 140 provisional candidates before filtering.
 - ADR-0015: auto-research loop architecture (five planes, phases A–F, trusted experiment boundary, exploration policy).
 - ADR-0016: judge panel and verifier audit protocol (T0–T3, probe-kit admission, quarantine, calibration-before-trust).
+- ADR-0017: model and infrastructure pins (MiniMax-M3 executor via OpenCode Go; Codex sub-agent judges on GPT-5.6 Sol Ultra; conductor-side holdout; single confined host).
 
 ## Current non-decisions
 

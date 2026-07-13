@@ -43,5 +43,6 @@ This directory is the review surface for Opti Browser Tool. A new implementation
 - ADR-0014: run all 140 provisional candidates before filtering toward the final suite.
 - ADR-0015: the auto-research loop architecture (trusted experiment boundary, exploration policy).
 - ADR-0016: the judge panel and verifier audit protocol (probe-kit admission, calibration-before-trust).
+- ADR-0017: model and infrastructure pins (MiniMax-M3 executor; GPT-5.6 Sol Ultra judges; confined single-host deployment).
 
 No browser backend, browser-control library, final lane architecture, or live-site operating policy has been accepted, and the auto-research loop is not yet authorized to run (pre-activation requirements in ADR-0004/0005 stand).

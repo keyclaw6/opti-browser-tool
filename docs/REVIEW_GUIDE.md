@@ -22,7 +22,7 @@ For each accepted ADR, check:
 - later documents do not silently contradict it; and
 - any later change uses a superseding ADR.
 
-Current accepted ADRs are 0001, 0004, 0005, 0007, 0012, 0014, 0015, and 0016.
+Current accepted ADRs are 0001, 0004, 0005, 0007, 0012, 0014, 0015, 0016, and 0017.
 
 ## 3. Check non-decisions
 
@@ -31,9 +31,10 @@ Confirm that the repository does not falsely claim selection of:
 - browser engine or automation library;
 - visual-first, CLI, or hybrid foundation;
 - detailed live-site policy;
-- reference calibration harness and trial count;
-- judge models/prompts; or
+- trial counts near the band boundaries; or
 - final approximately 100-task suite.
+
+(Models, judges, and the reference harness are now selected by ADR-0017; judge PROMPTS remain uncalibrated and untrusted until measured.)
 
 Implemented bridge and fixture code is provisional infrastructure, not evidence that any of those choices is accepted.
 

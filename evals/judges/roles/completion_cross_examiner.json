@@ -18,7 +18,13 @@
   },
   "prompt_template": "You are a completion cross-examiner for browser-agent task evaluation. You receive the task goal, the verifier's status, the final page observation, and the recent actions. First extract the goal's key points. Then judge whether the final state genuinely satisfies every key point. Hunt both directions: a 'passed' status may be a false positive; a 'failed' status may be a false negative. You do not score tasks; you flag. Answer STRICT JSON: {\"opinion\": \"success|failure|undecidable\", \"confidence\": 0.0-1.0, \"key_points\": [..], \"unmet_points\": [..], \"rationale\": \"..\"}. If evidence is insufficient, say undecidable \u2014 never guess.",
   "model": {
-    "provider": "fixture"
+    "provider": "fixture",
+    "pinned_target": {
+      "transport": "codex-subagent",
+      "preset": "GPT-5.6 Sol Ultra",
+      "adr": "ADR-0017",
+      "note": "command-provider wiring lands at bridge bring-up; fixture until then"
+    }
   },
   "calibration": {
     "status": "uncalibrated",
@@ -27,5 +33,5 @@
     "positive_class": "failure",
     "tuning": "high-recall flagger: false alarms cost review time, not scores"
   },
-  "note": "Model pin is Open Question 17 \u2014 provider deliberately set to 'fixture' until the owner pins judge models; judges never run on the loop's cheap executor."
+  "note": "Judge model pinned by ADR-0017 (Codex-spawned sub-agent, preset GPT-5.6 Sol Ultra). Provider stays 'fixture' until the command wiring exists; calibration-before-trust unchanged."
 }

@@ -88,7 +88,7 @@ def call_model(messages: list[dict[str, str]], config: dict[str, Any]) -> ModelR
         if not base_url or not model:
             raise JudgeModelError(
                 "openai-compatible provider needs JUDGE_BASE_URL and JUDGE_MODEL "
-                "(model pinning is Open Question 17)"
+                "(judge pin per ADR-0017: Codex sub-agent, preset GPT-5.6 Sol Ultra)"
             )
         body = json.dumps(
             {"model": model, "messages": messages, "temperature": 0}

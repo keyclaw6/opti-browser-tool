@@ -18,8 +18,8 @@ These are intentionally unresolved. They should be answered through research and
 14. Which completion verifiers and LLM judges are needed, what evidence may each see, and how will false-positive and false-negative rates be calibrated? **Answered by [ADR-0016](adr/0016-judge-panel-and-verifier-audit-protocol.md) (accepted 2026-07-13);** per-benchmark calibration measurements remain to be produced.
 15. What trace and artifact representation best supports replay, diagnosis, redaction, and cross-harness comparison? **Answered by [ADR-0004](adr/0004-trace-storage.md) (accepted 2026-07-13);** first-bridge conformance pending.
 16. How should the two reference auto-research frameworks be adapted rather than copied blindly? **Answered by [ADR-0015](adr/0015-auto-research-loop-architecture.md) (accepted 2026-07-13).**
-17. Which executor and judge models are approved, with which exact API identifiers, snapshots, settings, and data policies?
-18. Which infrastructure will host browser workers, artifacts, model endpoints, and hidden evaluation?
+17. Which executor and judge models are approved, with which exact API identifiers, snapshots, settings, and data policies? **Answered at the selection level by [ADR-0017](adr/0017-model-and-infrastructure-pins.md) (accepted 2026-07-13):** MiniMax-M3 executor via OpenCode Go; judges/Analyst as Codex-spawned sub-agents on GPT-5.6 Sol Ultra; exact identifiers/snapshots recorded per campaign at bring-up.
+18. Which infrastructure will host browser workers, artifacts, model endpoints, and hidden evaluation? **Answered at the selection level by [ADR-0017](adr/0017-model-and-infrastructure-pins.md) item 7:** one dedicated Linux host, environments via Docker Compose, two-user confinement (conductor/store owner vs. optimizer restricted to its worktree components), holdout inside the owner-only trusted store.
 19. What detailed policy is required before permitted live-site testing?
 20. Should the repository remain public, and which license should it use?
 21. Which implementation language, runtime, package manager, and CI structure should be adopted after the first baseline is selected?

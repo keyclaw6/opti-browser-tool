@@ -26,7 +26,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "suites": {"dev": "smoke", "smoke": "smoke", "regression": "regression"},
     "adapter": {"kind": "fixture", "pass_rate": 0.55, "seed": 0},
     "fixed_variables": {
-        "executor_model": "unpinned (OQ-17; project owner direction: MiniMax-M3)",
+        "executor_model": "MiniMax-M3 via OpenCode Go (ADR-0017; exact API identifier pinned per campaign at bring-up)",
         "browser_backend": "none (ADR-0003 open; no browser code exists)",
         "lane": "structured",
     },

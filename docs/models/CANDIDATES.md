@@ -1,6 +1,6 @@
 # Initial Executor Model Candidates
 
-Status: candidate inventory, not an accepted model-selection decision.
+Status: historical candidate inventory. The selection decision is now ADR-0017 (accepted 2026-07-13): MiniMax-M3 is the loop executor, accessed via the owner's OpenCode Go subscription; judges run as Codex-spawned sub-agents on GPT-5.6 Sol Ultra. Exact API identifiers/snapshots are recorded per campaign at bring-up per the selection rule below.
 
 ## MiniMax-M3
 

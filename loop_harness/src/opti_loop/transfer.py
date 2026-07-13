@@ -38,7 +38,8 @@ class TransferCheckpointPlan:
         "token/cost delta per model",
     ])
     stronger_model_panel: list[str] = field(default_factory=lambda: [
-        "<pin stronger executors here — OQ-17; e.g. a frontier model + one mid-tier>",
+        "GPT-5.6 Sol Ultra (ADR-0017 transfer panel)",
+        "GPT-4 Pro via OpenCode Go (ADR-0017 transfer panel)",
     ])
 
     def to_dict(self) -> dict[str, Any]:
@@ -49,7 +50,7 @@ class TransferCheckpointPlan:
             "reject_criterion": self.reject_criterion,
             "measures": self.measures,
             "stronger_model_panel": self.stronger_model_panel,
-            "status": "pre-registered; awaiting stronger-model runs (OQ-17)",
+            "status": "pre-registered; panel pinned by ADR-0017; awaiting stronger-model runs",
         }
 
 
