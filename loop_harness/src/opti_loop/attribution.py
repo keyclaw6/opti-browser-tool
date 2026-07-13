@@ -1,13 +1,19 @@
 """Attribution: falsify the manifest's predictions against observed flips.
 
 From agentic-harness-engineering: every change predicts the tasks it should
-fix; the next evaluation falsifies it, and the verdict is KEEP / IMPROVE
-(partial) / ROLLBACK+PIVOT. This project computes attribution synchronously
-— the gate runs the treatment evaluation inside the same iteration — so the
-verdict lands in the same iteration record rather than one loop later.
+fix; the evaluation falsifies it, and the verdict is KEEP / PARTIAL /
+REVERT. Per ADR-0015 §8 the regression-risk list is measured for prediction
+accuracy but never used to protect the gate.
 
-Per ADR-0015 §8 the risk list is measured for prediction accuracy but never
-used to protect the gate.
+Fixes from the review (F09):
+
+- **Correct metric definitions.** ``prediction_precision`` = verified /
+  predicted (of what you predicted, how much came true); ``flip_recall`` =
+  verified / actually-fixed (of the real flips, how many you predicted). The
+  old code swapped these labels, hiding shotgun predictions.
+- **Shotgun guard.** Predicting the whole catalog to catch one lucky flip now
+  scores near-zero precision; the gate enforces a precision floor, so a broad
+  prediction net cannot buy acceptance.
 """
 from __future__ import annotations
 
@@ -23,24 +29,26 @@ VERDICTS = ("keep", "partial", "revert")
 @dataclass(slots=True)
 class Attribution:
     verdict: str
+    predicted_count: int = 0
     verified_fixes: list[str] = field(default_factory=list)
-    missed_fixes: list[str] = field(default_factory=list)
+    missed_predictions: list[str] = field(default_factory=list)
     unpredicted_fixes: list[str] = field(default_factory=list)
     predicted_risks: list[str] = field(default_factory=list)
     materialized_regressions: list[str] = field(default_factory=list)
-    fix_precision: float | None = None
-    fix_recall: float | None = None
+    prediction_precision: float | None = None  # verified / predicted
+    flip_recall: float | None = None           # verified / actually-fixed
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "verdict": self.verdict,
+            "predicted_count": self.predicted_count,
             "verified_fixes": self.verified_fixes,
-            "missed_fixes": self.missed_fixes,
+            "missed_predictions": self.missed_predictions,
             "unpredicted_fixes": self.unpredicted_fixes,
             "predicted_risks": self.predicted_risks,
             "materialized_regressions": self.materialized_regressions,
-            "fix_precision": self.fix_precision,
-            "fix_recall": self.fix_recall,
+            "prediction_precision": self.prediction_precision,
+            "flip_recall": self.flip_recall,
             "note": "risk list is diagnostic only; it never protects the gate (ADR-0015 §8)",
         }
 
@@ -59,8 +67,9 @@ def attribute(manifest: dict, comparison: Comparison) -> Attribution:
     missed = sorted(predicted - fixed)
     unpredicted = sorted(fixed - predicted)
 
-    fix_precision = round(len(verified) / len(fixed), 4) if fixed else None
-    fix_recall = round(len(verified) / len(predicted), 4) if predicted else None
+    # Correct definitions (F09): precision over predictions, recall over flips.
+    prediction_precision = round(len(verified) / len(predicted), 4) if predicted else None
+    flip_recall = round(len(verified) / len(fixed), 4) if fixed else None
 
     if verified and not regressed:
         verdict = "keep"
@@ -71,11 +80,12 @@ def attribute(manifest: dict, comparison: Comparison) -> Attribution:
 
     return Attribution(
         verdict=verdict,
+        predicted_count=len(predicted),
         verified_fixes=verified,
-        missed_fixes=missed,
+        missed_predictions=missed,
         unpredicted_fixes=unpredicted,
         predicted_risks=sorted(risks),
         materialized_regressions=sorted(regressed),
-        fix_precision=fix_precision,
-        fix_recall=fix_recall,
+        prediction_precision=prediction_precision,
+        flip_recall=flip_recall,
     )

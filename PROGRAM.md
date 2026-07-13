@@ -26,19 +26,17 @@ Phases per [ADR-0015](docs/adr/0015-auto-research-loop-architecture.md); command
 
 Campaign identity (harness workspace branch, base lane, ledger, cluster register) is fixed in run configuration. You never switch, fork, or merge campaigns yourself; mechanisms from other campaigns arrive as normal manifested changes through your gate.
 
-1. **A — EVALUATE**: the Conductor runs the development suite via `opti-loop start --campaign <id>` (baseline evaluation + analysis + your iteration packet at `campaigns/<id>/iterations/iter-NNNN/PACKET.md`). Repetition counts follow per-task stability history (k=1 until real stochastic adapters exist).
-2. **B — ATTRIBUTE**: the Conductor intersects your previous manifest's predictions with observed flips and issues keep / revert / partial per edit. Rollbacks are file-granular and are themselves manifested changes.
-3. **C — DISTILL**: the Analyst publishes the layered report and updated failure-cluster register ([`docs/architecture/ANALYST.md`](docs/architecture/ANALYST.md)). You read; you do not edit.
-4. **D — EVOLVE (you)**:
-   - Take the **highest-priority unresolved cluster** from the register unless the Conductor directs otherwise.
-   - **If the Conductor marks the iteration divergent** (exploration quota or plateau trigger, [ADR-0015](docs/adr/0015-auto-research-loop-architecture.md) §9): do not target the top cluster. Select an architecture-class hypothesis (for example from the hypothesis backlog) under the same manifest and gate discipline, and record what was learned regardless of verdict.
+1. **A — EVALUATE**: `opti-loop start --campaign <id>` captures the trusted base SHA, creates your **isolated candidate worktree**, runs the baseline + regression baseline there, distills, and writes your packet into the owner-only trusted store. The command prints the worktree path — that is your only writable surface.
+2. **D — EVOLVE (you)**: work **inside the worktree**:
+   - Take the **highest-priority unresolved cluster** from the packet unless the Conductor directs otherwise.
+   - **If the iteration is marked divergent** (exploration quota or plateau, [ADR-0015](docs/adr/0015-auto-research-loop-architecture.md) §9): do not target the top cluster; select an architecture-class hypothesis and set `cluster_ref` to `divergent/...`.
    - Form **one hypothesis**; select **exactly one target component**.
-   - Implement the change as **one commit**.
-   - Write **one manifest entry** (§4).
-   - After **two failed attempts** on the same cluster at the same component, you must **pivot component level** — do not try a third variation in place.
-   - Never retry a failed hypothesis without first recording why the previous prediction was wrong.
-5. **E — GATE**: `opti-loop gate --campaign <id>` runs the E0–E5 ladder of [ADR-0005](docs/adr/0005-experiment-gating.md) deterministically and appends attribution to your manifest. You receive the verdict and artifacts (`gate-report.json`); you do not negotiate with it. On rejection, `opti-loop rollback --campaign <id>` reverts exactly your manifest's change scope.
-6. **F — RECORD**: `opti-loop record --campaign <id>` writes the ledger row and a learnings template — complete the learnings entry **whether the change passed or failed**.
+   - Edit only `harness/components/<component>/**`; make **one candidate commit**.
+   - Write **one `manifest.json`** in the worktree root (§4) — untracked; the Conductor ingests it.
+   - After **two failed attempts** at the same cluster+component the Conductor forces a **pivot** — a third local retry is rejected at E0.
+3. **E + B + F — RUN-ITERATION (one transaction)**: `opti-loop run-iteration --campaign <id>` is a single atomic step. It ingests and validates your manifest, runs the E0–E5 ladder ([ADR-0005](docs/adr/0005-experiment-gating.md)) over the `base..candidate` **commit diff**, computes attribution (B), writes the gate report + ledger row to the trusted store (F), advances accepted state **only** on a genuine `(accepted, benchmark)` verdict, and resets your worktree either way. There is no separate, forgeable gate/record/rollback step to exploit.
+   - The Conductor distills and updates the cluster register at `start`; you read the packet, you never edit the store.
+   - Never retry a failed hypothesis without first recording why the previous prediction was wrong (learnings).
 
 ## 4. The manifest you must write
 
@@ -75,14 +73,16 @@ make docs-verify          # documentation and link integrity
 Loop operator commands (conductor; see `loop_harness/README.md`):
 
 ```bash
-opti-loop init --campaign <id>       # create a campaign (fixture adapter by default)
-opti-loop measure-noise --campaign <id>
-opti-loop start --campaign <id>      # phase A+C: baseline, analysis, your packet
-opti-loop gate --campaign <id>       # phases E+B: E0–E5 ladder + attribution
-opti-loop record --campaign <id>     # phase F: ledger + learnings template
-opti-loop rollback --campaign <id>   # file-granular revert of the manifest scope
+opti-loop init --campaign <id> [--store-root PATH]   # store lives OUTSIDE the repo
+opti-loop measure-noise --campaign <id>              # owner artifact, identity-bound
+opti-loop start --campaign <id>                      # phase A+C: base worktree, baseline, packet
+opti-loop run-iteration --campaign <id>              # phases E+B+F as ONE transaction
+opti-loop status --campaign <id>
+opti-loop compare-campaigns --campaigns a,b          # scheduled, run-identity-checked
+opti-loop transfer-plan --campaign <id>              # pre-registered transfer checkpoint
 ```
 
-Fixture and simulated runs validate plumbing only; their gate verdicts are
-watermarked `simulated:` and must never be reported as benchmark performance
-or real acceptances.
+Fixture and simulated runs validate plumbing only; their verdicts carry
+`evidence_class: simulated` and can **never** advance real accepted state or be
+reported as benchmark performance. Only `(accepted, benchmark)` — a reportable,
+verifier-admitted, noise-identity-bound run — advances the campaign.

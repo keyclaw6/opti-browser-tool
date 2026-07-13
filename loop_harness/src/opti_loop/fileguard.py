@@ -1,83 +1,125 @@
-"""Git file guard: the optimizer's writable surface, mechanically enforced.
+"""File guard: the optimizer's writable surface, enforced over commit objects.
 
-Adapted from neosigmaai/auto-harness ``gating.py`` (diff-index + untracked
-scan minus allowlist), with two changes for this project:
+Rewritten after the review (F01, F03, F08-symlink). The authoritative check is
+now ``git diff <base>..<candidate>`` (commit objects, immune to working-tree
+hiding, ``assume-unchanged``, and ``.git/info/exclude``), plus a working-tree
+cleanliness assertion so an optimizer that edits but forgets to commit fails
+loudly instead of slipping past.
 
-- the allowlist is a set of directory prefixes (the harness component tree),
-  not individual files;
-- there is no configuration switch to disable the guard. ADR-0015 treats the
-  guard as containment, not convenience; a run without a working git repo is
-  a guard failure, not a degraded mode.
+Path safety is enforced here and re-enforced in ``manifest``: absolute paths,
+``..`` traversal, NUL bytes, and non-regular files (symlinks, fifos) are
+rejected before anything is read or deleted, closing the traversal-delete
+(F03) and symlink-into-eval-plane (F08) holes.
 """
 from __future__ import annotations
 
-import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
-# The only tracked surface the optimizer may modify (ADR-0015 §5, PROGRAM.md §2).
+from . import gitutil
+
+# The only surface the optimizer may modify (ADR-0015 §5, PROGRAM.md §2).
 ALLOWED_PREFIXES: tuple[str, ...] = ("harness/components/",)
+
+# Untracked files the conductor tolerates in the worktree at gate time: the
+# optimizer drops its manifest here; the conductor ingests it as untrusted input.
+TOLERATED_UNTRACKED: frozenset[str] = frozenset({"manifest.json"})
 
 
 class GuardError(RuntimeError):
     """Raised when the guard itself cannot run (git missing / not a repo)."""
 
 
-def _git_lines(repo_root: Path, *args: str) -> list[str]:
-    try:
-        out = subprocess.check_output(
-            ["git", "-C", str(repo_root), *args],
-            text=True,
-            stderr=subprocess.DEVNULL,
-        )
-    except FileNotFoundError as exc:  # git binary missing
-        raise GuardError("`git` is not installed or not on PATH") from exc
-    except subprocess.CalledProcessError as exc:
-        raise GuardError(f"git {' '.join(args)} failed in {repo_root}") from exc
-    return [line for line in out.strip().splitlines() if line]
-
-
-def changed_paths(repo_root: Path) -> list[str]:
-    """Tracked modifications plus non-ignored new files, repo-relative."""
-    _git_lines(repo_root, "rev-parse", "--is-inside-work-tree")
-    paths: set[str] = set()
-    paths.update(_git_lines(repo_root, "diff-index", "--name-only", "HEAD"))
-    paths.update(_git_lines(repo_root, "ls-files", "--others", "--exclude-standard"))
-    return sorted(paths)
-
-
 def is_allowed(path: str, allowed_prefixes: tuple[str, ...] = ALLOWED_PREFIXES) -> bool:
     return any(path.startswith(prefix) for prefix in allowed_prefixes)
 
 
+def path_is_safe(path: str) -> bool:
+    """Reject absolute paths, traversal, NUL, and backslash separators."""
+    if not path or "\x00" in path or "\\" in path:
+        return False
+    if path.startswith("/"):
+        return False
+    parts = path.split("/")
+    if ".." in parts or "" in parts[:-1]:
+        return False
+    return True
+
+
+def is_regular_file(root: Path, relpath: str) -> bool:
+    """True only for a real regular file (not a symlink/fifo) under root."""
+    full = (root / relpath)
+    try:
+        # Refuse symlinks anywhere along the path or at the leaf.
+        resolved = full.resolve()
+        resolved.relative_to(root.resolve())
+    except (ValueError, OSError):
+        return False
+    return full.is_file() and not full.is_symlink()
+
+
 @dataclass(slots=True)
 class GuardReport:
-    changed: list[str]
-    violations: list[str]
+    changed: list[str] = field(default_factory=list)
+    violations: list[str] = field(default_factory=list)
+    dirty_worktree: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
-        return not self.violations
+        return not self.violations and not self.dirty_worktree
+
+    def to_dict(self) -> dict:
+        return {
+            "changed": self.changed,
+            "violations": self.violations,
+            "dirty_worktree": self.dirty_worktree,
+            "ok": self.ok,
+        }
 
 
-def check(
-    repo_root: Path,
+def check_candidate(
     *,
+    repo: Path,
+    worktree: Path,
+    base_sha: str,
+    candidate_sha: str,
     allowed_prefixes: tuple[str, ...] = ALLOWED_PREFIXES,
-    baseline_paths: set[str] | None = None,
 ) -> GuardReport:
-    """Compare the working tree against the allowlist.
+    """Authoritative guard over commit objects + worktree cleanliness.
 
-    ``baseline_paths``: paths already dirty when the iteration started
-    (for example this repository's own in-review documentation edits).
-    They are excluded from the verdict but still listed in ``changed`` so
-    the gate report shows the whole picture.
+    A change is admitted only if EVERY path in ``base..candidate`` is under an
+    allowed prefix, path-safe, and a regular file in the candidate worktree,
+    AND the worktree has no uncommitted edits except a tolerated untracked
+    ``manifest.json``.
     """
-    changed = changed_paths(repo_root)
-    baseline = baseline_paths or set()
-    violations = [
-        path
-        for path in changed
-        if path not in baseline and not is_allowed(path, allowed_prefixes)
-    ]
-    return GuardReport(changed=changed, violations=violations)
+    report = GuardReport()
+    try:
+        if not gitutil.is_ancestor(repo, base_sha, candidate_sha):
+            report.violations.append(
+                f"candidate {candidate_sha[:12]} does not descend from trusted base {base_sha[:12]}"
+            )
+            return report
+        pairs = gitutil.diff_name_status(repo, base_sha, candidate_sha)
+        dirty = gitutil.porcelain_status(worktree)
+    except gitutil.GitError as exc:
+        raise GuardError(str(exc)) from exc
+
+    report.changed = sorted(path for _status, path in pairs)
+
+    for _status, path in pairs:
+        if not path_is_safe(path):
+            report.violations.append(f"unsafe path in candidate diff: {path!r}")
+            continue
+        if not is_allowed(path, allowed_prefixes):
+            report.violations.append(f"path outside optimizer surface: {path}")
+            continue
+        # Deleted files won't exist in the worktree; only vet present files.
+        if _status != "D" and not is_regular_file(worktree, path):
+            report.violations.append(f"non-regular file or symlink: {path}")
+
+    for xy, path in dirty:
+        if xy == "??" and path in TOLERATED_UNTRACKED:
+            continue
+        report.dirty_worktree.append(f"{xy} {path}")
+
+    return report

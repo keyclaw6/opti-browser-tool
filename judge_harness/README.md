@@ -13,9 +13,9 @@ machinery that makes those steps mechanical when bridges arrive.
 |---|---|---|
 | T0 | **Probe-kit admission harness** (`probekit.py`) | Working. Runs a verifier command against the six probe kinds (oracle → 1, near-miss → 0, premature-stop → 0, harmful-extra-action detected, stale/fabricated rejected, malformed → `invalid` never `failed`), pins version+checksum, writes admission records, archives probes as calibration-corpus seeds. **This file is the contract every bridge verifier must pass.** |
 | T1 | **Deterministic cross-checks** (`t1_checks.py`) | Working over trace JSONL per `schemas/trace-event.schema.json`: HTTP-method side-effect monitor, zero-action-pass, action-count anomaly, loop detector, stale-epoch check, expected-state assertions. Flags carry direction (`fp_suspect` / `fn_suspect` / `side_effect` / `anomaly`) and event citations. |
-| T2 | **Panel scaffolding** (`panel.py`, `llm.py`, role assets in [`evals/judges/roles/`](../evals/judges/roles/)) | Five roles defined as versioned JSON (prompt, evidence contract, operating point). Pluggable model client (`fixture` for tests, `command` for the owner's runner, `openai-compatible` via env vars). **Trust gating:** every judgment carries `trusted: false` until the role meets its operating point on the calibration corpus — untrusted flags are diagnostic text, consumed by nothing. The adjudicator is deterministic code: unresolved disagreement always quarantines, never adjusts a score. |
-| T3 | **Quarantine queue** (`quarantine.py`) + **calibration corpus** (`corpus.py`) | Working. Disagreement routing (`router.py`) implements both closure chains: FP defense (pass + contrary evidence → quarantine) and FN recovery (fail + fn-suspect → queue whose only remedies are verifier/task repair — there is deliberately no "override score" resolution). Resolutions append to the corpus automatically; `measure` computes per-judge precision/recall. |
-| Loop wiring | `opti_loop` gate | A pending quarantine entry on a compared task makes the E5 comparison **ineligible under the strict validity policy** (fail-closed) and is excluded under quorum. The loop never reads untrusted judge flags. |
+| T2 | **Panel scaffolding** (`panel.py`, `llm.py`, role assets in [`evals/judges/roles/`](../evals/judges/roles/)) | Five roles as versioned JSON. Pluggable model client (`fixture`/`command`/`openai-compatible`). **Trust gating** (F12): a judgment is `trusted` only after the role meets its operating point on **distinct, class-balanced** corpus cases (25 copies of one case cannot certify trust). Untrusted judgments **never certify trust and never touch a score**; they *may* still raise a quarantine via the deterministic adjudicator (unresolved disagreement always quarantines). |
+| T3 | **Quarantine queue** (`quarantine.py`) + **calibration corpus** (`corpus.py`) | Routing (`router.py`) implements FP defense and FN recovery; the resolution vocabulary deliberately has no "override score". The corpus dedupes by `(task_id, run_ref)` fingerprint (F12); resolutions append automatically. |
+| Loop wiring | `opti_loop.eligibility` + gate | **Auto-T1 now runs inside the loop** (F10): before a treatment run can be benchmark evidence it must have an admitted, checksum-matched verifier, and T1 runs over each task trace and routes disagreements to quarantine; a pending quarantine then fails the E5 comparison closed (strict) or excludes it (quorum). T2 remains owner-invoked. |
 
 ## What is deliberately NOT here yet
 
@@ -28,8 +28,9 @@ machinery that makes those steps mechanical when bridges arrive.
    quarantine resolutions during bridge bring-up; per-benchmark operating
    points are measured then, not invented now.
 4. **Judge-only evidence streams** (screenshots, full DOM, network bodies) —
-   ADR-0004 territory; the evidence API already enforces visibility contracts
-   and structurally refuses `restricted` (holdout) material.
+   ADR-0004 territory; the evidence API enforces visibility contracts and
+   refuses any event OR artifact reference bearing `restricted`, even when
+   co-tagged (F13) — holdout material is never loadable here.
 
 ## Use
 

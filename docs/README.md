@@ -28,6 +28,7 @@ This directory is the review surface for Opti Browser Tool. A new implementation
 
 - Open and proposed ADRs are not defaults.
 - `loop_harness/` (the auto-research loop conductor), `harness/` (the component-tree scaffold), and `judge_harness/` (probe-kit admission, T1 cross-checks, quarantine, calibration corpus, T2 panel scaffolding per **Proposed** ADR-0016) are provisional implementation shells; their existence does not accept any ADR, no judge is calibrated or trusted, and no loop verdict over synthetic adapters is benchmark evidence.
+- The loop runs against a **trusted experiment boundary** (v2, after the adversarial review in `docs/AUTO_RESEARCH_REVIEW_PROMPT.md`): conductor state lives in an owner-only store OUTSIDE the repo, the optimizer works in an isolated worktree, the file guard is authoritative over the base→candidate commit diff, and only a typed `(accepted, benchmark)` verdict advances state. See `loop_harness/README.md`.
 - Superseded ADRs remain only to explain how the project changed.
 - `archive/superseded/runnable-suite-v0-100/` preserves the incomplete 100-task implementation for audit; it is not active.
 - Research reports may contain proposals that were later corrected or superseded. Their current-status notices and the decision register take precedence.

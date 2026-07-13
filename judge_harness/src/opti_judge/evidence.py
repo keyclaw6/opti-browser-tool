@@ -49,7 +49,9 @@ class EvidenceContract:
 
     def admits(self, event: dict[str, Any]) -> bool:
         vis = set(event.get("visibility", []))
-        if "restricted" in vis and vis.issubset({"restricted"}):
+        # F13: ANY event bearing `restricted` is unavailable through this API,
+        # regardless of co-tags. Mixed ["restricted","judge"] no longer leaks.
+        if "restricted" in vis:
             return False
         if not vis & set(self.visibility):
             return False
@@ -69,6 +71,18 @@ class Trace:
     def final_of_type(self, event_type: str) -> dict[str, Any] | None:
         rows = self.of_type(event_type)
         return rows[-1] if rows else None
+
+
+def _drop_restricted_artifacts(event: dict[str, Any]) -> list[dict[str, Any]]:
+    """Redact any artifact_ref tagged restricted (F13): a judge-visible event
+    must not carry a pointer to holdout/restricted evidence."""
+    kept: list[dict[str, Any]] = []
+    for ref in event.get("artifact_refs", []) or []:
+        vis = set(ref.get("visibility", []) or [])
+        if "restricted" in vis:
+            continue
+        kept.append(ref)
+    return kept
 
 
 def _validate_event(event: dict[str, Any], line_number: int) -> None:
@@ -100,11 +114,9 @@ def load_trace(path: Path, contract: EvidenceContract) -> Trace:
         except json.JSONDecodeError as exc:
             raise EvidenceError(f"trace line {line_number} is not valid JSON: {exc}") from exc
         _validate_event(event, line_number)
-        # 'restricted' material is dropped even when co-tagged; a purely
-        # restricted event never reaches any judge.
+        # Any event carrying `restricted` (even co-tagged) is dropped entirely.
         if contract.admits(event):
-            visibility = [v for v in event["visibility"] if v != "restricted"]
-            events.append({**event, "visibility": visibility})
+            events.append({**event, "artifact_refs": _drop_restricted_artifacts(event)})
     events.sort(key=lambda e: (int(e.get("sequence", 0)), str(e.get("event_id"))))
     return Trace(events=events)
 

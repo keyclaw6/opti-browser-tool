@@ -29,8 +29,10 @@ from __future__ import annotations
 import datetime as _dt
 import hashlib
 import json
+import shutil
 import subprocess
 import tempfile
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -112,10 +114,20 @@ def checksum_paths(paths: list[Path]) -> str | None:
 
 
 def _run_verifier(command: str, case: ProbeCase, workdir: Path) -> dict[str, Any]:
-    result_path = workdir / f"result-{case.kind}.json"
+    # Blinding (F11): present the probe under an opaque random filename so a
+    # verifier cannot branch on the probe KIND (`oracle`, `near_miss`, ...).
+    opaque = uuid.uuid4().hex
+    blind_trace = workdir / f"{opaque}.trace.jsonl"
+    blind_task = workdir / f"{opaque}.task.json"
+    shutil.copyfile(case.trace_path, blind_trace)
+    if case.task_path.is_file():
+        shutil.copyfile(case.task_path, blind_task)
+    else:
+        blind_task.write_text("{}", encoding="utf-8")
+    result_path = workdir / f"{opaque}.result.json"
     rendered = (
-        command.replace("{trace_json}", str(case.trace_path))
-        .replace("{task_json}", str(case.task_path))
+        command.replace("{trace_json}", str(blind_trace))
+        .replace("{task_json}", str(blind_task))
         .replace("{result_json}", str(result_path))
     )
     proc = subprocess.run(
@@ -201,6 +213,13 @@ def run_probe_kit(
         for case in cases:
             result = _run_verifier(verifier_command, case, workdir)
             record.outcomes.append(_classify(case, result))
+    # F11: a verifier with no pinned checksum can never be admitted — we must
+    # be able to bind the admission to the exact production verifier.
+    if record.verifier_checksum is None:
+        record.outcomes.append(
+            ProbeOutcome("checksum", False, {"verifier_checksum": None},
+                         "a pinned verifier checksum is required for admission")
+        )
     record.admitted = all(outcome.ok for outcome in record.outcomes)
 
     if archive_dir is not None:

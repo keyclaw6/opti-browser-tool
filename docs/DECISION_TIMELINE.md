@@ -80,6 +80,12 @@ The trace representation was proposed once its consumers existed concretely: an 
 
 In the same period, provisional implementation shells landed for the Proposed loop and judge architecture (`loop_harness/`, `harness/`, `judge_harness/`, and judge role assets under `evals/judges/roles/`). Per the decision process these are nonbinding: implementation existence does not change any ADR's status, and no verdict over synthetic adapters is benchmark evidence.
 
+## 10. Adversarial review and trusted-boundary hardening (2026-07-13)
+
+An independent adversarial review of the loop/judge shells found the machinery could be fooled: the file guard trusted the mutable working tree (a committed edit went unseen), campaign state was gitignored inside the optimizer-writable repo (a forged gate report could be recorded as accepted), gate and record were separable, `simulated:accepted` mutated real state, E3 could launder a flip E5 never verified, verifier admission was disconnected from scoring, and the transfer bet had no falsification protocol.
+
+The shells were rewritten to a v2 **trusted experiment boundary**: an owner-only store outside the repo, a captured base SHA with an isolated candidate worktree, a commit-diff file guard with path-safety, a single atomic gate+record transaction, a typed verdict where only `(accepted, benchmark)` advances state, mandatory verifier admission plus auto-T1 before benchmark eligibility, identity-bound validated noise bands, whole-tree generality lint, corpus dedupe/class-balance for judge trust, restricted-tag redaction in the evidence API, exploration/pivot enforcement in the gate, and a pre-registered transfer-checkpoint falsification protocol. These remain provisional infrastructure for the still-Proposed ADRs; the change settles no open decision.
+
 ## Current accepted decisions
 
 - ADR-0001: project constitution.

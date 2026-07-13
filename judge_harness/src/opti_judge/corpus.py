@@ -46,7 +46,14 @@ class CorpusStore:
     ) -> dict[str, Any]:
         if ground_truth not in GROUND_TRUTHS:
             raise ValueError(f"ground_truth must be one of {GROUND_TRUTHS}")
+        # F12: dedupe by (task_id, run_ref) so the same case cannot be stuffed
+        # 25× to fake a calibration count.
+        fingerprint = f"{task_id}::{run_ref}"
+        for existing in self._rows():
+            if existing.get("fingerprint") == fingerprint:
+                return existing
         row = {
+            "fingerprint": fingerprint,
             "case_id": uuid.uuid4().hex[:12],
             "source": source,  # probe | quarantine | manual
             "task_id": task_id,
@@ -93,14 +100,25 @@ class CorpusStore:
         hunting false positives is measured with positive='failure' — how
         reliably it catches wrong passes).
         """
-        rows = [
-            row
-            for row in self._rows()
-            if judge_id in row["judge_outputs"]
-            and row["ground_truth"] in {"success", "failure"}
-        ]
+        seen: set[str] = set()
+        rows = []
+        for row in self._rows():
+            if judge_id not in row["judge_outputs"] or row["ground_truth"] not in {"success", "failure"}:
+                continue
+            fp_key = row.get("fingerprint") or f"{row['task_id']}::{row['run_ref']}"
+            if fp_key in seen:  # F12: distinct cases only
+                continue
+            seen.add(fp_key)
+            rows.append(row)
         tp = fp = fn = tn = 0
+        distinct_tasks: set[str] = set()
+        positives = negatives = 0
         for row in rows:
+            distinct_tasks.add(str(row.get("task_id")))
+            if row["ground_truth"] == positive:
+                positives += 1
+            else:
+                negatives += 1
             truth_positive = row["ground_truth"] == positive
             judged_positive = row["judge_outputs"][judge_id] == positive
             if judged_positive and truth_positive:
@@ -117,6 +135,9 @@ class CorpusStore:
             "judge_id": judge_id,
             "positive_class": positive,
             "cases_measured": len(rows),
+            "distinct_tasks": len(distinct_tasks),
+            "positive_examples": positives,
+            "negative_examples": negatives,
             "tp": tp,
             "fp": fp,
             "fn": fn,
@@ -129,13 +150,21 @@ class CorpusStore:
 @dataclass(slots=True)
 class OperatingPoint:
     min_cases: int = 25
+    min_distinct_tasks: int = 10   # F12: not 25 copies of one task
+    require_both_classes: bool = True
     min_precision: float | None = None
     min_recall: float | None = None
 
 
 def trusted(measurement: dict[str, Any], point: OperatingPoint) -> bool:
-    """Trust gate: enough cases AND the role's operating point is met."""
+    """Trust gate: enough DISTINCT, class-balanced cases AND the operating point."""
     if measurement["cases_measured"] < point.min_cases:
+        return False
+    if measurement.get("distinct_tasks", 0) < point.min_distinct_tasks:
+        return False
+    if point.require_both_classes and (
+        measurement.get("positive_examples", 0) == 0 or measurement.get("negative_examples", 0) == 0
+    ):
         return False
     if point.min_precision is not None:
         if measurement["precision"] is None or measurement["precision"] < point.min_precision:

@@ -68,24 +68,27 @@ def compare_runs(
         baseline.acceptance_decision_eligible and treatment.acceptance_decision_eligible
     )
 
-    all_ids = set(baseline.statuses) | set(treatment.statuses)
-    quarantined_here = sorted((quarantined or set()) & all_ids)
-    if quarantined_here:
-        if policy == "strict":
-            comparison.eligible = False
-            comparison.reasons.append(
-                "quarantine pending on compared task(s): "
-                + ", ".join(quarantined_here[:10])
-                + " — resolve via `opti-judge quarantine` before this comparison can decide anything"
-            )
-        else:
-            all_ids -= set(quarantined_here)
-            comparison.reasons.append(
-                f"{len(quarantined_here)} quarantined task(s) excluded from the valid intersection"
-            )
-    valid_both = (baseline.valid_ids & treatment.valid_ids) - set(quarantined_here or [])
+    # F14: coverage and the source-universe are measured against the ORIGINAL
+    # task universe, never a universe already shrunk by quarantine. Otherwise
+    # quarantining an entire source family reports 100% coverage and stays
+    # eligible while a whole family has silently vanished.
+    original_ids = set(baseline.statuses) | set(treatment.statuses)
+    quarantined_here = sorted((quarantined or set()) & original_ids)
+    valid_both = (baseline.valid_ids & treatment.valid_ids) - set(quarantined_here)
     comparison.compared_task_count = len(valid_both)
-    comparison.coverage = len(valid_both) / len(all_ids) if all_ids else 0.0
+    comparison.coverage = len(valid_both) / len(original_ids) if original_ids else 0.0
+
+    if quarantined_here and policy == "strict":
+        comparison.eligible = False
+        comparison.reasons.append(
+            "quarantine pending on compared task(s): "
+            + ", ".join(quarantined_here[:10])
+            + " — resolve via `opti-judge quarantine` before this comparison can decide anything"
+        )
+    elif quarantined_here:
+        comparison.reasons.append(
+            f"{len(quarantined_here)} quarantined task(s) excluded from the valid intersection"
+        )
 
     if policy == "strict":
         if not baseline.run_valid:
@@ -102,11 +105,13 @@ def compare_runs(
         if comparison.coverage < quorum_coverage_floor:
             comparison.eligible = False
             comparison.reasons.append(
-                f"valid-in-both coverage {comparison.coverage:.2%} is below the "
-                f"floor {quorum_coverage_floor:.0%}"
+                f"valid-in-both coverage {comparison.coverage:.2%} of the original suite "
+                f"is below the floor {quorum_coverage_floor:.0%}"
             )
         if task_sources:
-            sources_all = {task_sources.get(tid, "unknown") for tid in all_ids}
+            # Universe of families is taken from the ORIGINAL ids; any family
+            # with no valid task in the intersection makes the run ineligible.
+            sources_all = {task_sources.get(tid, "unknown") for tid in original_ids}
             sources_valid = {task_sources.get(tid, "unknown") for tid in valid_both}
             missing = sorted(sources_all - sources_valid)
             if missing:
@@ -127,14 +132,39 @@ def compare_runs(
     return comparison
 
 
+class NoiseBandError(ValueError):
+    """A noise band is out of range or bound to a different run identity (F07)."""
+
+
 @dataclass(slots=True)
 class NoiseBand:
-    """Measured run-to-run variability of the *unchanged* baseline."""
+    """Measured run-to-run variability of the *unchanged* baseline.
+
+    Bound to a ``run_identity`` hash (F07): a band measured under one
+    catalog/suite/adapter/task-set configuration cannot be silently reused to
+    judge a treatment run under a different configuration. Values are range-
+    validated on construction so a hand-written ``aggregate_margin: 99`` or
+    ``max_benign_flips: 999999`` is rejected instead of widening tolerance.
+    """
 
     aggregate_margin: float
     max_benign_flips: int
     sample_runs: int
     synthetic: bool
+    task_count: int = 0
+    run_identity: str = ""
+
+    def __post_init__(self) -> None:
+        if not (0.0 <= self.aggregate_margin <= 1.0):
+            raise NoiseBandError(f"aggregate_margin {self.aggregate_margin} outside [0, 1]")
+        if self.max_benign_flips < 0:
+            raise NoiseBandError("max_benign_flips must be >= 0")
+        if self.task_count and self.max_benign_flips > self.task_count:
+            raise NoiseBandError(
+                f"max_benign_flips {self.max_benign_flips} exceeds task_count {self.task_count}"
+            )
+        if self.sample_runs < 2:
+            raise NoiseBandError("a noise band requires at least two sample runs")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -142,6 +172,8 @@ class NoiseBand:
             "max_benign_flips": self.max_benign_flips,
             "sample_runs": self.sample_runs,
             "synthetic": self.synthetic,
+            "task_count": self.task_count,
+            "run_identity": self.run_identity,
         }
 
     @classmethod
@@ -151,16 +183,29 @@ class NoiseBand:
             max_benign_flips=int(payload["max_benign_flips"]),
             sample_runs=int(payload.get("sample_runs", 0)),
             synthetic=bool(payload.get("synthetic", True)),
+            task_count=int(payload.get("task_count", 0)),
+            run_identity=str(payload.get("run_identity", "")),
         )
 
+    def matches_identity(self, run_identity: str) -> bool:
+        return bool(self.run_identity) and self.run_identity == run_identity
 
-def measure_noise_band(runs: list[EvalRun], *, synthetic: bool) -> NoiseBand:
-    """Estimate the band from repeated identical-configuration baseline runs."""
+
+def measure_noise_band(
+    runs: list[EvalRun], *, synthetic: bool, run_identity: str = ""
+) -> NoiseBand:
+    """Estimate the band from repeated identical-configuration baseline runs.
+
+    Requires at least two runs over the same task set; a run whose validity or
+    task set differs is rejected (F07) rather than folded in.
+    """
     if len(runs) < 2:
-        raise ValueError("noise-band measurement needs at least two runs")
-    rates = [
-        run.summary.get("strict_success_rate") or 0.0 for run in runs
-    ]
+        raise NoiseBandError("noise-band measurement needs at least two runs")
+    task_sets = {frozenset(run.statuses) for run in runs}
+    if len(task_sets) != 1:
+        raise NoiseBandError("noise-band runs must cover an identical task set")
+    task_count = len(next(iter(task_sets)))
+    rates = [run.summary.get("strict_success_rate") or 0.0 for run in runs]
     aggregate_margin = max(rates) - min(rates)
     max_flips = 0
     first = runs[0]
@@ -174,4 +219,6 @@ def measure_noise_band(runs: list[EvalRun], *, synthetic: bool) -> NoiseBand:
         max_benign_flips=max_flips,
         sample_runs=len(runs),
         synthetic=synthetic,
+        task_count=task_count,
+        run_identity=run_identity,
     )

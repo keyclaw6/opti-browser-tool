@@ -23,7 +23,7 @@ eval-all-fixture:
 	OPTI_BROWSER_REPO_ROOT=$(REPO_ROOT) PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m opti_eval run --suite primary --adapter fixture --fixture-pass-rate 0.55 --max-workers 8 --output runs/all-140-fixture --overwrite
 
 loop-test:
-	OPTI_BROWSER_REPO_ROOT=$(REPO_ROOT) PYTHONPATH=$(LOOP_PYTHONPATH) $(PYTHON) -m unittest discover -s loop_harness/tests -v
+	OPTI_BROWSER_REPO_ROOT=$(REPO_ROOT) PYTHONPATH=$(JUDGE_PYTHONPATH) $(PYTHON) -m unittest discover -s loop_harness/tests -v
 
 judge-test:
 	OPTI_BROWSER_REPO_ROOT=$(REPO_ROOT) PYTHONPATH=$(JUDGE_PYTHONPATH) $(PYTHON) -m unittest discover -s judge_harness/tests -v

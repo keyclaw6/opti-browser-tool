@@ -1,417 +1,402 @@
-"""The Conductor: deterministic phase driver for one iteration (A–F).
+"""The Conductor: transactional phase driver over a trusted boundary.
 
-Sequence per ADR-0015 §3, adapted to a synchronous gate:
+Rewritten after the review. The iteration boundary is now owner-controlled:
 
-- ``start``  → A EVALUATE (dev baseline) + drift check + C DISTILL (Analyst)
-               + exploration decision + iteration packet for the optimizer.
-- (external) → D EVOLVE: the coding agent edits one component and writes
-               ``manifest.json`` (this package never edits the harness).
-- ``gate``   → E GATE (E0–E5) + B ATTRIBUTE (synchronous: the treatment
-               evaluation happens inside the gate, so predictions are
-               falsified in the same iteration).
-- ``record`` → F RECORD: ledger row, learnings template, cluster-register
-               update, regression promotion *candidates* (auto-promotion
-               stays off pending ADR-0009), state advance.
-- ``rollback`` → file-granular git revert of the manifest's change scope;
-               rollback is itself recorded.
+- ``start`` captures the trusted ``accepted_base_sha``, creates an isolated
+  candidate **worktree** at that base (the optimizer's only writable surface),
+  runs the baseline + regression baseline there, distills, and writes the
+  packet — all into the owner-only trusted store.
+- the optimizer edits ``harness/components/**`` in the worktree, commits once,
+  and drops a ``manifest.json`` in the worktree root.
+- ``run_iteration`` is a SINGLE atomic transaction (F02, F06): it ingests and
+  validates the manifest, runs the E0–E5 ladder over the ``base..candidate``
+  commit diff, appends attribution, writes the gate report + ledger row to the
+  trusted store, advances accepted state ONLY on ``(accepted, benchmark)``, and
+  resets the worktree either way. There is no separate, forgeable record step.
+
+Regression memory is seeded from the accepted-base run at ``start`` and is
+never refreshed from a rejected treatment (F06).
 """
 from __future__ import annotations
 
+import hashlib
 import json
-import subprocess
 from pathlib import Path
 from typing import Any
 
-from . import fileguard
+from . import fileguard, gitutil
 from .analyst import StubAnalyst
 from .campaign import Campaign
 from .clusters import load_register, ranked_unresolved, save_register, update_after_iteration
-from .compare import NoiseBand, measure_noise_band
+from .compare import NoiseBand, NoiseBandError, measure_noise_band
+from .eligibility import assess
 from .evaluate import EvalRun, load_run, run_suite
 from .gates import GateReport, run_gate
-from .ledger import append_learnings, append_row, learnings_template
+from .ledger import learnings_template
+from .manifest import load_and_validate
 from .packet import build_packet
+from .store import append_jsonl, atomic_write_json, atomic_write_text
+from .verdict import Verdict
 
 DEV_BASELINE_DIR = "eval/dev_baseline"
+ACCEPTED_REF = "refs/opti/{campaign}/accepted"
 
 
-def _task_sources(repo_root: Path) -> dict[str, str]:
-    catalog = repo_root / "evals/catalog/tasks.jsonl"
-    sources: dict[str, str] = {}
-    for line in catalog.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        row = json.loads(line)
-        sources[str(row["id"])] = str(row.get("source", "unknown"))
-    return sources
+# ── helpers ───────────────────────────────────────────────────────────────
+def _catalog(repo_root: Path) -> dict[str, dict[str, Any]]:
+    path = repo_root / "evals/catalog/tasks.jsonl"
+    records: dict[str, dict[str, Any]] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            row = json.loads(line)
+            records[str(row["id"])] = row
+    return records
 
 
-def _guard_baseline(campaign: Campaign) -> set[str]:
-    return set(campaign.state.get("guard_baseline_paths", []))
+def _task_sources(records: dict[str, dict[str, Any]]) -> dict[str, str]:
+    return {tid: str(rec.get("source", "unknown")) for tid, rec in records.items()}
 
 
-def snapshot_guard_baseline(campaign: Campaign) -> None:
-    """Record pre-existing dirty paths so the guard judges only new edits."""
-    changed = fileguard.changed_paths(campaign.repo_root)
-    campaign.state["guard_baseline_paths"] = changed
-    campaign.save_state()
+def _run_identity(campaign: Campaign, worktree: Path) -> str:
+    """Bind a run to catalog + suite + adapter + fixed variables (F07)."""
+    catalog_bytes = (worktree / "evals/catalog/tasks.jsonl").read_bytes()
+    payload = {
+        "dev_suite": campaign.config["suites"]["dev"],
+        "smoke": campaign.config["suites"]["smoke"],
+        "regression": campaign.config["suites"]["regression"],
+        "adapter": campaign.config["adapter"],
+        "fixed_variables": campaign.config["fixed_variables"],
+        "catalog_sha256": hashlib.sha256(catalog_bytes).hexdigest(),
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
 
 
+def _pending_quarantine(campaign: Campaign) -> set[str]:
+    path = campaign.store.quarantine_path
+    ids: set[str] = set()
+    if path.is_file():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                entry = json.loads(line)
+                if entry.get("status") == "pending":
+                    ids.add(str(entry.get("task_id")))
+    return ids
+
+
+# ── phase A + C: start ──────────────────────────────────────────────────
 def start_iteration(campaign: Campaign) -> dict[str, Any]:
-    # Learnings discipline: warn when the previous entry was never completed.
-    learnings_incomplete = False
-    if campaign.learnings_path.is_file():
-        text = campaign.learnings_path.read_text(encoding="utf-8")
-        last_entry = text.split("## Iteration")[-1] if "## Iteration" in text else ""
-        learnings_incomplete = "<fill in" in last_entry
+    if campaign.state.get("pending_iteration"):
+        raise RuntimeError(
+            f"iteration {campaign.state['pending_iteration']} is already pending; "
+            "run `opti-loop run-iteration` first"
+        )
+    learnings_incomplete = (
+        campaign.learnings_path.is_file()
+        and "<fill in" in campaign.learnings_path.read_text(encoding="utf-8").split("## Iteration")[-1]
+    )
 
+    base_sha = str(campaign.state["accepted_base_sha"])
+    worktree = campaign.worktree_path
+    gitutil.worktree_add(campaign.repo_root, worktree, base_sha)
+
+    records = _catalog(worktree)
+    sources = _task_sources(records)
     number = campaign.open_iteration()
     iteration_dir = campaign.iteration_dir(number)
-    sources = _task_sources(campaign.repo_root)
 
-    # A — EVALUATE (dev baseline for this iteration).
-    baseline = run_suite(
-        repo_root=campaign.repo_root,
-        suite_name=campaign.config["suites"]["dev"],
-        adapter_config=campaign.config["adapter"],
-        output_dir=iteration_dir / DEV_BASELINE_DIR,
-    )
+    # A — EVALUATE baseline on the accepted-base harness.
+    baseline = run_suite(repo_root=worktree, suite_name=campaign.config["suites"]["dev"],
+                         adapter_config=campaign.config["adapter"], output_dir=iteration_dir / DEV_BASELINE_DIR)
 
-    # Persistence/drift check against the previous accepted treatment.
-    drift: dict[str, Any] | None = None
-    prev_treatment = campaign.state.get("last_accepted_treatment_dir")
-    if prev_treatment and Path(prev_treatment).is_dir():
-        previous = load_run(Path(prev_treatment), campaign.config["suites"]["dev"])
-        changed = sorted(
-            tid
-            for tid in baseline.statuses
-            if baseline.statuses.get(tid) != previous.statuses.get(tid)
-        )
+    # Seed regression memory from the accepted base (frozen; never a rejected
+    # treatment) so E4 has a real previously-passing denominator (F06).
+    regression_base = run_suite(repo_root=worktree, suite_name=campaign.config["suites"]["regression"],
+                                adapter_config=campaign.config["adapter"],
+                                output_dir=iteration_dir / "eval" / "regression_baseline")
+    campaign.state["regression_last_results"] = dict(regression_base.statuses)
+
+    # Drift vs the previous accepted treatment.
+    drift = None
+    prev = campaign.state.get("last_accepted_treatment_dir")
+    if prev and Path(prev).is_dir():
+        previous = load_run(Path(prev), campaign.config["suites"]["dev"])
+        changed = sorted(t for t in baseline.statuses
+                         if baseline.statuses.get(t) != previous.statuses.get(t))
         drift = {"tasks_changed_since_accepted_treatment": changed}
-        (iteration_dir / "drift.json").write_text(
-            json.dumps(drift, indent=2) + "\n", encoding="utf-8"
-        )
+        atomic_write_json(iteration_dir / "drift.json", drift)
 
-    # C — DISTILL (Analyst; stub until traces exist).
+    # C — DISTILL (stub analyst until traces exist).
     analyst = StubAnalyst()
-    analysis = analyst.distill(
-        iteration=number,
-        run=baseline,
-        task_sources=sources,
-        out_dir=iteration_dir / "analysis",
-    )
+    analysis = analyst.distill(iteration=number, run=baseline, task_sources=sources,
+                               out_dir=iteration_dir / "analysis")
     register = load_register(campaign.clusters_path)
-    register = update_after_iteration(
-        register,
-        iteration=number,
-        failed_by_cluster=analysis["failed_by_cluster"],
-        fixed_task_ids=set(),
-        analyst_version=analyst.version,
-    )
+    register = update_after_iteration(register, iteration=number,
+                                       failed_by_cluster=analysis["failed_by_cluster"],
+                                       fixed_task_ids=set(), analyst_version=analyst.version)
     save_register(campaign.clusters_path, register)
 
     # Exploration decision (ADR-0015 §9).
     quota = int(campaign.config["exploration"].get("divergence_quota", 5))
     force_after = int(campaign.config["exploration"].get("plateau_force_after", 4))
-    since_divergent = int(campaign.state.get("iterations_since_divergent", 0))
-    since_accept = int(campaign.state.get("iterations_since_accept", 0))
-    divergent = (quota > 0 and since_divergent + 1 >= quota) or (
-        force_after > 0 and since_accept >= force_after
-    )
+    since_div = int(campaign.state.get("iterations_since_divergent", 0))
+    since_acc = int(campaign.state.get("iterations_since_accept", 0))
+    divergent = (quota > 0 and since_div + 1 >= quota) or (force_after > 0 and since_acc >= force_after)
 
-    build_packet(
-        iteration_dir=iteration_dir,
-        iteration=number,
-        campaign_id=campaign.campaign_id,
-        divergent=divergent,
-        ranked_clusters=ranked_unresolved(register),
-        ledger_path=campaign.ledger_path,
-        baseline_summary=baseline.summary,
-    )
+    build_packet(iteration_dir=iteration_dir, iteration=number, campaign_id=campaign.campaign_id,
+                 divergent=divergent, ranked_clusters=ranked_unresolved(register),
+                 ledger_path=campaign.ledger_path, baseline_summary=baseline.summary)
 
     campaign.state["pending_iteration"] = number
     campaign.state["pending_divergent"] = divergent
+    campaign.state["pending_base_sha"] = base_sha
     campaign.save_state()
+
     result: dict[str, Any] = {
         "iteration": number,
         "divergent": divergent,
         "baseline_success": baseline.summary.get("strict_success_rate"),
+        "worktree": str(worktree),
+        "instructions": (
+            f"edit harness/components/** in {worktree}, commit exactly one candidate "
+            "commit, and write manifest.json in the worktree root; then run "
+            "`opti-loop run-iteration`."
+        ),
         "packet": str(iteration_dir / "PACKET.md"),
         "drift": drift,
     }
+    if divergent:
+        result["divergence_note"] = "cluster_ref must start with 'divergent' this iteration (ADR-0015 §9)"
     if learnings_incomplete:
-        result["warning"] = (
-            "previous learnings entry still contains '<fill in' placeholders — "
-            "complete it before proposing a new hypothesis (PROGRAM.md §6)"
-        )
+        result["warning"] = "previous learnings entry has unfilled '<fill in' placeholders (PROGRAM.md §6)"
     return result
 
 
-def gate_iteration(campaign: Campaign) -> GateReport:
+# ── phase E + B + F: one atomic transaction ───────────────────────────────
+def run_iteration(campaign: Campaign) -> dict[str, Any]:
     number = int(campaign.state.get("pending_iteration") or 0)
     if not number:
         raise RuntimeError("no pending iteration — run `opti-loop start` first")
     iteration_dir = campaign.iteration_dir(number)
+    worktree = campaign.worktree_path
+    base_sha = str(campaign.state["pending_base_sha"])
+    divergent = bool(campaign.state.get("pending_divergent", False))
+
+    records = _catalog(worktree)
+    sources = _task_sources(records)
     baseline = load_run(iteration_dir / DEV_BASELINE_DIR, campaign.config["suites"]["dev"])
 
-    band_payload = campaign.config.get("noise_band")
-    band = NoiseBand.from_dict(band_payload) if band_payload else None
+    # Ingest the manifest from the untrusted worktree; snapshot into the store.
+    wt_manifest = worktree / "manifest.json"
+    manifest: dict[str, Any] = {}
+    if wt_manifest.is_file():
+        try:
+            manifest = json.loads(wt_manifest.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            manifest = {}
+    atomic_write_json(iteration_dir / "manifest.snapshot.json", manifest or {"error": "missing/invalid manifest"})
 
-    # Pending evaluation-plane quarantine (ADR-0016 T3): fail closed under
-    # the strict validity policy when a compared task is quarantined.
-    quarantined: set[str] = set()
-    queue_rel = campaign.config.get("quarantine_file", "runs/quarantine/queue.jsonl")
-    queue_path = campaign.repo_root / queue_rel
-    if queue_path.is_file():
-        for line in queue_path.read_text(encoding="utf-8").splitlines():
-            if not line.strip():
-                continue
-            entry = json.loads(line)
-            if entry.get("status") == "pending":
-                quarantined.add(str(entry.get("task_id")))
+    candidate_sha = gitutil.head_sha(worktree)
+    guard = fileguard.check_candidate(repo=campaign.repo_root, worktree=worktree,
+                                      base_sha=base_sha, candidate_sha=candidate_sha)
+    manifest_report = load_and_validate(iteration_dir / "manifest.snapshot.json",
+                                        changed_files=guard.changed, divergent=divergent)
 
-    report = run_gate(
-        repo_root=campaign.repo_root,
-        iteration=number,
-        iteration_dir=iteration_dir,
-        baseline_dev=baseline,
-        manifest_path=iteration_dir / "manifest.json",
-        adapter_config=campaign.config["adapter"],
-        suites=campaign.config["suites"],
-        thresholds=campaign.config["thresholds"],
-        noise_band=band,
-        task_sources=_task_sources(campaign.repo_root),
+    # Pivot enforcement (F16): forbid a 3rd attempt at the same cluster+component.
+    pivot_after = int(campaign.config["exploration"].get("pivot_after_failures", 2))
+    fingerprint = None
+    if manifest_report.ok:
+        fingerprint = f"{manifest.get('cluster_ref')}::{manifest.get('target_component')}"
+        prior_failures = int(campaign.state.get("failed_attempts", {}).get(fingerprint, 0))
+        if prior_failures >= pivot_after:
+            return _reject_pivot(campaign, number, fingerprint, prior_failures, iteration_dir, base_sha)
+
+    # Noise band (validated; absurd values raise and become invalid).
+    band: NoiseBand | None = None
+    try:
+        if campaign.config.get("noise_band"):
+            band = NoiseBand.from_dict(campaign.config["noise_band"])
+    except NoiseBandError:
+        band = None
+    run_identity = _run_identity(campaign, worktree)
+
+    report: GateReport = run_gate(
+        repo_root=campaign.repo_root, worktree=worktree, base_sha=base_sha, candidate_sha=candidate_sha,
+        iteration=number, eval_root=iteration_dir / "eval", baseline_dev=baseline,
+        manifest=manifest, manifest_report=manifest_report,
+        adapter_config=campaign.config["adapter"], suites=campaign.config["suites"],
+        thresholds=campaign.config["thresholds"], noise_band=band, run_identity=run_identity,
+        task_sources=sources, task_records=records,
         regression_last_results=campaign.state.get("regression_last_results", {}),
-        guard_baseline_paths=_guard_baseline(campaign),
-        quarantined_task_ids=quarantined,
+        quarantined_task_ids=_pending_quarantine(campaign),
+        admissions_path=campaign.store.admissions_path, quarantine_path=campaign.store.quarantine_path,
     )
-    report.save(iteration_dir / "gate-report.json")
+    atomic_write_json(iteration_dir / "gate-report.json", report.to_dict())
 
-    # Append attribution into the manifest record (conductor-owned field).
-    manifest_path = iteration_dir / "manifest.json"
-    if report.attribution and manifest_path.is_file():
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        manifest["attribution"] = report.attribution
-        manifest["status"] = (
-            "accepted" if report.verdict.endswith("accepted") else "rejected"
-        )
-        manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    return report
+    verdict: Verdict = report.verdict
+    # Attribution → manifest snapshot (conductor-owned; optimizer may not write it).
+    if report.attribution is not None:
+        snap = dict(manifest)
+        snap["attribution"] = report.attribution
+        snap["status"] = verdict.label
+        atomic_write_json(iteration_dir / "manifest.snapshot.json", snap)
 
+    fixed = set((report.comparison or {}).get("fixed", [])) if verdict.advances_accepted_state else set()
+    promotion_candidates = sorted(fixed)
 
-def record_iteration(campaign: Campaign) -> dict[str, Any]:
-    number = int(campaign.state.get("pending_iteration") or 0)
-    if not number:
-        raise RuntimeError("no pending iteration to record")
-    iteration_dir = campaign.iteration_dir(number)
-    gate_path = iteration_dir / "gate-report.json"
-    if not gate_path.is_file():
-        raise RuntimeError("no gate report — run `opti-loop gate` first")
-    gate = json.loads(gate_path.read_text(encoding="utf-8"))
-    manifest_path = iteration_dir / "manifest.json"
-    manifest = (
-        json.loads(manifest_path.read_text(encoding="utf-8"))
-        if manifest_path.is_file()
-        else {}
-    )
-    verdict: str = gate["verdict"]
-    divergent = bool(campaign.state.get("pending_divergent", False))
-    accepted = verdict.endswith("accepted")
-
-    # Cluster register: fold in verified fixes on acceptance.
-    fixed: set[str] = set()
-    if accepted and gate.get("comparison"):
-        fixed = set(gate["comparison"].get("fixed", []))
+    if verdict.advances_accepted_state:
         register = load_register(campaign.clusters_path)
-        register = update_after_iteration(
-            register,
-            iteration=number,
-            failed_by_cluster={},
-            fixed_task_ids=fixed,
-            analyst_version="conductor-record",
-        )
+        register = update_after_iteration(register, iteration=number, failed_by_cluster={},
+                                           fixed_task_ids=fixed, analyst_version="conductor-record")
         save_register(campaign.clusters_path, register)
 
-    # Regression promotion candidates (ADR-0009: proposal, not auto-promotion).
-    promotion_candidates = sorted(fixed) if accepted else []
-
-    # Update regression last_results memory from this iteration's E4 run.
-    regression_dir = iteration_dir / "eval" / "regression_treatment"
-    if regression_dir.is_dir():
-        regression = load_run(regression_dir, campaign.config["suites"]["regression"])
-        campaign.state["regression_last_results"] = dict(regression.statuses)
-
-    row = {
-        "iteration": number,
-        "campaign": campaign.campaign_id,
-        "verdict": verdict,
-        "divergent": divergent,
-        "hypothesis": manifest.get("hypothesis", ""),
-        "target_component": manifest.get("target_component", ""),
+    # Ledger + learnings (trusted store).
+    append_jsonl(campaign.ledger_path, {
+        "iteration": number, "campaign": campaign.campaign_id,
+        "verdict": verdict.label, "decision": verdict.decision, "evidence_class": verdict.evidence_class,
+        "advances_accepted_state": verdict.advances_accepted_state, "divergent": divergent,
+        "base_sha": base_sha, "candidate_sha": candidate_sha, "run_identity": run_identity,
+        "hypothesis": manifest.get("hypothesis", ""), "target_component": manifest.get("target_component", ""),
         "cluster_ref": manifest.get("cluster_ref", ""),
-        "gate_rungs": {r["rung"]: r["status"] for r in gate.get("rungs", [])},
-        "comparison": gate.get("comparison"),
-        "attribution": gate.get("attribution"),
-        "fixed_variables": campaign.config.get("fixed_variables"),
+        "gate_rungs": {r.rung: r.status for r in report.rungs},
+        "comparison": report.comparison, "attribution": report.attribution,
+        "eligibility": report.eligibility, "fixed_variables": campaign.config.get("fixed_variables"),
         "promotion_candidates": promotion_candidates,
-    }
-    append_row(campaign.ledger_path, row)
-    append_learnings(
-        campaign.learnings_path,
-        learnings_template(
-            iteration=number,
-            verdict=verdict,
-            hypothesis=manifest.get("hypothesis", "<no manifest>"),
-            target_component=manifest.get("target_component", "?"),
-            cluster_ref=manifest.get("cluster_ref", "?"),
-            divergent=divergent,
-        ),
-    )
+    })
+    _append_learnings(campaign, number, verdict, manifest, divergent)
 
-    # State advance.
-    if accepted:
-        campaign.state["iterations_since_accept"] = 0
+    # State transition + regression memory discipline (F06).
+    if verdict.advances_accepted_state:
+        gitutil.update_ref(campaign.repo_root, ACCEPTED_REF.format(campaign=campaign.campaign_id), candidate_sha)
+        campaign.state["accepted_base_sha"] = candidate_sha
         campaign.state.setdefault("accepted_iterations", []).append(number)
-        campaign.state["last_accepted_treatment_dir"] = str(
-            iteration_dir / "eval" / "dev_treatment"
-        )
+        campaign.state["iterations_since_accept"] = 0
+        campaign.state["last_accepted_treatment_dir"] = str(iteration_dir / "eval" / "dev_treatment")
+        # Refresh regression memory ONLY from the accepted treatment.
+        acc_reg = iteration_dir / "eval" / "regression_treatment"
+        if acc_reg.is_dir():
+            campaign.state["regression_last_results"] = dict(
+                load_run(acc_reg, campaign.config["suites"]["regression"]).statuses
+            )
+        if fingerprint:
+            campaign.state.get("failed_attempts", {}).pop(fingerprint, None)
     else:
-        campaign.state["iterations_since_accept"] = (
-            int(campaign.state.get("iterations_since_accept", 0)) + 1
-        )
+        campaign.state["iterations_since_accept"] = int(campaign.state.get("iterations_since_accept", 0)) + 1
+        if fingerprint:
+            fa = campaign.state.setdefault("failed_attempts", {})
+            fa[fingerprint] = int(fa.get(fingerprint, 0)) + 1
+
     campaign.state["iterations_since_divergent"] = (
         0 if divergent else int(campaign.state.get("iterations_since_divergent", 0)) + 1
     )
     campaign.state["pending_iteration"] = 0
     campaign.state["pending_divergent"] = False
+    campaign.state["pending_base_sha"] = None
     campaign.save_state()
-    return {"iteration": number, "verdict": verdict, "promotion_candidates": promotion_candidates}
 
+    # Reset the boundary: discard the (accepted-or-rejected) worktree; the next
+    # `start` re-creates it at the new accepted base. Rejected candidate commits
+    # are unreferenced and GC-eligible; accepted ones are held by ACCEPTED_REF.
+    gitutil.worktree_remove(campaign.repo_root, worktree)
 
-def rollback_iteration(campaign: Campaign) -> dict[str, Any]:
-    """File-granular revert of the pending manifest's change scope."""
-    number = int(campaign.state.get("pending_iteration") or 0)
-    if not number:
-        raise RuntimeError("no pending iteration to roll back")
-    iteration_dir = campaign.iteration_dir(number)
-    manifest_path = iteration_dir / "manifest.json"
-    if not manifest_path.is_file():
-        raise RuntimeError("no manifest.json — nothing to roll back")
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    scope = [str(p) for p in manifest.get("treatment", {}).get("change_scope", [])]
-    reverted: list[str] = []
-    for path in scope:
-        if not fileguard.is_allowed(path):
-            continue
-        subprocess.run(
-            ["git", "-C", str(campaign.repo_root), "checkout", "--", path],
-            check=False,
-            capture_output=True,
-        )
-        full = campaign.repo_root / path
-        tracked = (
-            subprocess.run(
-                ["git", "-C", str(campaign.repo_root), "ls-files", "--error-unmatch", path],
-                capture_output=True,
-            ).returncode
-            == 0
-        )
-        if not tracked and full.exists():
-            full.unlink()  # new untracked file introduced by this change
-        reverted.append(path)
-    rollback_record = {
-        "iteration": number,
-        "action": "rollback",
-        "reverted_paths": reverted,
-        "note": "rollback is itself a manifested change (ADR-0015 §4)",
+    return {
+        "iteration": number, "verdict": verdict.label, "decision": verdict.decision,
+        "evidence_class": verdict.evidence_class,
+        "advanced_accepted_state": verdict.advances_accepted_state,
+        "promotion_candidates": promotion_candidates,
+        "accepted_base_sha": campaign.state["accepted_base_sha"],
     }
-    (iteration_dir / "rollback.json").write_text(
-        json.dumps(rollback_record, indent=2) + "\n", encoding="utf-8"
-    )
-    return rollback_record
 
 
-def compare_campaigns(repo_root: Path, campaign_ids: list[str]) -> dict[str, Any]:
-    """Scheduled cross-campaign report (ADR-0015 §9) — never a per-iteration race.
+def _reject_pivot(campaign, number, fingerprint, prior, iteration_dir, base_sha) -> dict[str, Any]:
+    verdict = Verdict("rejected", "simulated")
+    report = {
+        "iteration": number, "verdict": verdict.to_dict(),
+        "rungs": [{"rung": "E0", "status": "fail", "detail": {
+            "pivot_rule": f"{prior} prior failed attempts at {fingerprint}; a component-level pivot is required (F16)"}}],
+        "attribution": None, "comparison": None, "eligibility": None,
+    }
+    atomic_write_json(iteration_dir / "gate-report.json", report)
+    append_jsonl(campaign.ledger_path, {
+        "iteration": number, "campaign": campaign.campaign_id, "verdict": verdict.label,
+        "decision": "rejected", "evidence_class": "simulated", "advances_accepted_state": False,
+        "cluster_ref": fingerprint, "reason": "pivot required",
+    })
+    campaign.state["iterations_since_accept"] = int(campaign.state.get("iterations_since_accept", 0)) + 1
+    campaign.state["pending_iteration"] = 0
+    campaign.state["pending_divergent"] = False
+    campaign.state["pending_base_sha"] = None
+    campaign.save_state()
+    gitutil.worktree_remove(campaign.repo_root, campaign.worktree_path)
+    return {"iteration": number, "verdict": verdict.label, "decision": "rejected",
+            "advanced_accepted_state": False, "reason": "pivot required", "fingerprint": fingerprint}
 
-    Compares each campaign's latest accepted treatment (falling back to its
-    latest baseline) on identical suite + executor configuration. Campaigns
-    with differing dev suites or executor pins are reported as non-comparable
-    (ADR-0001: no cross-model attribution).
-    """
-    from .campaign import load_campaign  # local import to avoid cycles
+
+def _append_learnings(campaign, number, verdict: Verdict, manifest, divergent) -> None:
+    with campaign.learnings_path.open("a", encoding="utf-8") as handle:
+        handle.write(learnings_template(
+            iteration=number, verdict=verdict.label,
+            hypothesis=manifest.get("hypothesis", "<no manifest>"),
+            target_component=manifest.get("target_component", "?"),
+            cluster_ref=manifest.get("cluster_ref", "?"), divergent=divergent,
+        ))
+
+
+# ── noise calibration (owner artifact, identity-bound) ─────────────────────
+def measure_noise(campaign: Campaign, *, runs: int = 3) -> NoiseBand:
+    base_sha = str(campaign.state["accepted_base_sha"])
+    worktree = campaign.worktree_path
+    gitutil.worktree_add(campaign.repo_root, worktree, base_sha)
+    try:
+        run_identity = _run_identity(campaign, worktree)
+        eval_runs: list[EvalRun] = []
+        for index in range(runs):
+            eval_runs.append(run_suite(repo_root=worktree, suite_name=campaign.config["suites"]["dev"],
+                                       adapter_config=campaign.config["adapter"],
+                                       output_dir=campaign.store.campaign_dir / "noise" / f"run-{index:02d}"))
+        synthetic = any(not r.acceptance_decision_eligible for r in eval_runs)
+        band = measure_noise_band(eval_runs, synthetic=synthetic, run_identity=run_identity)
+    finally:
+        gitutil.worktree_remove(campaign.repo_root, worktree)
+    campaign.config["noise_band"] = band.to_dict()
+    campaign.save_config()
+    atomic_write_json(campaign.store.noise_band_path, band.to_dict())
+    return band
+
+
+# ── cross-campaign report (scheduled, never a per-iteration race) ──────────
+def compare_campaigns(repo_root: Path, campaign_ids: list[str], *, store_root=None) -> dict[str, Any]:
+    from .campaign import load_campaign
 
     rows: list[dict[str, Any]] = []
-    reference: dict[str, str] = {}
+    identities: set[str] = set()
     for campaign_id in campaign_ids:
-        campaign = load_campaign(repo_root, campaign_id)
+        campaign = load_campaign(repo_root, campaign_id, store_root=store_root)
         suite = campaign.config["suites"]["dev"]
         executor = str(campaign.config.get("fixed_variables", {}).get("executor_model"))
+        adapter = json.dumps(campaign.config.get("adapter"), sort_keys=True)
+        # Full run-identity tuple, not just suite+executor strings (F15).
+        identity = hashlib.sha256(
+            json.dumps({"suite": suite, "executor": executor, "adapter": adapter,
+                        "fixed": campaign.config.get("fixed_variables")}, sort_keys=True).encode()
+        ).hexdigest()
+        identities.add(identity)
         run_dir = campaign.state.get("last_accepted_treatment_dir")
-        source = "latest_accepted_treatment"
-        if not run_dir or not Path(run_dir).is_dir():
-            pending = int(campaign.state.get("pending_iteration") or campaign.current_iteration)
-            candidate = campaign.iteration_dir(pending) / DEV_BASELINE_DIR
-            run_dir = str(candidate) if candidate.is_dir() else None
-            source = "latest_baseline"
-        row: dict[str, Any] = {
-            "campaign": campaign_id,
-            "suite": suite,
-            "executor": executor,
-            "iterations": campaign.current_iteration,
+        rows.append({
+            "campaign": campaign_id, "suite": suite, "executor": executor,
+            "identity": identity, "iterations": campaign.current_iteration,
             "accepted_iterations": campaign.state.get("accepted_iterations", []),
-            "run_source": source,
-        }
-        if run_dir:
-            run = load_run(Path(run_dir), suite)
-            row["strict_success_rate"] = run.summary.get("strict_success_rate")
-            row["simulated"] = not run.acceptance_decision_eligible
-            row["passed_task_ids"] = sorted(run.passed_ids)
-        else:
-            row["strict_success_rate"] = None
-            row["note"] = "no evaluation runs yet"
-        rows.append(row)
-        reference.setdefault("suite", suite)
-        reference.setdefault("executor", executor)
-
-    comparable = all(
-        r["suite"] == reference.get("suite") and r["executor"] == reference.get("executor")
-        for r in rows
-    )
+            "strict_success_rate": (
+                load_run(Path(run_dir), suite).summary.get("strict_success_rate")
+                if run_dir and Path(run_dir).is_dir() else None
+            ),
+        })
+    comparable = len(identities) == 1
     report = {
-        "schema_version": "0.1-draft",
-        "comparable": comparable,
-        "non_comparable_reason": (
-            None
-            if comparable
-            else "campaigns differ in dev suite or executor pin — cross-campaign scores must not be ranked (ADR-0001)"
-        ),
+        "schema_version": "0.2-draft", "comparable": comparable,
+        "non_comparable_reason": None if comparable else
+            "campaigns differ in the full run-identity tuple (suite/executor/adapter/fixed vars); "
+            "cross-campaign scores must not be ranked (ADR-0001, F15)",
         "campaigns": rows,
-        "note": "scheduled report; transplanting a winning mechanism is a manifested change through the receiving campaign's gate",
+        "note": "transplanting a winning mechanism is a manifested change through the receiving campaign's gate",
     }
-    out = repo_root / "campaigns" / "cross-campaign-report.json"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     return report
-
-
-def measure_noise(campaign: Campaign, *, runs: int = 3) -> NoiseBand:
-    """Repeated identical-configuration baseline runs → noise band."""
-    out_root = campaign.root / "noise"
-    eval_runs: list[EvalRun] = []
-    for index in range(runs):
-        eval_runs.append(
-            run_suite(
-                repo_root=campaign.repo_root,
-                suite_name=campaign.config["suites"]["dev"],
-                adapter_config=campaign.config["adapter"],
-                output_dir=out_root / f"run-{index:02d}",
-            )
-        )
-    synthetic = any(not run.acceptance_decision_eligible for run in eval_runs)
-    band = measure_noise_band(eval_runs, synthetic=synthetic)
-    campaign.config["noise_band"] = band.to_dict()
-    campaign.state["noise_band_measured"] = True
-    campaign.save_config()
-    campaign.save_state()
-    return band

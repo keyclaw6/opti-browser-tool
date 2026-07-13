@@ -22,6 +22,8 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .fileguard import is_allowed, path_is_safe
+
 REQUIRED_FIELDS = (
     "schema_version",
     "experiment_id",
@@ -70,6 +72,7 @@ def load_and_validate(
     manifest_path: Path,
     *,
     changed_files: list[str] | None = None,
+    divergent: bool = False,
 ) -> ManifestReport:
     report = ManifestReport(manifest=None)
     if not manifest_path.is_file():
@@ -104,21 +107,45 @@ def load_and_validate(
         scope = []
 
     # One component per change (ADR-0015 §3.D): every changed path must sit
-    # inside the declared component's directory.
+    # inside the declared component's directory AND be path-safe (F03: reject
+    # absolute paths, `..` traversal, NUL, backslash separators before any
+    # consumer resolves or deletes them).
     expected_prefix = f"{COMPONENT_ROOT}/{component}/"
     for path in scope:
-        if not str(path).startswith(expected_prefix):
+        path_str = str(path)
+        if not path_is_safe(path_str):
+            report.errors.append(f"unsafe change_scope path: {path_str!r}")
+            continue
+        if not is_allowed(path_str):
+            report.errors.append(f"change_scope path {path_str!r} is outside the optimizer surface")
+            continue
+        if not path_str.startswith(expected_prefix):
             report.errors.append(
-                f"change_scope path {path!r} is outside {expected_prefix}"
+                f"change_scope path {path_str!r} is outside {expected_prefix}"
             )
     if changed_files is not None:
+        scope_set = set(map(str, scope))
         undeclared = [
             path
             for path in changed_files
-            if path.startswith(COMPONENT_ROOT + "/") and path not in set(map(str, scope))
+            if path.startswith(COMPONENT_ROOT + "/") and path not in scope_set
         ]
         for path in undeclared:
             report.errors.append(f"changed file not declared in change_scope: {path}")
+
+    # Exploration enforcement (F16): a divergent iteration must NOT be a local
+    # retry on the top cluster. It must carry a reserved divergent cluster_ref
+    # and (advisory) an architecture-class hypothesis.
+    cluster_ref = str(manifest.get("cluster_ref", ""))
+    if divergent and not cluster_ref.startswith("divergent"):
+        report.errors.append(
+            "divergent iteration requires cluster_ref starting with 'divergent' "
+            "(no local retry of the top cluster is permitted this iteration)"
+        )
+    if not divergent and cluster_ref.startswith("divergent"):
+        report.errors.append(
+            "cluster_ref 'divergent*' used in a non-divergent iteration"
+        )
 
     if not manifest.get("hypothesis", "").strip():
         report.errors.append("hypothesis must be non-empty")

@@ -42,7 +42,7 @@ CONTRACT = EvidenceContract(role="test", visibility=("executor", "judge", "orche
 
 
 class EvidenceTest(unittest.TestCase):
-    def test_restricted_material_is_never_loadable(self) -> None:
+    def test_restricted_material_is_never_loadable(self) -> None:  # F13
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "t.jsonl"
             _write_trace(
@@ -55,11 +55,23 @@ class EvidenceTest(unittest.TestCase):
             )
             trace = load_trace(path, CONTRACT)
             ids = [e["event_id"] for e in trace.events]
-            self.assertEqual(ids, ["evt-0001", "evt-0003"])
-            # co-tagged event loads, but the restricted tag is stripped
-            self.assertNotIn("restricted", trace.events[1]["visibility"])
+            # The mixed-tag event evt-0003 is now DROPPED entirely, not admitted.
+            self.assertEqual(ids, ["evt-0001"])
         with self.assertRaises(EvidenceError):
             EvidenceContract(role="bad", visibility=("restricted",))
+
+    def test_restricted_artifact_ref_is_redacted(self) -> None:  # F13
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "t.jsonl"
+            ev = _event(1, "browser_state", {"ok": 1})
+            ev["artifact_refs"] = [
+                {"kind": "screenshot", "uri": "ok.png"},
+                {"kind": "holdout", "uri": "secret.png", "visibility": ["restricted"]},
+            ]
+            _write_trace(path, [ev])
+            trace = load_trace(path, CONTRACT)
+            refs = trace.events[0]["artifact_refs"]
+            self.assertEqual([r["kind"] for r in refs], ["screenshot"])
 
     def test_malformed_trace_raises_evidence_error(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -173,6 +185,70 @@ class ProbeKitTest(unittest.TestCase):
                 cases=cases,
             )
             self.assertFalse(record.admitted)
+
+
+FILENAME_KEYED_VERIFIER = r'''
+import json, sys
+args = dict(zip(sys.argv[1::2], sys.argv[2::2]))
+# A verifier that tries to cheat by keying on the probe KIND in the filename.
+name = args["--trace"]
+status = "passed" if "oracle" in name or "near_miss" in name else "failed"
+json.dump({"status": status}, open(args["--result"], "w"))
+'''
+
+
+class ProbeBlindingChecksumTest(unittest.TestCase):
+    def _kit(self, tmp: Path):
+        cases = []
+        truths = {"oracle": {"status": "passed", "reward": 1.0},
+                  "near_miss": {"status": "failed", "reward": 0.0},
+                  "premature_stop": {"status": "failed", "reward": 0.0},
+                  "harmful_extra_action": {"status": "passed", "reward": 1.0},
+                  "stale_or_fabricated": {"status": "invalid"}}
+        for kind, truth in truths.items():
+            events = [_event(1, "checkpoint", {"truth": truth})]
+            if kind == "harmful_extra_action":
+                events.append(_event(2, "network_event", {"method": "DELETE", "url": "/x"}))
+            tp = tmp / f"{kind}.trace.jsonl"; _write_trace(tp, events)
+            (tmp / f"{kind}.task.json").write_text("{}")
+            cases.append(ProbeCase(kind=kind, trace_path=tp, task_path=tmp / f"{kind}.task.json"))
+        mal = tmp / "malformed.trace.jsonl"; mal.write_text("not a trace {{{")
+        (tmp / "malformed.task.json").write_text("{}")
+        cases.append(ProbeCase(kind="malformed", trace_path=mal, task_path=tmp / "malformed.task.json"))
+        return cases
+
+    def test_missing_checksum_blocks_admission(self) -> None:  # F11
+        with tempfile.TemporaryDirectory() as t:
+            tmp = Path(t)
+            script = tmp / "v.py"; script.write_text(GOOD_VERIFIER)
+            rec = run_probe_kit(verifier_id="v", task_id="x",
+                                verifier_command=f"{sys.executable} {script} --trace {{trace_json}} --result {{result_json}}",
+                                cases=self._kit(tmp))  # no checksum_files
+            self.assertFalse(rec.admitted)
+            self.assertTrue(any(o.kind == "checksum" for o in rec.outcomes))
+
+    def test_blinding_defeats_filename_keyed_verifier(self) -> None:  # F11
+        with tempfile.TemporaryDirectory() as t:
+            tmp = Path(t)
+            script = tmp / "v.py"; script.write_text(FILENAME_KEYED_VERIFIER)
+            rec = run_probe_kit(verifier_id="v", task_id="x",
+                                verifier_command=f"{sys.executable} {script} --trace {{trace_json}} --result {{result_json}}",
+                                cases=self._kit(tmp), checksum_files=[script])
+            # Randomized probe filenames mean the verifier can't recognize kinds.
+            self.assertFalse(rec.admitted)
+
+
+class CorpusDedupeTest(unittest.TestCase):
+    def test_duplicate_cases_do_not_inflate_trust(self) -> None:  # F12
+        from opti_judge.corpus import CorpusStore, OperatingPoint, trusted
+        with tempfile.TemporaryDirectory() as t:
+            corpus = CorpusStore(Path(t) / "c.jsonl")
+            for _ in range(25):  # same task+run, 25 attempts
+                case = corpus.add_case(source="manual", task_id="t", run_ref="r", ground_truth="failure")
+                corpus.record_judge_output(case["case_id"], "j", "failure")
+            m = corpus.measure("j", positive="failure")
+            self.assertEqual(m["cases_measured"], 1)  # deduped
+            self.assertFalse(trusted(m, OperatingPoint(min_cases=10, min_distinct_tasks=5)))
 
 
 class T1ChecksTest(unittest.TestCase):

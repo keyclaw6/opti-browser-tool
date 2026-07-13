@@ -22,15 +22,18 @@ Browser tasks introduce extra issues including dynamic state, failed clicks, ses
 
 A change advances through the ladder in order; failing a rung stops the evaluation early and cheaply. Every rung's decision is computed by deterministic Conductor code from recorded artifacts — no LLM participates in an accept/reject decision.
 
-- **E0 — static containment.** The diff touches only the optimizer's allowlisted harness workspace (git file guard); the generality lint finds no benchmark tokens, task-ID literals, or site-specific answer shortcuts in code, memory, or skill content; the change manifest validates against [`schemas/experiment.schema.json`](../../schemas/experiment.schema.json) with exactly one hypothesis and one target component.
+- **E0 — static containment.** Authority is the `base..candidate` **commit diff** over an isolated worktree (not the mutable working tree): every touched path must be under the optimizer's allowlist and path-safe (no traversal, symlink, or absolute path). The generality lint scans the whole candidate component tree (not just the diff) and rejects non-scannable files; the change manifest validates against [`schemas/experiment.schema.json`](../../schemas/experiment.schema.json) with exactly one hypothesis and one target component. A divergent iteration must carry a reserved `divergent` cluster ref, and a third local retry at the same cluster+component is rejected (pivot rule).
 - **E1 — activation audit.** Trace evidence from a cheap run must show the changed component actually executed (registration present, code path hit, declared activation events emitted). An inert change makes the experiment `invalid`, not `rejected`: it falsifies nothing.
 - **E2 — smoke.** The 20-task nested smoke suite ([ADR-0007](0007-nested-smoke-suite.md)) must not collapse. `invalid`/`error` results are excluded from denominators per the fail-closed result semantics.
 - **E3 — targeted cluster re-evaluation.** The tasks of the motivating failure cluster are re-run at the repetition count their stability history requires. The manifest's predicted fixes are checked here first.
 - **E4 — regression suite, near-zero tolerance.** Any regression-suite failure confirmed by repetition blocks acceptance. A regression flagged as verifier-suspect by the panel goes to quarantine rather than silently passing or failing ([ADR-0016](0016-judge-panel-and-verifier-audit-protocol.md)). The optimizer's self-declared at-risk list is never used to narrow this rung.
-- **E5 — paired development evaluation.** Baseline and treatment are compared on the **valid-in-both intersection** of the development suite (quorum semantics: a comparison is valid only when coverage of the suite stays above a floor and no source family is entirely absent — exact numbers are open parameters). Acceptance requires **all three**:
-  1. at least one predicted flip verified (the hypothesis did what it claimed);
-  2. no unexplained regression outside the measured noise band;
-  3. aggregate success non-inferior within the noise band.
+- **E5 — paired development evaluation.** Baseline and treatment are compared on the **valid-in-both intersection** of the development suite; coverage and the source-family universe are measured against the ORIGINAL suite, so quarantining a whole family cannot report full coverage. Acceptance requires **all** of:
+  1. at least one predicted flip verified **in the full E5 evidence** (E3 is screening only, never sufficient);
+  2. the attribution verdict is not `revert`;
+  3. prediction precision (verified / predicted) meets a floor, so a shotgun prediction cannot buy acceptance;
+  4. no unexplained regression outside the measured noise band;
+  5. aggregate success non-inferior within the noise band.
+  For a **benchmark** verdict the noise band must be non-synthetic and bound to this run's identity, and every task must have an admitted, checksum-matched verifier (else the run is `simulated`, never a real acceptance).
 
 Results are classified `accepted`, `rejected`, `inconclusive`, or `invalid` per the charter. Infrastructure failure invalidates; it never falsifies the hypothesis.
 
