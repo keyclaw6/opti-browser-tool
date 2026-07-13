@@ -35,7 +35,7 @@ REQUIRED_DOCS = [
     "validation/README.md",
 ]
 
-ADR_NUMBERS = range(1, 15)
+ADR_NUMBERS = range(1, 17)
 LINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)")
 EXPECTED_SOURCE_COUNTS = {
     "real_v1": 30,

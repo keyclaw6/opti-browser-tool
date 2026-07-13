@@ -1,0 +1,12 @@
+{
+  "lane": "structured",
+  "observation": {
+    "representation": "axtree",
+    "element_refs": "epoch-scoped"
+  },
+  "actions": {
+    "mechanism": "dom-triggered",
+    "coordinates": false
+  },
+  "note": "Pinned configuration over components 2+3 (COMPONENT_TREE.md \u00a75). Seed lane."
+}

@@ -1,0 +1,25 @@
+{
+  "role_id": "implementation_activation_auditor",
+  "version": "0.1.0",
+  "kind": "llm",
+  "purpose": "Verifies a manifest's changed component actually executed (dynamic half of gate E1): declared activation_events present in traces, code path exercised. High precision \u2014 its flags invalidate experiments.",
+  "evidence_contract": {
+    "visibility": [
+      "judge",
+      "orchestrator"
+    ],
+    "event_types": []
+  },
+  "prompt_template": "You are an implementation-activation auditor. You receive a change manifest's declared activation evidence and a run trace digest. Determine whether the changed component actually executed during the run. Answer STRICT JSON: {\"opinion\": \"undecidable\", \"confidence\": 0.0-1.0, \"activated\": \"yes|no|indeterminate\", \"matched_events\": [..], \"rationale\": \"..\"}. Say indeterminate when evidence is missing \u2014 an unproven activation is invalid, not rejected.",
+  "model": {
+    "provider": "fixture"
+  },
+  "calibration": {
+    "status": "uncalibrated",
+    "min_cases": 25,
+    "min_precision": 0.9,
+    "positive_class": "failure",
+    "tuning": "high-precision: a false 'not activated' flag would invalidate a real experiment"
+  },
+  "note": "Model pin is Open Question 17 \u2014 provider deliberately set to 'fixture' until the owner pins judge models; judges never run on the loop's cheap executor."
+}

@@ -64,6 +64,22 @@ The project owner directed that all 140 sourced candidates remain in the active 
 
 Reason: removing 40 candidates before environment, verifier, reset, duplication, and task-level calibration checks would make exclusions heuristic and difficult to review.
 
+## 8. Auto-research loop, judge panel, and experiment gate proposed (2026-07-13)
+
+**ADR-0015 and ADR-0016 — Proposed. ADR-0005 — moved from Open to Proposed.**
+
+Following the project owner's direction to design the auto-research harness from the two reference projects and to make the judge panel resistant to false positives and false negatives, three coordinated proposals were recorded: the loop architecture (five separated planes, phases A–F, manifest-based attribution, containment rules, and a memory three-regime rule), the evaluation layering (deterministic verifiers as sole scorers with probe-kit admission, calibrated non-scoring LLM flaggers, and a human quarantine checkpoint), and the E0–E5 acceptance ladder with all numeric thresholds deferred to measurement. Supporting drafts were added: `PROGRAM.md` v0 (the optimizer runbook), `docs/architecture/COMPONENT_TREE.md`, and `docs/architecture/ANALYST.md`.
+
+Reason: the project's two remaining architecture tasks — the harness loop structure and the judge panel — needed concrete, evidence-backed proposals before any implementation. None of these documents is binding; per the decision process they await explicit owner acceptance, and their thresholds are recorded as open parameters rather than invented numbers.
+
+## 9. Trace storage proposed; loop and judge shells implemented (2026-07-13)
+
+**ADR-0004 — moved from Open to Proposed.**
+
+The trace representation was proposed once its consumers existed concretely: an append-only JSONL event stream per run (per `schemas/trace-event.schema.json`, with visibility tags and browser-state epochs) plus a content-addressed artifact store, with visibility enforced at the read boundary and holdout traces confined to a private store. Acceptance is gated on the first real source bridge emitting a conforming trace.
+
+In the same period, provisional implementation shells landed for the Proposed loop and judge architecture (`loop_harness/`, `harness/`, `judge_harness/`, and judge role assets under `evals/judges/roles/`). Per the decision process these are nonbinding: implementation existence does not change any ADR's status, and no verdict over synthetic adapters is benchmark evidence.
+
 ## Current accepted decisions
 
 - ADR-0001: project constitution.

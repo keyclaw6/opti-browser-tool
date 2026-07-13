@@ -1,0 +1,21 @@
+{
+  "role_id": "adjudicator",
+  "version": "0.1.0",
+  "kind": "deterministic",
+  "purpose": "Tie rule as code (opti_judge.panel.adjudicate): unresolved disagreement between the verifier, T1 flags, and panel opinions always quarantines for the project owner. Never averages, never adjusts a score, calls no model.",
+  "evidence_contract": {
+    "visibility": [
+      "judge",
+      "orchestrator"
+    ],
+    "event_types": []
+  },
+  "prompt_template": "",
+  "model": {
+    "provider": "none"
+  },
+  "calibration": {
+    "status": "not-applicable (deterministic)"
+  },
+  "note": "Deterministic by design; implemented in opti_judge.panel.adjudicate."
+}

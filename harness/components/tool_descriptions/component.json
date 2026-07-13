@@ -1,0 +1,15 @@
+{
+  "component": "tool_descriptions",
+  "version": "0.1.0-seed",
+  "purpose": "Model-facing descriptions of the action/tool surface, separated from implementation.",
+  "files": [
+    "tools.md"
+  ],
+  "interfaces": [],
+  "activation_events": [
+    "payload.component == 'tool_descriptions'"
+  ],
+  "emits": [
+    "model_observation"
+  ]
+}

@@ -42,6 +42,8 @@ Build the evaluation layers in this order:
 
 The smoke cases also serve as the first end-to-end bring-up cases for runners, reset logic, traces, and verifiers. Temporary diagnostic tasks may be used during development but are not an additional scored suite.
 
+**Batch 2 requirement:** the current 140 candidates contain zero popup/interference and zero long-horizon-memory coverage — two of the charter's priority failure classes — and band filtering is expected to cut the pool toward 70–100 survivors against a ~100 target. A second sourcing batch covering those two classes must be planned concurrently with calibration, not after it.
+
 Before freezing any suite, run the selected tasks through a known working harness and confirm setup, completion conditions, verifier behavior, reproducibility, and artifact capture.
 
 Exit criterion: the 20-task smoke subset and all source bridges work end to end; the 140 candidates have recorded validation outcomes; an approximately 100-task final selection is justified; verifier defects and unstable tasks are not counted as agent failures.

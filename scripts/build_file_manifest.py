@@ -6,7 +6,7 @@ import hashlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXCLUDED_DIRS = {".git", ".venv", "__pycache__", ".pytest_cache", "runs"}
+EXCLUDED_DIRS = {".git", ".venv", "__pycache__", ".pytest_cache", "runs", "campaigns"}
 EXCLUDED_FILES = {"FILE_INVENTORY.tsv", "MANIFEST.sha256"}
 
 

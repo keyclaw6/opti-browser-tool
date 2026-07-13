@@ -1,0 +1,11 @@
+{
+  "component": "skills",
+  "version": "0.1.0-seed",
+  "purpose": "Verified site-general workflows. Solver proposes; an independent verifier admits. Empty at seed.",
+  "files": [],
+  "interfaces": [],
+  "activation_events": [],
+  "emits": [
+    "checkpoint"
+  ]
+}

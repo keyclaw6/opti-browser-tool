@@ -1,0 +1,15 @@
+{
+  "component": "policy",
+  "version": "0.1.0-seed",
+  "purpose": "System prompt and top-level decision policy.",
+  "files": [
+    "system_prompt.md"
+  ],
+  "interfaces": [],
+  "activation_events": [
+    "payload.component == 'policy'"
+  ],
+  "emits": [
+    "model_response"
+  ]
+}

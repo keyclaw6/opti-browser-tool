@@ -1,0 +1,11 @@
+{
+  "component": "sub_agents",
+  "version": "0.1.0-seed",
+  "purpose": "Delegated specialist roles with their own visibility boundaries. Empty at seed.",
+  "files": [],
+  "interfaces": [],
+  "activation_events": [],
+  "emits": [
+    "checkpoint"
+  ]
+}

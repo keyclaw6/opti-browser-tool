@@ -32,7 +32,28 @@
     },
     "verification": {"type": "object"},
     "runtime": {"type": "object"},
-    "provenance": {"type": "object"}
+    "provenance": {"type": "object"},
+    "judge_expectations": {
+      "type": "object",
+      "description": "Optional deterministic cross-check material for the T1 layer (ADR-0016). side_effect_expectation defaults from state_change_expected (true->some, false->none) when absent. state_assertions use the opti-judge assertion mini-language and are authored during bridge bring-up task audits, never by the optimizer.",
+      "properties": {
+        "side_effect_expectation": {"enum": ["none", "some", "unknown"]},
+        "state_assertions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "op"],
+            "properties": {
+              "path": {"type": "string"},
+              "op": {"enum": ["equals", "contains", "exists"]},
+              "value": {}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": true
 }

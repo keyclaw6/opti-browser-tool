@@ -1,0 +1,16 @@
+{
+  "component": "observation",
+  "version": "0.1.0-seed",
+  "purpose": "Page representation offered to the executor; element references carry browser_state_epoch and fail explicitly when stale.",
+  "files": [
+    "observation_contract.md"
+  ],
+  "interfaces": [],
+  "activation_events": [
+    "payload.component == 'observation'"
+  ],
+  "emits": [
+    "model_observation",
+    "browser_state"
+  ]
+}

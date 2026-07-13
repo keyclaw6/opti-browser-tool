@@ -1,0 +1,11 @@
+{
+  "component": "memory",
+  "version": "0.1.0-seed",
+  "purpose": "Long-term lessons (generality-gated) and runtime workflow memory (reset per evaluation run by default). Disabled at seed.",
+  "files": [],
+  "interfaces": [],
+  "activation_events": [],
+  "emits": [
+    "checkpoint"
+  ]
+}

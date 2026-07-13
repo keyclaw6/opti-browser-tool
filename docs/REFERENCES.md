@@ -39,6 +39,18 @@ Source repositories:
 - https://github.com/neosigmaai/auto-harness
 - https://github.com/china-qijizhifeng/agentic-harness-engineering
 
+## Evidence sources for the loop and judge proposals
+
+The quantitative claims in ADR-0015, ADR-0016, and ADR-0005 trace to:
+
+- AHE paper (method and transfer/ablation/attribution numbers): https://arxiv.org/abs/2604.25850 (also bundled as a PDF in the AHE repository);
+- auto-harness method article (failure-cluster prioritization, regression growth): https://www.neosigma.ai/blog/self-improving-agentic-systems
+- AgentRewardBench (verifier and LLM-judge precision/recall on 1,302 expert-labeled trajectories): https://arxiv.org/abs/2504.08942
+- Online-Mind2Web / WebJudge (key-point judging recipe and agreement rates): https://arxiv.org/abs/2504.01382
+- Mind2Web-2 (Agent-as-a-Judge tree rubrics): https://arxiv.org/abs/2506.21506
+
+These citations ground design choices only; none of them supplies task-level difficulty evidence for this project's candidates.
+
 ## Benchmark and task-source provenance
 
 The benchmark-family findings are recorded in `research/benchmarks/2026-07-11-benchmark-source-selection-report.md`. Exact source revisions, manifests, and checksums for the 140 candidates are pinned in `research/benchmarks/task-candidates/batch-1-sources.lock.json`; task-level rationale and audit flags are in the adjacent candidate files. Public aggregate results are source-screening evidence only and must not be treated as task-level success.

@@ -1,0 +1,16 @@
+{
+  "component": "actions",
+  "version": "0.1.0-seed",
+  "purpose": "Action vocabulary; every action declares pre-execution validation and postconditions.",
+  "files": [
+    "action_contract.md"
+  ],
+  "interfaces": [],
+  "activation_events": [
+    "payload.component == 'actions'"
+  ],
+  "emits": [
+    "action_requested",
+    "action_result"
+  ]
+}

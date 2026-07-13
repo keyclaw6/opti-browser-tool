@@ -1,0 +1,11 @@
+{
+  "component": "middleware",
+  "version": "0.1.0-seed",
+  "purpose": "Cross-cutting runtime behavior: compaction, retry/recovery, destructive-action interlock, post-action verification, loop detection. Empty at seed.",
+  "files": [],
+  "interfaces": [],
+  "activation_events": [],
+  "emits": [
+    "checkpoint"
+  ]
+}

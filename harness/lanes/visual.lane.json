@@ -1,0 +1,12 @@
+{
+  "lane": "visual",
+  "observation": {
+    "representation": "screenshot+som",
+    "element_refs": "marks"
+  },
+  "actions": {
+    "mechanism": "coordinates",
+    "coordinates": true
+  },
+  "note": "Second campaign base per ADR-0015 \u00a79; not the seed."
+}
