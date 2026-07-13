@@ -13,3 +13,7 @@ secrets/
 build/
 dist/
 evals/config.local.json
+
+# dotenvx private keys stay outside Git; encrypted .env files are tracked.
+.env.keys
+.env.keys.*
