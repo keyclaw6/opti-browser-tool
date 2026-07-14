@@ -2,9 +2,9 @@
 
 Production runbook order (F18): start -> optimizer commits in the isolated
 worktree + writes manifest.json -> run-iteration (gate + accept/reset + record
-as ONE transaction). A real reportable command bridge drives the benchmark
-path, so the acceptance-and-advance transaction is genuinely exercised — not a
-simulated rehearsal masquerading as acceptance.
+as ONE transaction). The current command bridge is diagnostic plumbing only:
+without a trusted evidence path, even a performance-improving pass payload
+must remain simulated and cannot advance the accepted base.
 
 Adversarial cases assert the review's blocking holes are closed: committed
 forbidden edit (F01), forged gate report (F02), simulated never advances real
@@ -127,8 +127,8 @@ class TransactionalLoopTest(unittest.TestCase):
                      "exploration": {"divergence_quota": 0, "plateau_force_after": 0, "pivot_after_failures": 2}}
         return init_campaign(self.repo, cid, store_root=self.store, overrides=overrides)
 
-    # ── the benchmark accept-and-advance transaction ─────────────────────
-    def test_benchmark_acceptance_advances_state(self) -> None:
+    # ── an untrusted no-trace command bridge cannot advance state ────────
+    def test_no_trace_command_bridge_does_not_advance_state(self) -> None:
         campaign = self._new_campaign("cmp", self._command_adapter())
         self._register_admissions(campaign)
         base_before = campaign.state["accepted_base_sha"]
@@ -140,16 +140,17 @@ class TransactionalLoopTest(unittest.TestCase):
         self._write_manifest(wt, predicted=self.flipping[:2])
         result = run_iteration(campaign)
 
-        self.assertEqual(result["verdict"], "accepted")
-        self.assertEqual(result["evidence_class"], "benchmark")
-        self.assertTrue(result["advanced_accepted_state"])
+        self.assertEqual(result["decision"], "accepted")
+        self.assertEqual(result["evidence_class"], "simulated")
+        self.assertFalse(result["advanced_accepted_state"])
         reloaded = load_campaign(self.repo, "cmp", store_root=self.store)
-        self.assertNotEqual(reloaded.state["accepted_base_sha"], base_before)
-        self.assertEqual(reloaded.state["accepted_iterations"], [1])
+        self.assertEqual(reloaded.state["accepted_base_sha"], base_before)
+        self.assertEqual(reloaded.state["accepted_iterations"], [])
         # worktree destroyed after the transaction (boundary reset).
         self.assertFalse(campaign.worktree_path.exists())
         gate = json.loads((campaign.iteration_dir(1) / "gate-report.json").read_text())
         self.assertEqual({r["rung"] for r in gate["rungs"]}, {"E0", "E1", "E2", "E3", "E4", "E5"})
+        self.assertFalse(gate["eligibility"]["acceptance_eligible"])
 
     # ── F01: committed forbidden edit is rejected ────────────────────────
     def test_committed_forbidden_edit_rejected(self) -> None:

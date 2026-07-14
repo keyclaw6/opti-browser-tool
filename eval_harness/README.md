@@ -85,7 +85,7 @@ A real bridge must reset its source environment, resolve the upstream task, run 
 
 Allowed statuses are `passed`, `failed`, `invalid`, `error`, and `skipped`. Infrastructure, reset, account, and verifier failures must use `invalid` or `error`, never `failed`.
 
-A bridge may set `metadata.benchmark_reportable=false` for synthetic or diagnostic results. The run summary honors that marker even when the generic command adapter itself is capable of reportable execution.
+Command and registry bridge outputs are diagnostic and non-reportable by default. Bridge-authored metadata cannot promote them into benchmark evidence; a later trusted evidence path must validate and explicitly promote each result before a run can become benchmark-reportable or acceptance-decision-eligible.
 
 ## Source registry
 

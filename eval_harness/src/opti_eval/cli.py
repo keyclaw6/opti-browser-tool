@@ -14,7 +14,7 @@ from .doctor import inspect_registry
 from .errors import OptiEvalError
 from .paths import find_repo_root
 from .runner import run_evaluation
-from .util import read_json
+from .summary import load_run_summary
 from .validation import validate_repository
 
 
@@ -88,7 +88,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.command == "summarize":
-            _json_print(read_json(Path(args.run_dir) / "summary.json"))
+            _json_print(load_run_summary(Path(args.run_dir)))
             return 0
 
         repo_root = find_repo_root(args.repo_root)

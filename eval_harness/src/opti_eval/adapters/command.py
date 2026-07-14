@@ -16,7 +16,7 @@ class CommandAdapter(Adapter):
     """Runs an external benchmark bridge using a format-string command."""
 
     name = "command"
-    benchmark_reportable = True
+    benchmark_reportable = False
 
     def __init__(
         self,

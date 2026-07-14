@@ -55,17 +55,23 @@ class TaskResult:
     ) -> "TaskResult":
         if not isinstance(payload, dict):
             raise ValueError("Bridge result must be a JSON object")
-        task_id = str(payload.get("task_id", expected_task_id))
+        raw_task_id = payload.get("task_id")
+        if not isinstance(raw_task_id, str) or not raw_task_id.strip():
+            raise ValueError("Bridge result must contain a non-empty string task_id")
+        task_id = raw_task_id
         if task_id != expected_task_id:
             raise ValueError(
                 f"Bridge returned task_id={task_id!r}; expected {expected_task_id!r}"
             )
         status = str(payload.get("status", "")).lower()
-        if not status and "success" in payload:
-            status = "passed" if bool(payload["success"]) else "failed"
         reward = payload.get("reward")
         if reward is not None:
             reward = float(reward)
+        metadata = dict(payload.get("metadata") or {})
+        # External bridge output is diagnostic plumbing until a later trusted
+        # evidence path validates and promotes it.  Never let bridge-authored
+        # JSON promote itself into benchmark evidence.
+        metadata["benchmark_reportable"] = False
         result = cls(
             task_id=task_id,
             source=source,
@@ -75,7 +81,7 @@ class TaskResult:
             error=dict(payload["error"]) if isinstance(payload.get("error"), dict) else None,
             artifacts={str(k): str(v) for k, v in dict(payload.get("artifacts") or {}).items()},
             metrics=dict(payload.get("metrics") or {}),
-            metadata=dict(payload.get("metadata") or {}),
+            metadata=metadata,
         )
         result.validate()
         return result

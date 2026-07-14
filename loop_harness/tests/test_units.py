@@ -210,6 +210,80 @@ class AttributionTest(unittest.TestCase):
 class EligibilityTest(unittest.TestCase):
     """F10: benchmark eligibility requires admission; auto-T1 routes to quarantine."""
 
+    def test_legacy_registry_replay_cannot_reach_benchmark_eligibility(self) -> None:
+        from opti_eval.summary import summarize_results
+        from opti_eval.util import atomic_write_json, write_jsonl
+        from opti_loop.eligibility import assess
+        from opti_loop.evaluate import load_run
+
+        with tempfile.TemporaryDirectory() as t:
+            tmp = Path(t)
+            results = [{
+                "task_id": "a",
+                "source": "test-source",
+                "status": "passed",
+                "reward": 1.0,
+                "metadata": {"benchmark_reportable": True},
+            }]
+            write_jsonl(tmp / "results.jsonl", results)
+            summary = summarize_results(results, adapter_reportable=True)
+            summary.update({
+                "run_valid": True,
+                "benchmark_reportable": True,
+                "acceptance_decision_eligible": True,
+            })
+            atomic_write_json(tmp / "summary.json", summary)
+            atomic_write_json(
+                tmp / "run.json",
+                {"adapter": {"name": "registry", "benchmark_reportable": True}},
+            )
+            (tmp / "adm.jsonl").write_text(json.dumps({
+                "verifier_id": "v",
+                "task_id": "a",
+                "verifier_checksum": "c",
+                "admitted": True,
+            }) + "\n")
+
+            run = load_run(tmp, "test")
+            self.assertFalse(run.acceptance_decision_eligible)
+            eligibility = assess(
+                run=run,
+                run_dir=tmp,
+                adapter_config={"verifier_id": "v", "verifier_checksum": "c"},
+                task_records={},
+                admissions_path=tmp / "adm.jsonl",
+                quarantine_path=tmp / "q.jsonl",
+            )
+            self.assertEqual(eligibility.evidence_class, "simulated")
+            self.assertFalse(eligibility.acceptance_eligible)
+
+    def test_malformed_persisted_result_makes_loop_run_invalid_without_crashing(self) -> None:
+        from opti_eval.util import atomic_write_json, write_jsonl
+        from opti_loop.evaluate import load_run
+
+        with tempfile.TemporaryDirectory() as t:
+            tmp = Path(t)
+            write_jsonl(tmp / "results.jsonl", [{
+                "task_id": "a",
+                "source": "test-source",
+                "status": "PASSED",
+                "metadata": {"benchmark_reportable": True},
+            }])
+            atomic_write_json(tmp / "summary.json", {
+                "run_valid": True,
+                "benchmark_reportable": True,
+                "acceptance_decision_eligible": True,
+            })
+            atomic_write_json(tmp / "run.json", {
+                "adapter": {"name": "diagnostic-test", "benchmark_reportable": True},
+            })
+
+            run = load_run(tmp, "test")
+            self.assertFalse(run.run_valid)
+            self.assertFalse(run.acceptance_decision_eligible)
+            self.assertEqual(run.statuses, {})
+            self.assertTrue(run.summary["replay_errors"])
+
     def test_unadmitted_verifier_is_not_benchmark(self) -> None:
         from opti_loop.eligibility import assess
         with tempfile.TemporaryDirectory() as t:

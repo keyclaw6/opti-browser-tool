@@ -13,7 +13,7 @@ class RegistryAdapter(Adapter):
     """Dispatches tasks to source-specific external command bridges."""
 
     name = "registry"
-    benchmark_reportable = True
+    benchmark_reportable = False
 
     def __init__(self, config_path: Path) -> None:
         self.config_path = config_path

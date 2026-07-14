@@ -11,7 +11,7 @@ class Adapter(ABC):
     """Executes one normalized task and returns a standardized result."""
 
     name = "base"
-    benchmark_reportable = True
+    benchmark_reportable = False
 
     @abstractmethod
     def run(self, task: dict[str, Any], task_dir: Path) -> TaskResult:

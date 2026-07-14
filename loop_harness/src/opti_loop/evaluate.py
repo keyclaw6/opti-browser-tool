@@ -10,7 +10,6 @@ infrastructure signals, never agent failures.
 """
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -19,6 +18,7 @@ from opti_eval.adapters.command import CommandAdapter
 from opti_eval.adapters.fixture import FixtureAdapter
 from opti_eval.catalog import select_tasks
 from opti_eval.runner import run_evaluation
+from opti_eval.summary import load_run_artifacts
 
 
 @dataclass(slots=True)
@@ -96,7 +96,7 @@ def run_suite(
     max_workers: int = 4,
 ) -> EvalRun:
     suite, tasks = select_tasks(repo_root, suite_name, task_ids=task_ids)
-    record = run_evaluation(
+    run_evaluation(
         repo_root=repo_root,
         suite=suite,
         tasks=tasks,
@@ -105,24 +105,20 @@ def run_suite(
         max_workers=max_workers,
         overwrite=False,
     )
-    return _parse_run(output_dir, suite_name, record["summary"])
+    return _parse_run(output_dir, suite_name)
 
 
 def load_run(output_dir: Path, suite_name: str) -> EvalRun:
-    summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
-    return _parse_run(output_dir, suite_name, summary)
+    return _parse_run(output_dir, suite_name)
 
 
-def _parse_run(output_dir: Path, suite_name: str, summary: dict[str, Any]) -> EvalRun:
+def _parse_run(output_dir: Path, suite_name: str) -> EvalRun:
+    summary, results = load_run_artifacts(output_dir)
     statuses: dict[str, str] = {}
     rewards: dict[str, float | None] = {}
-    results_path = output_dir / "results.jsonl"
-    for line in results_path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        row = json.loads(line)
-        task_id = str(row["task_id"])
-        statuses[task_id] = str(row["status"])
+    for row in results:
+        task_id = row["task_id"]
+        statuses[task_id] = row["status"]
         rewards[task_id] = row.get("reward")
     return EvalRun(
         output_dir=output_dir,
