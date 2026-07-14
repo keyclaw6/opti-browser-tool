@@ -40,7 +40,7 @@ Campaign identity (harness workspace branch, base lane, ledger, cluster register
 
 ## 4. The manifest you must write
 
-Contract: [`schemas/experiment.schema.json`](schemas/experiment.schema.json); shape: [`examples/experiment.example.json`](examples/experiment.example.json). Every field is mandatory in spirit — an empty `regression_risks` array is almost never true. Loop extensions (schema revision pending, per ADR-0015 §4): `target_component`, `cluster_ref`, post-evaluation `attribution` block.
+Contract: [`schemas/experiment.schema.json`](schemas/experiment.schema.json); optimizer-input shape: [`examples/experiment.example.json`](examples/experiment.example.json). The canonical schema requires `target_component` and `cluster_ref`, defines the optional post-evaluation `attribution` block, and has a separately discriminated `rejected_submission` record that preserves invalid optimizer JSON plus its validation errors without inventing experiment fields. The Optimizer must emit only the experiment input shape and omit `attribution`; the Conductor alone writes trusted terminal records. Every field is mandatory in spirit — an empty `regression_risks` array is almost never true.
 
 Minimum content: trace evidence (run and event IDs) → suspected root cause → the targeted change and why **this** component → predicted fixes as failure classes and tasks → predicted risks → activation evidence the auditor can check → acceptance criteria consistent with the gate.
 

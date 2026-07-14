@@ -1,127 +1,403 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.invalid/opti-browser-tool/experiment.schema.json",
-  "title": "Harness Experiment",
-  "type": "object",
-  "required": [
-    "schema_version",
-    "experiment_id",
-    "status",
-    "hypothesis",
-    "trace_evidence",
-    "suspected_root_cause",
-    "treatment",
-    "baseline_ref",
-    "fixed_variables",
-    "predicted_improvements",
-    "regression_risks",
-    "evaluation_plan",
-    "acceptance_criteria"
+  "title": "Harness Experiment Record",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/experiment"
+    },
+    {
+      "$ref": "#/$defs/rejected_submission"
+    }
   ],
-  "additionalProperties": false,
-  "properties": {
-    "schema_version": {
-      "const": "0.1-draft"
-    },
-    "experiment_id": {
-      "type": "string",
-      "minLength": 1
-    },
-    "status": {
-      "enum": [
-        "proposed",
-        "running",
-        "accepted",
-        "rejected",
-        "inconclusive",
-        "invalid"
-      ]
-    },
-    "hypothesis": {
-      "type": "string",
-      "minLength": 1
-    },
-    "trace_evidence": {
+  "$defs": {
+    "task_ids": {
       "type": "array",
-      "minItems": 1,
+      "uniqueItems": true,
       "items": {
-        "type": "object",
-        "additionalProperties": true
+        "type": "string",
+        "minLength": 1
       }
     },
-    "suspected_root_cause": {
-      "type": "string",
-      "minLength": 1
-    },
-    "treatment": {
+    "prediction": {
       "type": "object",
       "required": [
-        "description",
-        "change_scope",
-        "activation_evidence"
+        "failure_class",
+        "tasks"
       ],
+      "additionalProperties": false,
       "properties": {
-        "description": {
-          "type": "string"
+        "failure_class": {
+          "type": "string",
+          "minLength": 1
         },
-        "change_scope": {
+        "tasks": {
+          "$ref": "#/$defs/task_ids"
+        }
+      }
+    },
+    "attribution": {
+      "type": "object",
+      "required": [
+        "verdict",
+        "predicted_count",
+        "verified_fixes",
+        "missed_predictions",
+        "unpredicted_fixes",
+        "predicted_risks",
+        "materialized_regressions",
+        "prediction_precision",
+        "flip_recall",
+        "note"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "verdict": {
+          "enum": [
+            "keep",
+            "partial",
+            "revert"
+          ]
+        },
+        "predicted_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "verified_fixes": {
+          "$ref": "#/$defs/task_ids"
+        },
+        "missed_predictions": {
+          "$ref": "#/$defs/task_ids"
+        },
+        "unpredicted_fixes": {
+          "$ref": "#/$defs/task_ids"
+        },
+        "predicted_risks": {
+          "$ref": "#/$defs/task_ids"
+        },
+        "materialized_regressions": {
+          "$ref": "#/$defs/task_ids"
+        },
+        "prediction_precision": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "flip_recall": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "rejected_verdict": {
+      "type": "object",
+      "required": [
+        "decision",
+        "evidence_class",
+        "label",
+        "advances_accepted_state"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "const": "rejected"
+        },
+        "evidence_class": {
+          "enum": [
+            "benchmark",
+            "simulated"
+          ]
+        },
+        "label": {
+          "enum": [
+            "rejected",
+            "simulated:rejected"
+          ]
+        },
+        "advances_accepted_state": {
+          "const": false
+        }
+      }
+    },
+    "experiment": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "experiment_id",
+        "status",
+        "hypothesis",
+        "trace_evidence",
+        "suspected_root_cause",
+        "target_component",
+        "cluster_ref",
+        "treatment",
+        "baseline_ref",
+        "fixed_variables",
+        "predicted_improvements",
+        "regression_risks",
+        "evaluation_plan",
+        "acceptance_criteria"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "0.1-draft"
+        },
+        "experiment_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "proposed",
+            "running",
+            "accepted",
+            "rejected",
+            "inconclusive",
+            "invalid",
+            "simulated:accepted",
+            "simulated:rejected",
+            "simulated:invalid"
+          ]
+        },
+        "hypothesis": {
+          "type": "string",
+          "minLength": 1
+        },
+        "trace_evidence": {
           "type": "array",
           "minItems": 1,
           "items": {
-            "type": "string"
+            "type": "object",
+            "additionalProperties": true
           }
         },
-        "activation_evidence": {
+        "suspected_root_cause": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_component": {
+          "enum": [
+            "policy",
+            "observation",
+            "actions",
+            "tool_descriptions",
+            "middleware",
+            "skills",
+            "sub_agents",
+            "memory"
+          ]
+        },
+        "cluster_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "treatment": {
+          "type": "object",
+          "required": [
+            "description",
+            "change_scope",
+            "activation_evidence"
+          ],
+          "properties": {
+            "description": {
+              "type": "string",
+              "minLength": 1
+            },
+            "change_scope": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "activation_evidence": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "baseline_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fixed_variables": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "predicted_improvements": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/prediction"
+          }
+        },
+        "regression_risks": {
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/prediction"
           }
+        },
+        "evaluation_plan": {
+          "type": "object",
+          "required": [
+            "task_sets",
+            "repetitions",
+            "pairing",
+            "budget"
+          ],
+          "properties": {
+            "task_sets": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "repetitions": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "pairing": {
+              "type": "string",
+              "minLength": 1
+            },
+            "budget": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "additionalProperties": true
+        },
+        "acceptance_criteria": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": true
+        },
+        "result_ref": {
+          "type": "string"
+        },
+        "decision_notes": {
+          "type": "string"
+        },
+        "attribution": {
+          "$ref": "#/$defs/attribution"
         }
       },
-      "additionalProperties": false
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "attribution"
+            ]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "accepted",
+                  "rejected",
+                  "simulated:accepted",
+                  "simulated:rejected"
+                ]
+              }
+            }
+          }
+        }
+      ]
     },
-    "baseline_ref": {
-      "type": "string",
-      "minLength": 1
-    },
-    "fixed_variables": {
-      "type": "object",
-      "additionalProperties": true
-    },
-    "predicted_improvements": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": true
-      }
-    },
-    "regression_risks": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": true
-      }
-    },
-    "evaluation_plan": {
+    "rejected_submission": {
       "type": "object",
       "required": [
-        "task_sets",
-        "repetitions",
-        "pairing",
-        "budget"
+        "record_type",
+        "schema_version",
+        "status",
+        "verdict",
+        "validation_errors",
+        "original_submission"
       ],
-      "additionalProperties": true
-    },
-    "acceptance_criteria": {
-      "type": "object",
-      "minProperties": 1,
-      "additionalProperties": true
-    },
-    "result_ref": {
-      "type": "string"
-    },
-    "decision_notes": {
-      "type": "string"
+      "additionalProperties": false,
+      "properties": {
+        "record_type": {
+          "const": "rejected_submission"
+        },
+        "schema_version": {
+          "const": "0.1-draft"
+        },
+        "status": {
+          "enum": [
+            "rejected",
+            "simulated:rejected"
+          ]
+        },
+        "verdict": {
+          "$ref": "#/$defs/rejected_verdict"
+        },
+        "validation_errors": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "original_submission": {}
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "status": {
+              "const": "rejected"
+            },
+            "verdict": {
+              "properties": {
+                "evidence_class": {
+                  "const": "benchmark"
+                },
+                "label": {
+                  "const": "rejected"
+                }
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "status": {
+              "const": "simulated:rejected"
+            },
+            "verdict": {
+              "properties": {
+                "evidence_class": {
+                  "const": "simulated"
+                },
+                "label": {
+                  "const": "simulated:rejected"
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

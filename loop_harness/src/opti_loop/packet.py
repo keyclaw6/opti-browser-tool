@@ -84,7 +84,7 @@ def build_packet(
         "## What to produce",
         "",
         "1. One change inside `harness/components/<target_component>/` (one hypothesis, one commit).",
-        "2. `manifest.json` in this iteration directory (contract: `schemas/experiment.schema.json` + `target_component`, `cluster_ref`).",
+        "2. `manifest.json` in this iteration directory; the optimizer-input experiment branch of canonical `schemas/experiment.schema.json` requires `target_component` and `cluster_ref`.",
         "3. Then ask the conductor to gate: `opti-loop gate --campaign <id>`.",
         "",
     ]

@@ -29,7 +29,7 @@ decision.**
 | Git file guard | auto-harness `gating.py` | v2: authoritative over the `base..candidate` **commit diff** (not the mutable working tree), allowlist `harness/components/`, path-safety, no disable switch |
 | Regression suite memory + promotion of newly-fixed tasks | auto-harness | promotion produces **candidates** only; auto-promotion stays off pending ADR-0009 |
 | Sequential cheap-to-expensive gate, exit-code contract | auto-harness | expanded to the E0–E5 ladder of ADR-0005 |
-| Change manifest (evidence → root cause → fix → predicted fixes/risks → why this component) | agentic-harness-engineering | carried by the repo's own `schemas/experiment.schema.json` + `target_component`, `cluster_ref`; conductor appends `attribution` |
+| Change manifest (evidence → root cause → fix → predicted fixes/risks → why this component) | agentic-harness-engineering | one canonical `schemas/experiment.schema.json` requires `target_component` and `cluster_ref`; conductor alone appends `attribution` or writes the discriminated `rejected_submission` record for invalid input |
 | KEEP / PARTIAL / REVERT attribution | AHE | computed synchronously; a `revert` attribution can never be accepted, and the flip must be verified in FULL E5 evidence (not E3 screening) |
 | Iteration folders with pre-built analysis read first | AHE (`runs/iteration_NNN/`) | `<store>/<id>/iterations/iter-NNNN/` with `analysis/`, `PACKET.md`, `eval/*` — in the trusted store |
 | Registration validation before evaluation | AHE `validate_agent.py` | `component.json` checks = the static half of E1; the dynamic (trace) half is **pending** until a tracer exists and is reported as such, never silently passed |

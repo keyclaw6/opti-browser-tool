@@ -11,11 +11,12 @@
     }
   ],
   "suspected_root_cause": "Element references are not scoped to a browser-state epoch.",
+  "target_component": "observation",
+  "cluster_ref": "dynamic-update/wrong-target/stale-reference",
   "treatment": {
     "description": "Attach observation epochs to structured references and fail closed when the epoch is stale.",
     "change_scope": [
-      "lane/cli/observation",
-      "runtime/action_dispatch"
+      "harness/components/observation/observation_contract.md"
     ],
     "activation_evidence": [
       "Smoke task logs a stale_reference action result before re-observation."

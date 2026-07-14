@@ -30,6 +30,16 @@ REPO_ROOT = Path(os.environ["OPTI_BROWSER_REPO_ROOT"])
 ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
        "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
 QUALITY_REL = "harness/components/policy/quality.txt"
+_UNSET = object()
+
+try:
+    from jsonschema import Draft202012Validator
+except ImportError:
+    EXPERIMENT_VALIDATOR = None
+else:
+    EXPERIMENT_VALIDATOR = Draft202012Validator(
+        json.loads((REPO_ROOT / "schemas/experiment.schema.json").read_text(encoding="utf-8"))
+    )
 
 BRIDGE = """import argparse, hashlib, json
 p = argparse.ArgumentParser()
@@ -127,6 +137,53 @@ class TransactionalLoopTest(unittest.TestCase):
                      "exploration": {"divergence_quota": 0, "plateau_force_after": 0, "pivot_after_failures": 2}}
         return init_campaign(self.repo, cid, store_root=self.store, overrides=overrides)
 
+    def _assert_rejected_transaction(
+        self,
+        campaign,
+        result: dict,
+        *,
+        expected_submission: object = _UNSET,
+        expected_error: str | None = None,
+    ) -> dict:
+        self.assertEqual(result["decision"], "rejected")
+        self.assertFalse(result["advanced_accepted_state"])
+        reloaded = load_campaign(self.repo, campaign.campaign_id, store_root=self.store)
+        self.assertEqual(reloaded.state["pending_iteration"], 0)
+        self.assertIsNone(reloaded.state["pending_base_sha"])
+        self.assertFalse(campaign.worktree_path.exists())
+
+        ledger = [
+            json.loads(line)
+            for line in campaign.ledger_path.read_text().splitlines()
+            if line.strip()
+        ]
+        self.assertEqual(ledger[-1]["decision"], "rejected")
+        self.assertTrue(campaign.learnings_path.is_file())
+
+        iteration_dir = campaign.iteration_dir(result["iteration"])
+        snapshot = json.loads((iteration_dir / "manifest.snapshot.json").read_text())
+        self.assertEqual(snapshot["status"], result["verdict"])
+        self.assertNotIn("attribution", snapshot)
+        if expected_submission is _UNSET:
+            self.assertNotIn("record_type", snapshot)
+        else:
+            self.assertEqual(snapshot["record_type"], "rejected_submission")
+            self.assertEqual(snapshot["original_submission"], expected_submission)
+            self.assertEqual(snapshot["verdict"]["label"], result["verdict"])
+            self.assertEqual(snapshot["verdict"]["decision"], "rejected")
+            self.assertFalse(snapshot["verdict"]["advances_accepted_state"])
+            self.assertTrue(snapshot["validation_errors"])
+            if expected_error is not None:
+                self.assertIn(expected_error, snapshot["validation_errors"])
+        if EXPERIMENT_VALIDATOR is not None:
+            schema_errors = list(EXPERIMENT_VALIDATOR.iter_errors(snapshot))
+            self.assertEqual(
+                schema_errors,
+                [],
+                [error.message for error in schema_errors],
+            )
+        return json.loads((iteration_dir / "gate-report.json").read_text())
+
     # ── an untrusted no-trace command bridge cannot advance state ────────
     def test_no_trace_command_bridge_does_not_advance_state(self) -> None:
         campaign = self._new_campaign("cmp", self._command_adapter())
@@ -213,6 +270,114 @@ class TransactionalLoopTest(unittest.TestCase):
         gate = json.loads((campaign.iteration_dir(1) / "gate-report.json").read_text())
         e5 = next(r for r in gate["rungs"] if r["rung"] == "E5")
         self.assertFalse(e5["detail"]["conditions"]["prediction_precision_ok"])
+
+    # ── AR-002: malformed manifests reject without splitting transaction ─
+    def test_non_object_manifests_finish_truthful_rejected_transactions(self) -> None:
+        campaign = self._new_campaign("cmp", self._command_adapter())
+        for submitted in ([], None, "manifest", 7, True):
+            with self.subTest(submitted=submitted):
+                wt = Path(start_iteration(campaign)["worktree"])
+                self._commit_quality(wt, "0.70\n")
+                (wt / "manifest.json").write_text(json.dumps(submitted))
+
+                gate = self._assert_rejected_transaction(
+                    campaign,
+                    run_iteration(campaign),
+                    expected_submission=submitted,
+                    expected_error="manifest must be a JSON object",
+                )
+                errors = gate["rungs"][0]["detail"]["manifest_errors"]
+                self.assertIn("manifest must be a JSON object", errors)
+
+    def test_non_object_prediction_finishes_rejected_transaction(self) -> None:
+        campaign = self._new_campaign("cmp", self._command_adapter())
+        wt = Path(start_iteration(campaign)["worktree"])
+        self._commit_quality(wt, "0.70\n")
+        self._write_manifest(wt, predicted=self.flipping[:1])
+        submitted = json.loads((wt / "manifest.json").read_text())
+        submitted["predicted_improvements"] = ["not-an-object"]
+        (wt / "manifest.json").write_text(json.dumps(submitted))
+
+        gate = self._assert_rejected_transaction(
+            campaign,
+            run_iteration(campaign),
+            expected_submission=submitted,
+            expected_error="predicted_improvements[0] must be an object",
+        )
+        errors = gate["rungs"][0]["detail"]["manifest_errors"]
+        self.assertIn("predicted_improvements[0] must be an object", errors)
+
+    def test_context_invalid_path_preserves_original_submission_and_errors(self) -> None:
+        campaign = self._new_campaign("cmp", self._command_adapter())
+        wt = Path(start_iteration(campaign)["worktree"])
+        self._commit_quality(wt, "0.70\n")
+        self._write_manifest(wt, predicted=self.flipping[:1])
+        submitted = json.loads((wt / "manifest.json").read_text())
+        submitted["treatment"]["change_scope"] = [
+            "harness/components/policy/../observation/observation_contract.md"
+        ]
+        (wt / "manifest.json").write_text(json.dumps(submitted))
+
+        gate = self._assert_rejected_transaction(
+            campaign,
+            run_iteration(campaign),
+            expected_submission=submitted,
+            expected_error=(
+                "unsafe change_scope path: "
+                "'harness/components/policy/../observation/observation_contract.md'"
+            ),
+        )
+        self.assertEqual(gate["rungs"][0]["status"], "fail")
+
+    def test_optimizer_status_spoof_is_rejected_and_overwritten(self) -> None:
+        campaign = self._new_campaign("cmp", self._command_adapter())
+        wt = Path(start_iteration(campaign)["worktree"])
+        self._commit_quality(wt, "0.70\n")
+        self._write_manifest(wt, predicted=self.flipping[:1], status="accepted")
+
+        submitted = json.loads((wt / "manifest.json").read_text())
+        gate = self._assert_rejected_transaction(
+            campaign,
+            run_iteration(campaign),
+            expected_submission=submitted,
+        )
+        errors = gate["rungs"][0]["detail"]["manifest_errors"]
+        self.assertTrue(any("conductor owns terminal status" in error for error in errors))
+
+    def test_e2_rejection_writes_trusted_terminal_snapshot_status(self) -> None:
+        campaign = self._new_campaign("cmp", self._command_adapter())
+        wt = Path(start_iteration(campaign)["worktree"])
+        self._commit_quality(wt, "0.00\n")
+        self._write_manifest(wt, predicted=self.flipping[:1])
+
+        gate = self._assert_rejected_transaction(campaign, run_iteration(campaign))
+        self.assertEqual(
+            [(rung["rung"], rung["status"]) for rung in gate["rungs"]],
+            [("E0", "pass"), ("E1", "pass"), ("E2", "fail")],
+        )
+
+    def test_pivot_rejection_writes_trusted_terminal_snapshot_status(self) -> None:
+        campaign = self._new_campaign("cmp", self._command_adapter())
+        campaign.state["failed_attempts"]["stub/real_v1/failed::policy"] = 2
+        campaign.save_state()
+        wt = Path(start_iteration(campaign)["worktree"])
+        self._commit_quality(wt, "0.70\n")
+        self._write_manifest(wt, predicted=self.flipping[:1])
+        before = (
+            campaign.learnings_path.read_text(encoding="utf-8")
+            if campaign.learnings_path.is_file()
+            else ""
+        )
+
+        gate = self._assert_rejected_transaction(campaign, run_iteration(campaign))
+        self.assertIn("pivot_rule", gate["rungs"][0]["detail"])
+        after = campaign.learnings_path.read_text(encoding="utf-8")
+        appended = after[len(before):]
+        self.assertEqual(appended.count("## Iteration 0001"), 1)
+        self.assertIn("simulated:rejected", appended)
+        self.assertIn("raise policy quality", appended)
+        self.assertIn("stub/real_v1/failed", appended)
+        self.assertIn("`policy`", appended)
 
 
 if __name__ == "__main__":

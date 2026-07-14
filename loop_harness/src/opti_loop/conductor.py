@@ -33,7 +33,7 @@ from .eligibility import assess
 from .evaluate import EvalRun, load_run, run_suite
 from .gates import GateReport, run_gate
 from .ledger import learnings_template
-from .manifest import load_and_validate
+from .manifest import load_and_validate, rejected_submission_record
 from .packet import build_packet
 from .store import append_jsonl, atomic_write_json, atomic_write_text
 from .verdict import Verdict
@@ -81,6 +81,30 @@ def _pending_quarantine(campaign: Campaign) -> set[str]:
                 if entry.get("status") == "pending":
                     ids.add(str(entry.get("task_id")))
     return ids
+
+
+def _write_trusted_manifest_snapshot(
+    iteration_dir: Path,
+    manifest: dict[str, Any],
+    verdict: Verdict,
+    attribution: dict[str, Any] | None = None,
+    *,
+    original_submission: object = None,
+    validation_errors: list[str] | None = None,
+) -> None:
+    """Stamp conductor-owned fields for every terminal iteration outcome."""
+    if validation_errors:
+        snapshot = rejected_submission_record(
+            original_submission=original_submission,
+            validation_errors=validation_errors,
+            verdict=verdict.to_dict(),
+        )
+    else:
+        snapshot = {key: value for key, value in manifest.items() if key != "attribution"}
+        if attribution is not None:
+            snapshot["attribution"] = attribution
+        snapshot["status"] = verdict.label
+    atomic_write_json(iteration_dir / "manifest.snapshot.json", snapshot)
 
 
 # ── phase A + C: start ──────────────────────────────────────────────────
@@ -187,18 +211,27 @@ def run_iteration(campaign: Campaign) -> dict[str, Any]:
 
     # Ingest the manifest from the untrusted worktree; snapshot into the store.
     wt_manifest = worktree / "manifest.json"
-    manifest: dict[str, Any] = {}
+    submitted_manifest: object = None
     if wt_manifest.is_file():
+        raw_manifest = wt_manifest.read_text(encoding="utf-8")
         try:
-            manifest = json.loads(wt_manifest.read_text(encoding="utf-8"))
+            submitted_manifest = json.loads(raw_manifest)
         except json.JSONDecodeError:
-            manifest = {}
-    atomic_write_json(iteration_dir / "manifest.snapshot.json", manifest or {"error": "missing/invalid manifest"})
+            # There is no parsed JSON value to preserve; retain the exact text
+            # as the rejected record's original submission.
+            submitted_manifest = raw_manifest
+
+    # Every downstream consumer receives a mapping even when the submitted
+    # JSON is a scalar/array. Validation reads the optimizer-owned file while
+    # the original parsed value is retained for the final trusted snapshot.
+    manifest: dict[str, Any] = (
+        submitted_manifest if isinstance(submitted_manifest, dict) else {}
+    )
 
     candidate_sha = gitutil.head_sha(worktree)
     guard = fileguard.check_candidate(repo=campaign.repo_root, worktree=worktree,
                                       base_sha=base_sha, candidate_sha=candidate_sha)
-    manifest_report = load_and_validate(iteration_dir / "manifest.snapshot.json",
+    manifest_report = load_and_validate(wt_manifest,
                                         changed_files=guard.changed, divergent=divergent)
 
     # Pivot enforcement (F16): forbid a 3rd attempt at the same cluster+component.
@@ -208,7 +241,15 @@ def run_iteration(campaign: Campaign) -> dict[str, Any]:
         fingerprint = f"{manifest.get('cluster_ref')}::{manifest.get('target_component')}"
         prior_failures = int(campaign.state.get("failed_attempts", {}).get(fingerprint, 0))
         if prior_failures >= pivot_after:
-            return _reject_pivot(campaign, number, fingerprint, prior_failures, iteration_dir, base_sha)
+            return _reject_pivot(
+                campaign,
+                number,
+                fingerprint,
+                prior_failures,
+                iteration_dir,
+                base_sha,
+                manifest,
+            )
 
     # Noise band (validated; absurd values raise and become invalid).
     band: NoiseBand | None = None
@@ -233,12 +274,14 @@ def run_iteration(campaign: Campaign) -> dict[str, Any]:
     atomic_write_json(iteration_dir / "gate-report.json", report.to_dict())
 
     verdict: Verdict = report.verdict
-    # Attribution → manifest snapshot (conductor-owned; optimizer may not write it).
-    if report.attribution is not None:
-        snap = dict(manifest)
-        snap["attribution"] = report.attribution
-        snap["status"] = verdict.label
-        atomic_write_json(iteration_dir / "manifest.snapshot.json", snap)
+    _write_trusted_manifest_snapshot(
+        iteration_dir,
+        manifest,
+        verdict,
+        report.attribution,
+        original_submission=submitted_manifest,
+        validation_errors=(manifest_report.errors if not manifest_report.ok else None),
+    )
 
     fixed = set((report.comparison or {}).get("fixed", [])) if verdict.advances_accepted_state else set()
     promotion_candidates = sorted(fixed)
@@ -307,7 +350,15 @@ def run_iteration(campaign: Campaign) -> dict[str, Any]:
     }
 
 
-def _reject_pivot(campaign, number, fingerprint, prior, iteration_dir, base_sha) -> dict[str, Any]:
+def _reject_pivot(
+    campaign,
+    number,
+    fingerprint,
+    prior,
+    iteration_dir,
+    base_sha,
+    manifest,
+) -> dict[str, Any]:
     verdict = Verdict("rejected", "simulated")
     report = {
         "iteration": number, "verdict": verdict.to_dict(),
@@ -316,11 +367,19 @@ def _reject_pivot(campaign, number, fingerprint, prior, iteration_dir, base_sha)
         "attribution": None, "comparison": None, "eligibility": None,
     }
     atomic_write_json(iteration_dir / "gate-report.json", report)
+    _write_trusted_manifest_snapshot(iteration_dir, manifest, verdict)
     append_jsonl(campaign.ledger_path, {
         "iteration": number, "campaign": campaign.campaign_id, "verdict": verdict.label,
         "decision": "rejected", "evidence_class": "simulated", "advances_accepted_state": False,
         "cluster_ref": fingerprint, "reason": "pivot required",
     })
+    _append_learnings(
+        campaign,
+        number,
+        verdict,
+        manifest,
+        bool(campaign.state.get("pending_divergent", False)),
+    )
     campaign.state["iterations_since_accept"] = int(campaign.state.get("iterations_since_accept", 0)) + 1
     campaign.state["pending_iteration"] = 0
     campaign.state["pending_divergent"] = False
