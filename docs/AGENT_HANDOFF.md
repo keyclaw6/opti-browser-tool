@@ -1,6 +1,6 @@
 # Agent handoff: current project state
 
-Date: 2026-07-14
+Date: 2026-07-15
 
 ## Purpose of this document
 
@@ -43,8 +43,9 @@ proved during bring-up.
    are code contracts, not evidence that a real browser campaign has run.
 9. Three independent auto-research audits were consolidated into
    [`AUTO_RESEARCH_IMPLEMENTATION_LEDGER.md`](AUTO_RESEARCH_IMPLEMENTATION_LEDGER.md).
-   AR-001 and AR-002 are complete. AR-003 evidence-bundle hardening is active
-   and remains under independent review.
+   AR-001 through AR-003 are complete. AR-003 closed at `72e73c2` after clean
+   independent correctness and elegance reviews. Milestone C clean
+   installability is the next implementation boundary.
 
 ## Binding decisions
 
@@ -93,15 +94,20 @@ Read `docs/TASK_DATA_GUIDE.md` for the exact distinction between included task d
 
 ## Immediate next execution phase
 
-1. Finish AR-003's independent review loop; commit it only after the reviewer
-   reports no actionable findings.
-2. Start AR-004 symmetric run integrity and complete run identity only after
-   AR-003 sign-off, then continue the dependency-ordered ledger one package at
-   a time.
-3. In parallel only where a real dependency is available, research the first
+1. Complete milestone C with the smallest explicit package-dependency and
+   clean-install repair; prove every CLI imports and runs without repository
+   `PYTHONPATH` composition.
+2. Before milestones D, E, or F change accepted architecture, create the
+   minimal required ADR amendment or superseding record and update the decision
+   register and timeline. Do not silently settle the open backend decision.
+3. Then continue the readiness execution order through exact identity and
+   activation, repeated decisions and champion protection, and one reversible
+   source/backend readiness seam, using separate implementation and review
+   loops.
+4. In parallel only where a real dependency is available, research the first
    browser baseline and prepare source environments without silently selecting
    an open backend or claiming fixture evidence as browser performance.
-4. Keep real campaign activation blocked until the ledger, external source and
+5. Keep real campaign activation blocked until the ledger, external source and
    bridge work, private holdout, calibration, fault rehearsal, and explicit
    project-owner start are all complete.
 

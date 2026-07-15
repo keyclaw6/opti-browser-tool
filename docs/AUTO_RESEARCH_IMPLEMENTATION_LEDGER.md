@@ -31,7 +31,7 @@ findings, and only then may the package be committed and the next package start.
 |---|---|---|---|---|
 | AR-001 | complete (`eb25f62`) | Fail external bridge results closed | FOUND-001; CONV-001; OPS-004 | Command/registry output cannot become benchmark-reportable by omission or a minimal pass payload; explicit task identity is mandatory; negative tests prove no state advance. |
 | AR-002 | complete (`f21038c`) | Canonical experiment manifest contract | CONV-005 | JSON Schema, runtime validator, example, and conductor-owned attribution agree on one format and one invalid corpus. |
-| AR-003 | active | Required trace/artifact evidence bundle | FOUND-002; CONV-001; OPS-004 | One shared validator rejects missing, malformed, mixed-run, duplicate, out-of-order, identity-mismatched, or unsafe trace/artifact evidence and accepts a conforming positive control. |
+| AR-003 | complete (`72e73c2`) | Required trace/artifact evidence bundle | FOUND-002; CONV-001; OPS-004 | One shared validator rejects missing, malformed, mixed-run, duplicate, out-of-order, identity-mismatched, or unsafe trace/artifact evidence and accepts a conforming positive control. |
 | AR-004 | queued | Symmetric run integrity and complete run identity | CONV-002; CONV-009; OPS-012 | Baseline, treatment, smoke, targeted, regression, full, and noise inputs use the same integrity policy; identity binds resolved content, code, environment, verifier, browser, model, and accepted base. |
 | AR-005 | queued | Candidate activation and executed-tree binding | CONV-001; OPS-003 | Treatment runs use an immutable materialization of the accepted candidate commit, reject ignored/untracked payloads, and prove candidate/component activation in the trace. |
 | AR-006 | queued | Exact causal commit and component-diff enforcement | CONV-007; CONV-008; OPS-001 | Exactly one non-merge, non-empty child commit is accepted; safe in-component delete/rename works; trusted cluster/task/evidence references are conductor-resolved. |
@@ -49,6 +49,16 @@ findings, and only then may the package be committed and the next package start.
 | AR-018 | queued | Judge trust identity and quarantine routing | CONV-012 | T2 trust is scoped to exact prompt/model/provider/settings/evidence/corpus identity; only trusted judgments may route; untrusted outputs are state-inert. |
 | AR-019 | queued | Source-aware scheduling and auditable task dispositions | FOUND-008; FOUND-010 | Per-source concurrency/leases are enforced; every provisional task has one validated disposition; smoke/source/site/mechanism coverage is mechanically checked. |
 | AR-020 | queued | Generated commands, status prose, and decision metadata | FOUND-009; FOUND-012; CONV-016; OPS-014 | Packets invoke the real workflow; accepted-contract versus activation-pending text matches the decision register; executable documentation tests prevent drift. |
+
+## Current readiness execution order
+
+AR-001 through AR-003 are complete; AR-004 through AR-020 remain queued. The
+active sequence is now governed jointly with
+`docs/AUTO_RESEARCH_READINESS_EXECUTION.md`: milestone C clean installability
+comes next, followed by the required ADR transition before milestones D, E, or
+F change accepted architecture. Later ledger packages are pulled into bounded
+milestones only when their dependencies and review boundaries align. This
+ordering change does not mark, skip, or silently supersede any queued package.
 
 ## Required work deferred by real dependencies
 
