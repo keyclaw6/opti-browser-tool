@@ -19,6 +19,9 @@ These files record checks against the reconstructed repository state. They are e
 - `install-check.txt` — committed-HEAD source-to-wheel, transitive clean-install,
   CLI, test, negative-resolver, and network-namespace proof for milestone C.
   It records installation plumbing only, never benchmark evidence.
+- `archive-check.txt` — clean-commit portable ZIP/extraction, standalone Git
+  bundle, sidecar, repository, and offline clean-install proof closing
+  milestone C. It records portability plumbing only, never benchmark evidence.
 
 Both the fixture adapter and included fixture command bridge are synthetic. Their summaries must contain:
 
@@ -46,6 +49,8 @@ python scripts/verify_clean_install.py --repo-root . --snapshot head
 unshare -Urn python scripts/verify_clean_install.py --repo-root . --snapshot head
 python scripts/verify_repository_completeness.py --repo-root .
 python scripts/verify_file_manifest.py --repo-root .
+python scripts/build_repository_archive.py \
+  --output /tmp/opti-browser-tool-milestone-c.zip --bundle
 ```
 
 The schema check has an optional `jsonschema` dependency; the command above
@@ -55,3 +60,7 @@ the host. The ordinary clean-install verifier still enforces uv offline mode,
 `--no-index`, a local wheelhouse, and an empty install cache, but only the
 successful `unshare -Urn` run is an OS-level no-network proof. The evaluation
 runner itself remains standard-library-only.
+
+The archive command requires a clean worktree and proves committed HEAD. After
+committing documentation or regenerated manifests, rerun it as current-HEAD
+confirmation before handing off that commit.

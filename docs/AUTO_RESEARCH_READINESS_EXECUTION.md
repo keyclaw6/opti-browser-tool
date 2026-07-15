@@ -1,9 +1,9 @@
 # Auto-research readiness execution
 
-Status: active orchestration ledger. Milestones A/B complete; milestone C is
-closure-pending.
-Branch: `codex/auto-research-readiness` at milestone-C code commit `9d0a7ab`;
-the evidence and manifest refresh described below is not yet committed.
+Status: active orchestration ledger. Milestones A/B/C complete; the required
+pre-D architecture-transition ADR is active.
+Branch: `codex/auto-research-readiness`. Milestone-C evidence commit:
+`ef0da6b`.
 This file records implementation direction and evidence; it does not authorize
 a live campaign or turn fixture output into benchmark evidence.
 
@@ -32,12 +32,13 @@ remain separate inputs.
 |---|---|---|
 | **A — reproduce verification and finish AR-003** | **Complete** | AR-003 closed at `72e73c2`; separate correctness and elegance reviewers returned no actionable findings; full verification and the regenerated file inventory/manifests pass. |
 | **B — decide the three external reviews** | **Complete** | The matrix below retains, adapts, defers, or rejects each major proposal against current code, charter value, and YAGNI; separate correctness and elegance reviews are clean. |
-| **C — clean installability** | **Closure pending** | Code commit `9d0a7ab` declares the actual package graph and its committed HEAD passes isolated source-to-wheel installation, transitive dependency, negative resolver, installed CLI, test, and no-network-namespace checks. The corrected evidence/manifests slice has clean independent correctness and elegance/YAGNI reviews. Closure now depends solely on building and verifying the full portable archive after this reviewed slice is committed. |
+| **C — clean installability** | **Complete** | Code commit `9d0a7ab` declares the actual package graph; evidence commit `ef0da6b` passes isolated source-to-wheel installation, transitive dependency, negative resolver, installed CLI/test, no-network-namespace, and full portable ZIP/bundle verification. The code and evidence slices have clean independent correctness and elegance/YAGNI reviews. |
+| **Pre-D architecture transition** | **Active** | Before D, E, or F changes accepted architecture, create the minimal amendment or superseding ADR, update the decision register/timeline, and record any WARC/BrowserGym/Playwright bring-up pin as reversible without silently settling ADR-0003. |
 
-After C, milestones D-I remain ordered as identity/activation; repeated decision
-and champion protection; concrete source/backend readiness; safe single-host
-lifecycle; trace-backed learning/operator flow; and final integration/adversarial
-verification.
+After the architecture transition, milestones D-I remain ordered as
+identity/activation; repeated decision and champion protection; concrete
+source/backend readiness; safe single-host lifecycle; trace-backed
+learning/operator flow; and final integration/adversarial verification.
 
 ## Three-review decision matrix
 
@@ -91,6 +92,13 @@ network-namespace, count, and byte-identical 374/375 manifest claims.
 `/root/milestone_a_verify` found the corrected slice concise, nonduplicative,
 and internally consistent after explicitly challenging clean-install verifier
 overlap with archive/completeness logic. Both final re-reviews are clean.
+`/root/installability_audit` returned a clean archive-closure correctness
+review after independently verifying the archive, manifest, milestone, queue,
+ADR-gate, roster, and evidence-boundary claims. `/root/milestone_a_verify`
+confirmed the archive proof is distinct from the clean-install proof and found
+the closure slice otherwise clean; its sole commit-stability finding was the
+ephemeral future-rerun narration removed in this correction. With that
+correction applied, both archive-closure reviews are clean.
 
 ### Completed-review history
 
@@ -104,13 +112,17 @@ overlap with archive/completeness logic. Both final re-reviews are clean.
   elegance/YAGNI/vision sign-off.
 - `/root/installability_audit` completed the read-only package/installability
   audit, returned a clean code-slice correctness review, and returned a clean
-  final evidence review after independently reproducing its exact claims.
+  final evidence review after independently reproducing its exact claims. Its
+  archive-closure correctness review also returned clean.
 - `/root/milestone_a_verify` returned a clean focused review of the committed
   code slice's archive portability, path safety, dirty-root refusal, and
   verification flow, then its evidence review found the manifest portability,
   count-accounting, stale-rationale, and roster issues. Its final
   elegance/YAGNI re-review found the corrected eight-file slice concise,
-  nonduplicative, internally consistent, and clean.
+  nonduplicative, internally consistent, and clean. Its archive-closure review
+  confirmed that the archive proof is distinct and found only the ephemeral
+  commit-stability prose corrected here; the closure review is clean after that
+  correction.
 - `/root/review_matrix_ledger` completed the initial documentation-only matrix
   draft and its bounded corrections before the separate final reviews.
 
@@ -129,14 +141,14 @@ the milestone is complete.
 | `57f402b` | AR-003 handoff snapshot only: substantial evidence-bundle hardening, explicitly **not** final independent sign-off. |
 | `72e73c2` | AR-003 completion: exact numeric and RFC3339 ordering, bounded finite-real evidence, and normal/linked-worktree completeness gaps closed; final correctness and elegance reviews are clean. |
 | `382a255` | Milestones A/B documentation closure: durable execution ledger, three-review decision matrix, completed AR-003 records, and regenerated manifests. |
-| `9d0a7ab` | Milestone-C code: explicit package dependencies, clean-install proof surface, repository-root CLI discovery, and portable archive/completeness integration. Final milestone closure remains pending as stated above. |
+| `9d0a7ab` | Milestone-C code: explicit package dependencies, clean-install proof surface, repository-root CLI discovery, and portable archive/completeness integration. |
+| `ef0da6b` | Milestone-C evidence closure: reviewed manifests and install evidence committed; full portable ZIP/extraction and standalone Git-bundle verification subsequently pass from this clean commit. |
 
 Current branch: `codex/auto-research-readiness`.
 
 ## Verification evidence
 
-The milestone-A/B closure state and milestone-C code commit have current
-verification:
+The milestone-A/B/C closure state has current verification:
 
 - eval tests: 30 passed;
 - judge tests: 28 passed;
@@ -158,6 +170,13 @@ verification:
   transfer evaluation pass without repository `PYTHONPATH`; the same complete
   verifier passes under `unshare -Urn`, proving the workflow with no network
   namespace access;
+- clean commit `ef0da6b` builds a 446-file portable ZIP using
+  `python scripts/build_repository_archive.py --output
+  /tmp/opti-browser-tool-milestone-c.zip --bundle`; extraction and repository
+  checks pass, and the ZIP digest is
+  `2201dc360dde833723cc067bd78e1244223a9fe264b760df6146cb3bcb96a557`;
+- the standalone Git bundle verifies, and both ZIP and bundle SHA-256 sidecars
+  match their artifacts;
 - independent AR-003 correctness and elegance reviews, plus independent
   milestone-B correctness and elegance reviews, report no actionable findings.
 
@@ -167,12 +186,15 @@ sandbox. The separate successful `unshare -Urn` run supplies that stronger
 proof. Neither invocation accessed a live backend, source platform, campaign,
 credential, paid API, or external benchmark asset.
 
+The archive proof likewise used no live backend, platform, campaign,
+credential, paid API, or external benchmark asset.
+
 Fixture and deterministic simulation results are plumbing evidence only and
 must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
 
 ## Blockers
 
-### Software blockers to close in milestones C-I
+### Software blockers to close in milestones D-I
 
 - `harness/` is a scaffold with no executable browser harness; the current loop
   can construct only fixture, harness-fixture, and non-reportable command
@@ -207,10 +229,7 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
 
 ## Next steps
 
-1. Commit the independently reviewed milestone-C evidence and regenerated
-   manifests, then build and verify the full portable archive from that commit.
-   The post-commit archive proof is the only remaining milestone-C exit check.
-2. Before milestone D, E, or F implements the architecture transitions selected
+1. Before milestone D, E, or F implements the architecture transitions selected
    here, create the minimal amendment/superseding ADR for ADR-0015's candidate
    boundary and
    indivisible-build semantics, ADR-0005's repeated E5 decision, and any
@@ -219,16 +238,16 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
    and `DECISION_TIMELINE.md`. Record WARC/BrowserGym/Playwright only as a
    reversible readiness/bring-up pin through that process, leave ADR-0003's
    final selection open, and do not claim ungranted owner approval.
-3. Implement exact identity, immutable candidate execution, trusted activation,
+2. Implement exact identity, immutable candidate execution, trusted activation,
    and the four-valued repeated protocol in bounded milestones, with positive,
    no-op, regression, invalid, and interruption simulations.
-4. Implement the reversible WARC `online.4` readiness path (or document the
+3. Implement the reversible WARC `online.4` readiness path (or document the
    evidence that forces a different concrete source): precise preflight,
    reset/verifier/artifact/config contracts, constrained execution seam, and
    offline/local fixture integration only.
-5. Finish single-host lifecycle, analyst/learning, source dispositions,
+4. Finish single-host lifecycle, analyst/learning, source dispositions,
    status/operator commands, adversarial integration, manifest regeneration,
    and final independent correctness plus elegance reviews.
-6. Stop at software readiness and publish the exact external activation
+5. Stop at software readiness and publish the exact external activation
    checklist. Do not run or imply a real campaign without owner-supplied inputs
    and explicit authorization.

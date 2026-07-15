@@ -1,0 +1,24 @@
+Milestone-C portable-archive evidence
+=====================================
+
+Committed source
+----------------
+- Commit: ef0da6b09e9bc82b6927563df862174d548d211f
+- Command: python scripts/build_repository_archive.py --output /tmp/opti-browser-tool-milestone-c.zip --bundle
+
+Observed result
+---------------
+- Archive files: 446
+- ZIP SHA-256: 2201dc360dde833723cc067bd78e1244223a9fe264b760df6146cb3bcb96a557
+- ZIP extraction and repository checks: PASS
+- Git bundle verification: PASS
+- ZIP and bundle SHA-256 sidecars: verified
+
+Evidence boundary
+-----------------
+- The proof used a clean committed checkout and exercised archive portability,
+  extraction, Git independence, repository completeness, manifests, and the
+  offline clean-install workflow.
+- It did not access a live backend, source platform, credential, campaign,
+  paid API, or external benchmark asset. It is not benchmark evidence and
+  makes no performance claim.
