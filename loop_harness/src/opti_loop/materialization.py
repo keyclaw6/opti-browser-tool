@@ -23,6 +23,7 @@ from typing import Any, Iterator
 
 from opti_eval.identity import (
     IdentityError,
+    digest_json,
     validate_build_identity,
     validate_candidate_allowlist,
     validate_protocol_snapshot,
@@ -40,6 +41,7 @@ from .protocol import (
 
 
 SCHEMA_VERSION = "1.0.0"
+RECEIPT_DIGEST_DOMAIN = "opti.materialization-receipt.v1"
 LOCK_NAME = ".campaign.lock"
 TREE_NAME = "tree"
 RECEIPT_NAME = "receipt.json"
@@ -50,6 +52,7 @@ MAX_MATERIALIZED_FILES = 10_000
 RECEIPT_FIELDS = frozenset({
     "schema_version", "base_commit_sha", "commit_sha", "tree_sha",
     "candidate_allowlist", "git_tree_digest", "materialized_digest",
+    "receipt_digest",
 })
 _OID = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
@@ -569,15 +572,21 @@ def _validate_receipt(value: object) -> dict[str, Any]:
     allowlist = _allowlist(value["candidate_allowlist"])
     tree_digest = value["git_tree_digest"]
     digest = value["materialized_digest"]
+    receipt_digest = value["receipt_digest"]
     if type(tree_digest) is not str or _SHA256.fullmatch(tree_digest) is None:
         raise MaterializationError("git_tree_digest must be lowercase SHA-256")
     if type(digest) is not str or _SHA256.fullmatch(digest) is None:
         raise MaterializationError("materialized_digest must be lowercase SHA-256")
-    return {
+    if type(receipt_digest) is not str or _SHA256.fullmatch(receipt_digest) is None:
+        raise MaterializationError("receipt_digest must be lowercase SHA-256")
+    authoritative = {
         "schema_version": SCHEMA_VERSION, "base_commit_sha": base,
         "commit_sha": commit, "tree_sha": tree, "candidate_allowlist": allowlist,
         "git_tree_digest": tree_digest, "materialized_digest": digest,
     }
+    if digest_json(authoritative, domain=RECEIPT_DIGEST_DOMAIN) != receipt_digest:
+        raise MaterializationError("materialization receipt digest does not match its fields")
+    return {**authoritative, "receipt_digest": receipt_digest}
 
 
 def _materialize_git_tree(imported: _ImportedBuild, tree: Path, *, lock: CampaignLock) -> list[dict[str, str]]:
@@ -713,8 +722,9 @@ def _read_receipt(path: Path) -> dict[str, Any]:
     return receipt
 
 
-def verify_materialization(materialization: object) -> dict[str, Any]:
-    """Rehash the complete published Git tree and its allowlisted projection."""
+def _verify_materialization(
+    materialization: object, *, expected_commit_sha: str
+) -> dict[str, Any]:
     try:
         root = Path(materialization)
     except TypeError as exc:
@@ -727,6 +737,8 @@ def verify_materialization(materialization: object) -> dict[str, Any]:
     if names != [RECEIPT_NAME, TREE_NAME]:
         raise MaterializationError(f"unexpected materialization entries: {names}")
     receipt = _read_receipt(root / RECEIPT_NAME)
+    if receipt["commit_sha"] != expected_commit_sha:
+        raise MaterializationError("materialization receipt does not match expected commit")
     rows = _scan_materialized_tree(root / TREE_NAME)
     try:
         tree_digest = canonical_git_tree_digest(rows)
@@ -738,6 +750,19 @@ def verify_materialization(materialization: object) -> dict[str, Any]:
     if digest != receipt["materialized_digest"]:
         raise MaterializationError("materialized Git build projection changed")
     return receipt
+
+
+def verify_materialization(materialization: object) -> dict[str, Any]:
+    """Rehash a canonical published Git build and its allowlisted projection."""
+    try:
+        root = Path(materialization)
+    except TypeError as exc:
+        raise MaterializationError("materialization must be a filesystem path") from exc
+    prefix = "build-"
+    expected_commit_sha = root.name.removeprefix(prefix)
+    if not root.name.startswith(prefix) or _OID.fullmatch(expected_commit_sha) is None:
+        raise MaterializationError("published materialization must use build-{commit_sha}")
+    return _verify_materialization(root, expected_commit_sha=expected_commit_sha)
 
 
 def _remove_stage(stage: Path, store_root: Path) -> None:
@@ -780,15 +805,21 @@ def materialize_candidate_bundle(
             git_tree_digest = canonical_git_tree_digest(rows)
         except ProtocolError as exc:
             raise MaterializationError(str(exc)) from exc
+        authoritative_receipt = {
+            "schema_version": SCHEMA_VERSION,
+            "base_commit_sha": imported.base_commit_sha,
+            "commit_sha": imported.commit_sha,
+            "tree_sha": imported.tree_sha,
+            "candidate_allowlist": imported.candidate_allowlist,
+            "git_tree_digest": git_tree_digest,
+            "materialized_digest": materialized_digest,
+        }
         receipt = _validate_receipt(
             {
-                "schema_version": SCHEMA_VERSION,
-                "base_commit_sha": imported.base_commit_sha,
-                "commit_sha": imported.commit_sha,
-                "tree_sha": imported.tree_sha,
-                "candidate_allowlist": imported.candidate_allowlist,
-                "git_tree_digest": git_tree_digest,
-                "materialized_digest": materialized_digest,
+                **authoritative_receipt,
+                "receipt_digest": digest_json(
+                    authoritative_receipt, domain=RECEIPT_DIGEST_DOMAIN
+                ),
             }
         )
         shutil.rmtree(imported.repository)
@@ -798,7 +829,9 @@ def materialize_candidate_bundle(
         receipt_path.write_bytes(_canonical_receipt_bytes(receipt))
         receipt_path.chmod(0o444)
         stage.chmod(0o555)
-        if verify_materialization(stage) != receipt:
+        if _verify_materialization(
+            stage, expected_commit_sha=imported.commit_sha
+        ) != receipt:
             raise MaterializationError("sealed stage verification changed its receipt")
 
         final = lock.store_root / f"build-{imported.commit_sha}"
@@ -833,9 +866,9 @@ def consume_materialization(materialization: Path) -> Iterator[tuple[Path, dict[
 
 
 def project_build_identity(
-    materialization: object, *, role: object, protocol_snapshot: object
+    materialization: object, *, protocol_snapshot: object
 ) -> dict[str, Any]:
-    """Project a verified D2 receipt into the unchanged D1 BUILD_FIELDS."""
+    """Project a verified D2 receipt into a candidate D1 build identity."""
     receipt = verify_materialization(materialization)
     expected_base, candidate_allowlist = _protocol_authority(protocol_snapshot)
     if (
@@ -846,7 +879,7 @@ def project_build_identity(
     try:
         return validate_build_identity(
             {
-                "role": role,
+                "role": "candidate",
                 "commit_sha": receipt["commit_sha"],
                 "tree_sha": receipt["tree_sha"],
                 "materialized_digest": receipt["materialized_digest"],

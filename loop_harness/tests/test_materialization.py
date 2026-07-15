@@ -24,7 +24,7 @@ from opti_loop.materialization import (
     project_build_identity,
     verify_materialization,
 )
-from opti_loop.protocol import build_identity
+from opti_loop.protocol import ProtocolError, build_identity
 
 
 ALLOWLIST = ["harness/components/"]
@@ -199,8 +199,9 @@ class GitMaterializationTest(unittest.TestCase):
         )
         self.assertEqual(identity["materialized_digest"], receipt["materialized_digest"])
         projected = project_build_identity(
-            target, role="candidate", protocol_snapshot=self.protocol
+            target, protocol_snapshot=self.protocol
         )
+        self.assertEqual(projected["role"], "candidate")
         self.assertEqual(projected["materialized_digest"], receipt["materialized_digest"])
         self.assertTrue(projected["immutable"])
 
@@ -372,6 +373,52 @@ class GitMaterializationTest(unittest.TestCase):
             with self.subTest(bundle=bundle), self.assertRaises(MaterializationError):
                 self.materialize(bundle)
 
+    def test_new_authorized_root_may_be_absent_from_base_and_added_by_candidate(self) -> None:
+        allowlist = ["harness/components/", "harness/new-surface/"]
+        accepted = build_identity(
+            self.trusted,
+            commit_sha=self.base,
+            role="accepted",
+            candidate_allowlist=allowlist,
+        )
+        self.assertNotEqual(
+            accepted["materialized_digest"],
+            self.protocol["accepted_build"]["materialized_digest"],
+        )
+        _optimizer, bundle, _candidate = self.simple_candidate(
+            path="harness/new-surface/policy.py", content="VALUE = 1\n"
+        )
+        target, _receipt = self.materialize(bundle, allowlist=allowlist)
+        self.assertTrue((target / "tree/harness/new-surface/policy.py").is_file())
+
+    def test_new_authorized_root_does_not_weaken_diff_containment(self) -> None:
+        _optimizer, bundle, _candidate = self.simple_candidate(
+            path="harness/not-authorized/policy.py", content="VALUE = 1\n"
+        )
+        with self.assertRaisesRegex(MaterializationError, "escapes the frozen allowlist"):
+            self.materialize(
+                bundle,
+                allowlist=["harness/components/", "harness/new-surface/"],
+            )
+
+    def test_authorized_root_rejects_file_and_symlink_ancestors(self) -> None:
+        link = self.trusted / "harness/new-link"
+        link.symlink_to("runtime", target_is_directory=True)
+        cases = (
+            ("harness/components/policy/data.txt/new-root/", "non-directory ancestor"),
+            ("harness/new-link/new-root/", "symlink ancestor"),
+        )
+        for prefix, diagnostic in cases:
+            with self.subTest(prefix=prefix), self.assertRaisesRegex(
+                ProtocolError, diagnostic
+            ):
+                build_identity(
+                    self.trusted,
+                    commit_sha=self.base,
+                    role="accepted",
+                    candidate_allowlist=[prefix],
+                )
+
     def test_corrupt_bundle_objects_fail(self) -> None:
         _optimizer, bundle, _candidate = self.simple_candidate()
         raw = bytearray(bundle.read_bytes())
@@ -465,13 +512,18 @@ class GitMaterializationTest(unittest.TestCase):
                 )
         self.assertEqual(list(self.store.glob(".stage-*")), [])
 
-    def test_receipt_is_closed_canonical_and_role_is_validated(self) -> None:
+    def test_receipt_is_closed_canonical_and_projection_is_candidate_only(self) -> None:
         _optimizer, bundle, _candidate = self.simple_candidate()
         target, receipt = self.materialize(bundle)
-        with self.assertRaises(MaterializationError):
-            project_build_identity(
-                target, role="baseline", protocol_snapshot=self.protocol
-            )
+        projected = project_build_identity(target, protocol_snapshot=self.protocol)
+        self.assertEqual(projected["role"], "candidate")
+        for forbidden_role in ("accepted", "diagnostic"):
+            with self.subTest(role=forbidden_role), self.assertRaises(TypeError):
+                project_build_identity(
+                    target,
+                    role=forbidden_role,
+                    protocol_snapshot=self.protocol,
+                )
         path = target / "receipt.json"
         receipt["extra"] = True
         path.chmod(0o644)
@@ -479,6 +531,53 @@ class GitMaterializationTest(unittest.TestCase):
         path.chmod(0o444)
         with self.assertRaisesRegex(MaterializationError, "wrong fields"):
             verify_materialization(target)
+
+    def test_receipt_digest_rejects_identity_field_tampering(self) -> None:
+        _optimizer, bundle, _candidate = self.simple_candidate()
+        target, receipt = self.materialize(bundle)
+        path = target / "receipt.json"
+        for field in ("base_commit_sha", "commit_sha", "tree_sha"):
+            with self.subTest(field=field):
+                tampered = deepcopy(receipt)
+                identities = {
+                    tampered["base_commit_sha"],
+                    tampered["commit_sha"],
+                    tampered["tree_sha"],
+                }
+                tampered[field] = next(
+                    digit * len(tampered[field])
+                    for digit in "0123456789"
+                    if digit * len(tampered[field]) not in identities
+                )
+                path.chmod(0o644)
+                path.write_text(
+                    json.dumps(tampered, sort_keys=True, separators=(",", ":")) + "\n"
+                )
+                path.chmod(0o444)
+                with self.assertRaisesRegex(MaterializationError, "receipt digest"):
+                    verify_materialization(target)
+
+    def test_valid_receipt_from_identical_tree_commit_cannot_be_substituted(self) -> None:
+        _optimizer1, bundle1, _candidate1 = self.simple_candidate(message="first")
+        _optimizer2, bundle2, _candidate2 = self.simple_candidate(message="second")
+        target1, receipt1 = self.materialize(bundle1)
+        _target2, receipt2 = self.materialize(bundle2)
+        self.assertNotEqual(receipt1["commit_sha"], receipt2["commit_sha"])
+        self.assertEqual(receipt1["tree_sha"], receipt2["tree_sha"])
+        self.assertEqual(receipt1["materialized_digest"], receipt2["materialized_digest"])
+        path = target1 / "receipt.json"
+        path.chmod(0o644)
+        path.write_text(
+            json.dumps(receipt2, sort_keys=True, separators=(",", ":")) + "\n"
+        )
+        path.chmod(0o444)
+        with self.assertRaisesRegex(MaterializationError, "expected commit"):
+            verify_materialization(target1)
+        with self.assertRaisesRegex(MaterializationError, "expected commit"):
+            with consume_materialization(target1):
+                self.fail("substituted receipt reached a consumer")
+        with self.assertRaisesRegex(MaterializationError, "expected commit"):
+            project_build_identity(target1, protocol_snapshot=self.protocol)
 
     def test_frozen_protocol_is_the_base_allowlist_and_projection_authority(self) -> None:
         _optimizer, bundle, _candidate = self.simple_candidate()
@@ -491,7 +590,6 @@ class GitMaterializationTest(unittest.TestCase):
         with self.assertRaisesRegex(MaterializationError, "protocol authority"):
             project_build_identity(
                 target,
-                role="candidate",
                 protocol_snapshot=wrong_allowlist,
             )
 

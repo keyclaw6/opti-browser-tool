@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import stat
 import tempfile
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -151,19 +152,21 @@ def canonical_build_rows(
     outside = [path for path in paths if not any(path.startswith(p) for p in allowlist)]
     if outside:
         raise ProtocolError(f"build rows are outside candidate_allowlist: {outside}")
-    for prefix in allowlist:
-        if not any(path.startswith(prefix) for path in paths):
-            raise ProtocolError(
-                f"candidate_allowlist prefix resolves to no Git blobs: {prefix!r}"
-            )
     return rows
 
 
 def canonical_build_digest(
     value: object, *, candidate_allowlist: list[str]
 ) -> str:
+    try:
+        allowlist = validate_candidate_allowlist(candidate_allowlist)
+    except IdentityError as exc:
+        raise ProtocolError(str(exc)) from exc
     rows = canonical_build_rows(value, candidate_allowlist=candidate_allowlist)
-    return digest_json(rows, domain=BUILD_DIGEST_DOMAIN)
+    return digest_json(
+        {"candidate_allowlist": allowlist, "rows": rows},
+        domain=BUILD_DIGEST_DOMAIN,
+    )
 
 
 def canonical_git_tree_digest(value: object) -> str:
@@ -177,9 +180,29 @@ def _worktree_build_rows(
     rows: list[dict[str, str]] = []
     resolved_repo = repo_root.resolve()
     for prefix in candidate_allowlist:
-        root = repo_root.joinpath(*PurePosixPath(prefix[:-1]).parts)
-        if root.is_symlink():
-            raise ProtocolError(f"candidate_allowlist root is a symlink: {prefix!r}")
+        root = repo_root
+        missing = False
+        for part in PurePosixPath(prefix[:-1]).parts:
+            root /= part
+            try:
+                info = root.lstat()
+            except FileNotFoundError:
+                missing = True
+                break
+            except OSError as exc:
+                raise ProtocolError(
+                    f"candidate_allowlist entry cannot be inspected: {prefix!r}"
+                ) from exc
+            if stat.S_ISLNK(info.st_mode):
+                raise ProtocolError(
+                    f"candidate_allowlist entry has a symlink ancestor: {prefix!r}"
+                )
+            if not stat.S_ISDIR(info.st_mode):
+                raise ProtocolError(
+                    f"candidate_allowlist entry has a non-directory ancestor: {prefix!r}"
+                )
+        if missing:
+            continue
         try:
             resolved = root.resolve(strict=True)
         except OSError as exc:
