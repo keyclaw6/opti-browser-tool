@@ -8,20 +8,69 @@ from __future__ import annotations
 
 import argparse
 import copy
+import datetime as dt
 import json
+import math
+import re
 import sys
 from pathlib import Path
 
 
+def _reject_json_constant(token: str) -> None:
+    raise ValueError(f"non-standard JSON numeric constant {token}")
+
+
+def _reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    value: dict[str, object] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError(f"duplicate JSON object key {key!r}")
+        value[key] = item
+    return value
+
+
+def _validate_finite_json(value: object, *, field_name: str = "JSON document") -> None:
+    if value is None or type(value) in {bool, str, int}:
+        return
+    if type(value) is float:
+        if not math.isfinite(value):
+            raise ValueError(f"{field_name} contains a non-finite JSON number")
+        return
+    if type(value) is list:
+        for index, item in enumerate(value):
+            _validate_finite_json(item, field_name=f"{field_name}[{index}]")
+        return
+    if type(value) is dict:
+        for key, item in value.items():
+            _validate_finite_json(item, field_name=f"{field_name}.{key}")
+        return
+    raise ValueError(f"{field_name} contains a non-standard JSON value")
+
+
+def strict_json_loads(text: str) -> object:
+    value = json.loads(
+        text,
+        parse_constant=_reject_json_constant,
+        object_pairs_hook=_reject_duplicate_keys,
+    )
+    _validate_finite_json(value)
+    return value
+
+
 def load_json(path: Path) -> object:
-    return json.loads(path.read_text(encoding="utf-8"))
+    return strict_json_loads(path.read_text(encoding="utf-8"))
 
 
 def load_jsonl(path: Path) -> list[object]:
+    from opti_eval.models import split_lf_jsonl_records
+
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        records = split_lf_jsonl_records(
+            handle.read(), field_name=f"schema input JSONL {path}"
+        )
     return [
-        json.loads(line)
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
+        strict_json_loads(record)
+        for record in records
     ]
 
 
@@ -31,9 +80,12 @@ def main() -> int:
     parser.add_argument("--output")
     args = parser.parse_args()
     root = Path(args.repo_root).resolve()
+    sys.path.insert(0, str(root / "eval_harness/src"))
+
+    from opti_eval.models import validate_standard_json
 
     try:
-        from jsonschema import Draft202012Validator
+        from jsonschema import Draft202012Validator, FormatChecker
     except ImportError:
         raise SystemExit(
             "jsonschema is required for this optional check; "
@@ -43,12 +95,64 @@ def main() -> int:
     task_schema_path = root / "evals/schemas/normalized-task.schema.json"
     suite_schema_path = root / "evals/schemas/suite.schema.json"
     summary_schema_path = root / "evals/schemas/run-summary.schema.json"
+    result_schema_path = root / "schemas/result.schema.json"
+    trace_schema_path = root / "schemas/trace-event.schema.json"
+    bridge_schema_path = root / "evals/schemas/bridge-result.schema.json"
     experiment_schema_path = root / "schemas/experiment.schema.json"
-    task_validator = Draft202012Validator(load_json(task_schema_path))
-    suite_validator = Draft202012Validator(load_json(suite_schema_path))
-    summary_validator = Draft202012Validator(load_json(summary_schema_path))
+    format_checker = FormatChecker()
+
+    @format_checker.checks("date-time", raises=(TypeError, ValueError))
+    def strict_rfc3339(value: object) -> bool:
+        if not isinstance(value, str):
+            return True  # the schema's type keyword reports this separately
+        if re.fullmatch(
+            r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})",
+            value,
+        ) is None:
+            return False
+        parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return parsed.tzinfo is not None
+    task_schema = load_json(task_schema_path)
+    suite_schema = load_json(suite_schema_path)
+    summary_schema = load_json(summary_schema_path)
+    result_schema = load_json(result_schema_path)
+    trace_schema = load_json(trace_schema_path)
+    bridge_schema = load_json(bridge_schema_path)
+    assertion_schema = task_schema["properties"]["judge_expectations"][
+        "properties"
+    ]["state_assertions"]["items"]
+    for schema in (
+        task_schema,
+        suite_schema,
+        summary_schema,
+        result_schema,
+        trace_schema,
+        bridge_schema,
+    ):
+        Draft202012Validator.check_schema(schema)
+    task_validator = Draft202012Validator(task_schema, format_checker=format_checker)
+    suite_validator = Draft202012Validator(suite_schema, format_checker=format_checker)
+    assertion_validator = Draft202012Validator(
+        assertion_schema, format_checker=format_checker
+    )
+    summary_validator = Draft202012Validator(
+        summary_schema, format_checker=format_checker
+    )
+    result_validator = Draft202012Validator(
+        result_schema, format_checker=format_checker
+    )
+    trace_validator = Draft202012Validator(trace_schema, format_checker=format_checker)
+    trace_sequence_validator = Draft202012Validator(
+        {"type": "array", "items": trace_schema},
+        format_checker=format_checker,
+    )
+    bridge_validator = Draft202012Validator(
+        bridge_schema, format_checker=format_checker
+    )
     experiment_schema = load_json(experiment_schema_path)
-    experiment_validator = Draft202012Validator(experiment_schema)
+    experiment_validator = Draft202012Validator(
+        experiment_schema, format_checker=format_checker
+    )
 
     def branch_schema(name: str) -> dict:
         return {
@@ -58,9 +162,11 @@ def main() -> int:
         }
 
     branch_validators = {
-        "experiment": Draft202012Validator(branch_schema("experiment")),
+        "experiment": Draft202012Validator(
+            branch_schema("experiment"), format_checker=format_checker
+        ),
         "rejected_submission": Draft202012Validator(
-            branch_schema("rejected_submission")
+            branch_schema("rejected_submission"), format_checker=format_checker
         ),
     }
 
@@ -74,25 +180,51 @@ def main() -> int:
         value: object,
         *,
         expected_valid: bool = True,
+        expected_json_domain_valid: bool = True,
         canonical_branch: str | None = None,
     ) -> bool:
-        item_errors = sorted(validator.iter_errors(value), key=lambda error: list(error.path))
-        actual_valid = not item_errors
+        domain_error: str | None = None
+        try:
+            validate_standard_json(value, field_name=label)
+        except ValueError as exc:
+            domain_error = str(exc)
+        json_domain_valid = domain_error is None
+        item_errors = (
+            []
+            if not json_domain_valid
+            else sorted(
+                validator.iter_errors(value), key=lambda error: list(error.path)
+            )
+        )
+        actual_valid = json_domain_valid and not item_errors
         check = {
             "label": label,
             "schema": schema,
             "status": "checked",
             "expected_valid": expected_valid,
             "actual_valid": actual_valid,
-            "error_count": len(item_errors),
+            "expected_json_domain_valid": expected_json_domain_valid,
+            "actual_json_domain_valid": json_domain_valid,
+            "error_count": len(item_errors) + int(domain_error is not None),
         }
         checks.append(check)
         local_errors: list[str] = []
+        if json_domain_valid != expected_json_domain_valid:
+            local_errors.append(
+                f"{label}: expected standard JSON domain valid="
+                f"{expected_json_domain_valid}, got {json_domain_valid}"
+            )
         if actual_valid != expected_valid:
             check["validation_errors"] = []
             local_errors.append(
                 f"{label}: expected schema valid={expected_valid}, got {actual_valid}"
             )
+            if domain_error is not None:
+                check["validation_errors"].append({
+                    "path": "<root>",
+                    "message": domain_error,
+                    "validator": "standard-json-domain",
+                })
             for error in item_errors:
                 location = "/".join(str(part) for part in error.absolute_path) or "<root>"
                 check["validation_errors"].append({
@@ -104,13 +236,16 @@ def main() -> int:
 
         if canonical_branch is not None:
             branch_results = {
-                branch: not list(branch_validator.iter_errors(value))
+                branch: json_domain_valid
+                and not list(branch_validator.iter_errors(value))
                 for branch, branch_validator in branch_validators.items()
             }
             matching_branches = [
                 branch for branch, valid in branch_results.items() if valid
             ]
-            canonical_root_valid = not list(experiment_validator.iter_errors(value))
+            canonical_root_valid = json_domain_valid and not list(
+                experiment_validator.iter_errors(value)
+            )
             expected_matches = [canonical_branch] if expected_valid else []
             check.update({
                 "canonical_branch": canonical_branch,
@@ -166,6 +301,59 @@ def main() -> int:
             summary_schema_path.relative_to(root).as_posix(),
             summary_validator,
             load_json(root / relative),
+        )
+
+    from evidence_contract_corpus import build_evidence_contract_corpus
+
+    evidence_validators = {
+        "result": (
+            result_schema_path.relative_to(root).as_posix(),
+            result_validator,
+        ),
+        "bridge": (
+            bridge_schema_path.relative_to(root).as_posix(),
+            bridge_validator,
+        ),
+        "task": (
+            task_schema_path.relative_to(root).as_posix(),
+            task_validator,
+        ),
+        "suite": (
+            suite_schema_path.relative_to(root).as_posix(),
+            suite_validator,
+        ),
+        "assertion": (
+            task_schema_path.relative_to(root).as_posix()
+            + "#/properties/judge_expectations/properties/state_assertions/items",
+            assertion_validator,
+        ),
+        "event": (
+            trace_schema_path.relative_to(root).as_posix(),
+            trace_validator,
+        ),
+        "raw_event": (
+            trace_schema_path.relative_to(root).as_posix() + "#raw-json",
+            trace_validator,
+        ),
+        "raw_trace": (
+            trace_schema_path.relative_to(root).as_posix() + "#raw-jsonl",
+            trace_validator,
+        ),
+        "trace": (
+            trace_schema_path.relative_to(root).as_posix() + "#sequence",
+            trace_sequence_validator,
+        ),
+    }
+    evidence_corpus = build_evidence_contract_corpus()
+    for case in evidence_corpus:
+        schema_name, validator = evidence_validators[case["target"]]
+        record(
+            f"evidence-corpus:{case['label']}",
+            schema_name,
+            validator,
+            case["value"],
+            expected_valid=case["schema_valid"],
+            expected_json_domain_valid=case["json_domain_valid"],
         )
 
     experiment = load_json(root / "examples/experiment.example.json")
@@ -290,6 +478,10 @@ def main() -> int:
         "ok": not errors,
         "validated_document_count": len(checks),
         "experiment_corpus": corpus_report,
+        "evidence_corpus": {
+            "status": "completed",
+            "case_count": len(evidence_corpus),
+        },
         "checks": checks,
         "errors": errors,
     }

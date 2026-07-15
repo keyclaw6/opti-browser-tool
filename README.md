@@ -21,7 +21,11 @@ A new implementation or review agent should read these in order:
 - The accepted task-level reference-success band is **35–70%, inclusive** under ADR-0012.
 - Public percentages currently stored on tasks are benchmark-family aggregates used for source screening, not per-task measurements.
 - The evaluation runner is executable at the orchestration layer. Real browser evaluation still requires audited source bridges and upstream benchmark environments.
-- No browser backend, control library, lane architecture, trace store, final experiment gate, judge panel, or detailed live-site operating policy has been accepted.
+- Accepted trace, experiment-gate, judge, and auto-research-loop architectures
+  now have reference implementations. No audited real source bridge, calibrated
+  judge council, private holdout, or activated production loop exists yet.
+  Browser backend, control library, lane architecture, and detailed live-site
+  operating policy remain open.
 
 The incomplete 100-task draft is preserved under `archive/superseded/runnable-suite-v0-100/` for audit and is not active.
 
@@ -73,11 +77,18 @@ python scripts/verify_file_manifest.py --repo-root .
 ## Accepted decisions
 
 - ADR-0001: project constitution;
+- ADR-0004: trace event log and artifact storage;
+- ADR-0005: experiment validity and acceptance gate;
 - ADR-0007: smoke is nested in primary;
-- ADR-0012: task-level reference success is calibrated in the 35–70% band; and
-- ADR-0014: execute all 140 provisional candidates before filtering.
+- ADR-0012: task-level reference success is calibrated in the 35–70% band;
+- ADR-0014: execute all 140 provisional candidates before filtering;
+- ADR-0015: auto-research loop architecture;
+- ADR-0016: judge panel and verifier audit protocol; and
+- ADR-0017: model and infrastructure pins for loop bring-up.
 
-ADR-0002 through ADR-0006 remain open. ADR-0008 and ADR-0009 remain proposed. ADR-0011's 40% floor and ADR-0013's active 100-task count are superseded history. See `docs/DECISION_TIMELINE.md` for the sequence.
+ADR-0002, ADR-0003, and ADR-0006 remain open. ADR-0008 and ADR-0009 remain
+proposed. ADR-0011's 40% floor and ADR-0013's active 100-task count are
+superseded history. See `docs/DECISION_TIMELINE.md` for the sequence.
 
 ## Repository map
 
@@ -90,6 +101,8 @@ evals/catalog/                normalized catalog, by-ID records, source partitio
 evals/suites/                 active 140-task, smoke, and provisional regression manifests
 evals/schemas/                task, suite, bridge-result, and summary schemas
 eval_harness/                 installable `opti-eval` orchestration runner and tests
+judge_harness/                strict evidence boundary, T0/T1 checks, quarantine, and T2 scaffold
+loop_harness/                 deterministic auto-research conductor and acceptance gates
 scripts/                      catalog generation and integrity/documentation checks
 archive/superseded/           preserved historical implementation drafts
 validation/                   stored validation outputs

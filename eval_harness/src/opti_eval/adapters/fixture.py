@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .base import Adapter
-from ..models import TaskResult
+from ..models import TaskResult, validate_nonempty_string, validate_task_id
 
 
 class FixtureAdapter(Adapter):
@@ -20,14 +20,15 @@ class FixtureAdapter(Adapter):
         self.pass_rate = float(pass_rate)
         self.seed = int(seed)
 
-    def run(self, task: dict[str, Any], task_dir: Path) -> TaskResult:
-        task_id = str(task["id"])
+    def run(self, task: dict[str, Any], task_dir: Path, *, run_id: str) -> TaskResult:
+        task_id = validate_task_id(task.get("id"))
+        source = validate_nonempty_string(task.get("source"), field_name="source")
         digest = hashlib.sha256(f"{self.seed}:{task_id}".encode("utf-8")).digest()
         value = int.from_bytes(digest, "big") / float(2 ** (8 * len(digest)))
         passed = value < self.pass_rate
         return TaskResult(
             task_id=task_id,
-            source=str(task["source"]),
+            source=source,
             status="passed" if passed else "failed",
             reward=1.0 if passed else 0.0,
             verifier={

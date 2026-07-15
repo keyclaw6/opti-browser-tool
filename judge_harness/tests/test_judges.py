@@ -11,8 +11,14 @@ import unittest
 from pathlib import Path
 
 from opti_judge.corpus import CorpusStore, OperatingPoint, trusted
-from opti_judge.evidence import EvidenceContract, EvidenceError, load_trace
-from opti_judge.panel import adjudicate, run_role
+from opti_judge.evidence import (
+    EPOCH_EVENT_TYPES,
+    EvidenceContract,
+    EvidenceError,
+    Trace,
+    load_trace,
+)
+from opti_judge.panel import Judgment, adjudicate, run_role
 from opti_judge.probekit import ProbeCase, run_probe_kit
 from opti_judge.quarantine import QuarantineQueue
 from opti_judge.router import route
@@ -22,15 +28,35 @@ REPO_ROOT = Path(os.environ["OPTI_BROWSER_REPO_ROOT"])
 
 
 def _event(seq: int, event_type: str, payload: dict, *, visibility=None, epoch=None) -> dict:
+    if event_type == "verifier_result":
+        payload = {
+            "status": "passed",
+            "verifier_id": "verifier-test",
+            "verifier_checksum": "checksum-test",
+            **payload,
+        }
     return {
+        "schema_version": "0.1-draft",
         "run_id": "run-t",
+        "task_id": "task-t",
         "event_id": f"evt-{seq:04d}",
         "sequence": seq,
-        "actor": "browser",
+        "timestamp": f"2026-07-14T00:00:{seq:02d}+00:00",
+        "monotonic_ms": float(seq),
+        "actor": "verifier" if event_type == "verifier_result" else "browser",
         "event_type": event_type,
         "visibility": visibility or ["judge", "orchestrator"],
         "payload": payload,
-        **({"browser_state_epoch": epoch} if epoch is not None else {}),
+        "artifact_refs": [],
+        **(
+            {
+                "browser_state_epoch": (
+                    0 if epoch is None and event_type in EPOCH_EVENT_TYPES else epoch
+                )
+            }
+            if epoch is not None or event_type in EPOCH_EVENT_TYPES
+            else {}
+        ),
     }
 
 
@@ -65,8 +91,10 @@ class EvidenceTest(unittest.TestCase):
             path = Path(tmp) / "t.jsonl"
             ev = _event(1, "browser_state", {"ok": 1})
             ev["artifact_refs"] = [
-                {"kind": "screenshot", "uri": "ok.png"},
-                {"kind": "holdout", "uri": "secret.png", "visibility": ["restricted"]},
+                {"kind": "screenshot", "uri": "ok.png", "sha256": "0" * 64,
+                 "media_type": "image/png", "visibility": ["judge"]},
+                {"kind": "holdout", "uri": "secret.png", "sha256": "1" * 64,
+                 "media_type": "image/png", "visibility": ["restricted"]},
             ]
             _write_trace(path, [ev])
             trace = load_trace(path, CONTRACT)
@@ -259,12 +287,16 @@ class T1ChecksTest(unittest.TestCase):
                 _event(1, "browser_state", {"form": {"saved": False}}, epoch=0),
                 _event(2, "network_event", {"method": "POST", "url": "/mutate"}),
                 _event(3, "browser_state", {"form": {"saved": False}}, epoch=2),
-                # stale-epoch success: acted on epoch 0 while page is at 2
-                _event(4, "action_result", {"outcome": "ok"}, epoch=0),
+                _event(4, "action_result", {"outcome": "ok"}, epoch=2),
             ]
             for i in range(4):  # loop: same action 4x
                 events.append(
-                    _event(5 + i, "action_requested", {"action": "click", "target": "#btn"})
+                    _event(
+                        5 + i,
+                        "action_requested",
+                        {"action": "click", "target": "#btn"},
+                        epoch=2,
+                    )
                 )
             path = tmp / "t.jsonl"
             _write_trace(path, events)
@@ -278,11 +310,22 @@ class T1ChecksTest(unittest.TestCase):
             checks = {f.check for f in flags}
             self.assertIn("side_effect_monitor", checks)
             self.assertIn("loop_detector", checks)
-            self.assertIn("stale_epoch", checks)
             self.assertIn("expected_state", checks)  # passed but assertion violated
             directions = {f.direction for f in flags}
             self.assertIn("fp_suspect", directions)
             self.assertIn("side_effect", directions)
+
+            stale = Trace(
+                events=[
+                    _event(1, "browser_state", {"form": {}}, epoch=0),
+                    _event(2, "browser_state", {"form": {}}, epoch=2),
+                    _event(3, "action_result", {"outcome": "ok"}, epoch=0),
+                ]
+            )
+            self.assertIn(
+                "stale_epoch",
+                {f.check for f in run_all(stale, verifier_status="passed")},
+            )
 
     def test_zero_action_pass_and_fn_direction(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_s:
@@ -386,6 +429,103 @@ class RoutingAndQuarantineTest(unittest.TestCase):
             )
             self.assertFalse(routed["routed"])
             self.assertEqual(queue.pending(), [])
+
+    def test_exact_run_task_flag_fingerprint_dedupes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_s:
+            tmp = Path(tmp_s)
+            queue = QuarantineQueue(tmp / "queue.jsonl")
+            trace_path = tmp / "t.jsonl"
+            _write_trace(trace_path, [_event(1, "browser_state", {"x": 1}, epoch=0)])
+            flags = run_all(load_trace(trace_path, CONTRACT), verifier_status="passed")
+
+            first = route(
+                queue=queue,
+                task_id="task-fp",
+                run_ref="run-1/task-fp/trace.jsonl",
+                verifier_status="passed",
+                t1_flags=flags + flags,
+            )
+            duplicate = route(
+                queue=queue,
+                task_id="task-fp",
+                run_ref="run-1/task-fp/trace.jsonl",
+                verifier_status="passed",
+                t1_flags=flags,
+            )
+            self.assertTrue(first["routed"])
+            self.assertTrue(duplicate["deduplicated"])
+            self.assertEqual(len(queue.pending()), 1)
+            self.assertEqual(len(queue.pending()[0].flags), len(flags))
+
+            different_run = route(
+                queue=queue,
+                task_id="task-fp",
+                run_ref="run-2/task-fp/trace.jsonl",
+                verifier_status="passed",
+                t1_flags=flags,
+            )
+            self.assertFalse(different_run["deduplicated"])
+            self.assertEqual(len(queue.pending()), 2)
+
+    def test_repeated_trusted_judgment_uses_same_disposition(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_s:
+            queue = QuarantineQueue(Path(tmp_s) / "queue.jsonl")
+            judgment = Judgment(
+                role_id="completion_cross_examiner",
+                role_version="1",
+                opinion="failure",
+                confidence=0.9,
+                rationale="final state contradicts the goal",
+                evidence_refs=["run-1/event-1"],
+                labels={},
+                model={"provider": "fixture"},
+                trusted=True,
+                calibration={"cases": 25},
+            )
+            first = route(
+                queue=queue,
+                task_id="task-fp",
+                run_ref="run-1/task-fp/trace.jsonl",
+                verifier_status="passed",
+                t1_flags=[],
+                judgments=[judgment],
+            )
+            duplicate = route(
+                queue=queue,
+                task_id="task-fp",
+                run_ref="run-1/task-fp/trace.jsonl",
+                verifier_status="passed",
+                t1_flags=[],
+                judgments=[judgment],
+            )
+            self.assertTrue(first["routed"])
+            self.assertTrue(duplicate["deduplicated"])
+            self.assertEqual(len(queue.pending()), 1)
+
+    def test_resolution_must_match_the_terminal_verifier_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_s:
+            queue = QuarantineQueue(Path(tmp_s) / "queue.jsonl")
+            passed = queue.enqueue(
+                task_id="task-passed",
+                run_ref="run-1/task-passed/trace.jsonl",
+                verifier_status="passed",
+                reason="possible false positive",
+            )
+            failed = queue.enqueue(
+                task_id="task-failed",
+                run_ref="run-1/task-failed/trace.jsonl",
+                verifier_status="failed",
+                reason="possible false negative",
+            )
+            with self.assertRaisesRegex(ValueError, "true_failure"):
+                queue.resolve(
+                    passed.entry_id, resolution="true_failure", note="mismatch"
+                )
+            with self.assertRaisesRegex(ValueError, "true_success"):
+                queue.resolve(
+                    failed.entry_id, resolution="true_success", note="mismatch"
+                )
+            self.assertEqual(len(queue.pending()), 2)
 
 
 class CorpusTrustTest(unittest.TestCase):
@@ -513,7 +653,8 @@ class TaskExpectationTest(unittest.TestCase):
 
         self.assertEqual(expectations_from_task({"state_change_expected": True}), ("some", []))
         self.assertEqual(expectations_from_task({"state_change_expected": False}), ("none", []))
-        self.assertEqual(expectations_from_task({}), ("unknown", []))
+        with self.assertRaisesRegex(ValueError, "state_change_expected"):
+            expectations_from_task({})
         exp, asserts = expectations_from_task(
             {
                 "state_change_expected": True,
@@ -525,3 +666,51 @@ class TaskExpectationTest(unittest.TestCase):
         )
         self.assertEqual(exp, "none")  # explicit judge_expectations wins
         self.assertEqual(asserts[0]["path"], "cart.count")
+
+        with self.assertRaisesRegex(ValueError, "side_effect_expectation"):
+            expectations_from_task(
+                {
+                    "state_change_expected": False,
+                    "judge_expectations": {"side_effect_expectation": False},
+                }
+            )
+
+        malformed = (
+            {"state_change_expected": 1},
+            {"state_change_expected": False, "judge_expectations": []},
+            {
+                "state_change_expected": False,
+                "judge_expectations": {"unsupported": True},
+            },
+            {
+                "state_change_expected": False,
+                "judge_expectations": {"state_assertions": {}},
+            },
+            {
+                "state_change_expected": False,
+                "judge_expectations": {
+                    "state_assertions": [
+                        {"path": "cart..count", "op": "equals", "value": 1}
+                    ]
+                },
+            },
+            {
+                "state_change_expected": False,
+                "judge_expectations": {
+                    "state_assertions": [
+                        {"path": "cart.count", "op": "exists", "value": True}
+                    ]
+                },
+            },
+            {
+                "state_change_expected": False,
+                "judge_expectations": {
+                    "state_assertions": [
+                        {"path": "cart.count", "op": "equals", "value": float("nan")}
+                    ]
+                },
+            },
+        )
+        for task in malformed:
+            with self.subTest(task=task), self.assertRaises(ValueError):
+                expectations_from_task(task)

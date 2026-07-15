@@ -13,10 +13,24 @@ uncalibrated judge.
 | Layer | Component | State |
 |---|---|---|
 | T0 | **Probe-kit admission harness** (`probekit.py`) | Working. Runs a verifier command against the six probe kinds (oracle → 1, near-miss → 0, premature-stop → 0, harmful-extra-action detected, stale/fabricated rejected, malformed → `invalid` never `failed`), pins version+checksum, writes admission records, archives probes as calibration-corpus seeds. **This file is the contract every bridge verifier must pass.** |
-| T1 | **Deterministic cross-checks** (`t1_checks.py`) | Working over trace JSONL per `schemas/trace-event.schema.json`: HTTP-method side-effect monitor, zero-action-pass, action-count anomaly, loop detector, stale-epoch check, expected-state assertions. Flags carry direction (`fp_suspect` / `fn_suspect` / `side_effect` / `anomaly`) and event citations. |
+| T1 | **Deterministic cross-checks** (`t1_checks.py`) | Working over trace JSONL per `schemas/trace-event.schema.json`: HTTP-method side-effect monitor, zero-action-pass, action-count anomaly, loop detector, stale-epoch check, expected-state assertions. Task-derived inputs are strict: `state_change_expected` must be boolean and the optional `judge_expectations` object is closed and type checked. Assertion equality/containment follows JSON types, so `true` is not `1`. Flags carry direction (`fp_suspect` / `fn_suspect` / `side_effect` / `anomaly`) and event citations. |
 | T2 | **Panel scaffolding** (`panel.py`, `llm.py`, role assets in [`evals/judges/roles/`](../evals/judges/roles/)) | Five roles as versioned JSON. Pluggable model client (`fixture`/`command`/`openai-compatible`). **Trust gating** (F12): a judgment is `trusted` only after the role meets its operating point on **distinct, class-balanced** corpus cases (25 copies of one case cannot certify trust). Untrusted judgments **never certify trust and never touch a score**; they *may* still raise a quarantine via the deterministic adjudicator (unresolved disagreement always quarantines). |
-| T3 | **Quarantine queue** (`quarantine.py`) + **calibration corpus** (`corpus.py`) | Routing (`router.py`) implements FP defense and FN recovery; the resolution vocabulary deliberately has no "override score". The corpus dedupes by `(task_id, run_ref)` fingerprint (F12); resolutions append automatically. |
-| Loop wiring | `opti_loop.eligibility` + gate | **Auto-T1 now runs inside the loop** (F10): before a treatment run can be benchmark evidence it must have an admitted, checksum-matched verifier, and T1 runs over each task trace and routes disagreements to quarantine; a pending quarantine then fails the E5 comparison closed (strict) or excludes it (quorum). T2 remains owner-invoked. |
+| T3 | **Quarantine queue** (`quarantine.py`) + **calibration corpus** (`corpus.py`) | Routing (`router.py`) implements FP defense and FN recovery; the resolution vocabulary deliberately has no "override score". T1 dispositions dedupe only by a stable run/task/flag fingerprint, so an older pending entry cannot mask a new flag. Stored and cleared are distinct: only `true_success` for a passed verifier or `true_failure` for a failed verifier clears that exact run. `verifier_defect`, `task_defect`, and `undecidable` remain resolved-but-blocking for the old evidence; repaired evidence needs a new run reference. A missing queue means empty state; a symlink, non-regular file, malformed row, or stat/read failure is unavailable state and fails eligibility closed. The corpus separately dedupes by `(task_id, run_ref)` fingerprint (F12); resolutions append automatically. |
+| Loop wiring | `opti_loop.eligibility` + gate | **T1 is fail-closed inside the loop** (F10): before a treatment run can be benchmark evidence, every terminal task must have an admitted checksum-matched verifier and pass the shared result/trace/artifact validator. T1 then runs on every validated bundle. Routed suspicion blocks E5 in quarantine; any unclosed flag, missing/malformed evidence, unavailable validator, or T1 failure is integrity-invalid. T2 remains owner-invoked. |
+
+The bundle validator preserves trace file order and rejects non-canonical JSON
+numbers, sequence gaps, backward wall or monotonic time, backward browser
+epochs on any event that supplies one, missing epochs on observation/action
+events, and any terminal closure
+other than one final verifier event immediately preceded by a visible canonical
+`browser_state` event.
+
+Trace and quarantine state are strict LF-framed JSONL: CRLF and a complete
+record without a final LF are compatible, but blank/partial records and every
+other physical record separator fail closed. Quarantine rows use exact fields,
+finite JSON flags with recomputable fingerprints, coherent pending/resolved
+state, and RFC 3339 timestamps. Writes use a same-directory fsynced temporary
+file plus atomic replace, preserving the prior trusted file on failure.
 
 ## What is deliberately NOT here yet
 
@@ -31,7 +45,9 @@ uncalibrated judge.
 4. **Judge-only evidence streams** (screenshots, full DOM, network bodies) —
    ADR-0004 territory; the evidence API enforces visibility contracts and
    refuses any event OR artifact reference bearing `restricted`, even when
-   co-tagged (F13) — holdout material is never loadable here.
+   co-tagged (F13), and returns non-restricted artifact references only when
+   their visibility intersects the caller's contract — holdout material is
+   never loadable here.
 
 ## Use
 

@@ -8,7 +8,12 @@ from pathlib import Path
 from typing import Any
 
 from .base import Adapter
-from ..models import TaskResult
+from ..models import (
+    TaskResult,
+    artifact_ref,
+    validate_nonempty_string,
+    validate_task_id,
+)
 from ..util import atomic_write_json, read_json
 
 
@@ -33,9 +38,9 @@ class CommandAdapter(Adapter):
         self.extra_env = dict(extra_env or {})
         self.label = label or self.name
 
-    def run(self, task: dict[str, Any], task_dir: Path) -> TaskResult:
-        task_id = str(task["id"])
-        source = str(task["source"])
+    def run(self, task: dict[str, Any], task_dir: Path, *, run_id: str) -> TaskResult:
+        task_id = validate_task_id(task.get("id"))
+        source = validate_nonempty_string(task.get("source"), field_name="source")
         task_path = task_dir / "task.json"
         bridge_result_path = task_dir / "bridge-result.json"
         stdout_path = task_dir / "stdout.log"
@@ -68,6 +73,7 @@ class CommandAdapter(Adapter):
         env.update(
             {
                 "OPTI_TASK_ID": task_id,
+                "OPTI_RUN_ID": run_id,
                 "OPTI_TASK_JSON": substitutions["task_json"],
                 "OPTI_RESULT_JSON": substitutions["result_json"],
                 "OPTI_TASK_OUTPUT_DIR": substitutions["output_dir"],
@@ -113,10 +119,7 @@ class CommandAdapter(Adapter):
                     "kind": "bridge_process_error",
                     "message": f"Bridge exited with code {completed.returncode}",
                 },
-                artifacts={
-                    "stdout": "stdout.log",
-                    "stderr": "stderr.log",
-                },
+                artifacts=self._diagnostic_refs(task_dir, stdout_path, stderr_path),
                 metrics={"elapsed_seconds": elapsed, "returncode": completed.returncode},
             )
         if not bridge_result_path.is_file():
@@ -129,7 +132,7 @@ class CommandAdapter(Adapter):
                     "kind": "missing_bridge_result",
                     "message": f"Bridge did not write {bridge_result_path.name}",
                 },
-                artifacts={"stdout": "stdout.log", "stderr": "stderr.log"},
+                artifacts=self._diagnostic_refs(task_dir, stdout_path, stderr_path),
                 metrics={"elapsed_seconds": elapsed, "returncode": completed.returncode},
             )
         try:
@@ -146,20 +149,46 @@ class CommandAdapter(Adapter):
                 status="invalid",
                 reward=None,
                 error={"kind": "malformed_bridge_result", "message": str(exc)},
-                artifacts={
-                    "bridge_result": "bridge-result.json",
-                    "stdout": "stdout.log",
-                    "stderr": "stderr.log",
-                },
+                artifacts=self._diagnostic_refs(
+                    task_dir, bridge_result_path, stdout_path, stderr_path
+                ),
                 metrics={"elapsed_seconds": elapsed, "returncode": completed.returncode},
             )
-        result.artifacts.setdefault("bridge_result", "bridge-result.json")
-        result.artifacts.setdefault("stdout", "stdout.log")
-        result.artifacts.setdefault("stderr", "stderr.log")
+        for ref in self._diagnostic_refs(
+            task_dir, bridge_result_path, stdout_path, stderr_path
+        ):
+            result.artifacts = [
+                existing
+                for existing in result.artifacts
+                if existing.get("uri") != ref["uri"]
+            ]
+            result.artifacts.append(ref)
         result.metrics.setdefault("elapsed_seconds", elapsed)
         result.metrics.setdefault("returncode", completed.returncode)
         result.metadata.setdefault("bridge_label", self.label)
         return result
+
+    @staticmethod
+    def _diagnostic_refs(task_dir: Path, *paths: Path) -> list[dict[str, Any]]:
+        kinds = {
+            "bridge-result.json": ("bridge_result", "application/json"),
+            "stdout.log": ("stdout", "text/plain"),
+            "stderr.log": ("stderr", "text/plain"),
+        }
+        refs: list[dict[str, Any]] = []
+        for path in paths:
+            if not path.is_file():
+                continue
+            kind, media_type = kinds[path.name]
+            refs.append(
+                artifact_ref(
+                    path,
+                    evidence_root=task_dir,
+                    kind=kind,
+                    media_type=media_type,
+                )
+            )
+        return refs
 
     def describe(self) -> dict[str, Any]:
         payload = super().describe()

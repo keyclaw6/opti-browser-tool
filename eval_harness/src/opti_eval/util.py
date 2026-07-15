@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from .models import split_lf_jsonl_records, strict_json_loads
+
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -24,23 +26,34 @@ def slug(value: str) -> str:
 
 
 def read_json(path: Path) -> Any:
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+    try:
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            text = handle.read()
+        return strict_json_loads(text, field_name=f"JSON document {path}")
+    except (UnicodeError, ValueError) as exc:
+        raise ValueError(f"Invalid JSON at {path}: {exc}") from exc
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
+    try:
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            records = split_lf_jsonl_records(
+                handle.read(), field_name=f"JSONL document {path}"
+            )
+    except (UnicodeError, ValueError) as exc:
+        raise ValueError(f"Invalid JSONL at {path}: {exc}") from exc
+
     rows: list[dict[str, Any]] = []
-    with path.open("r", encoding="utf-8") as handle:
-        for line_no, line in enumerate(handle, start=1):
-            if not line.strip():
-                continue
-            try:
-                value = json.loads(line)
-            except json.JSONDecodeError as exc:
-                raise ValueError(f"Invalid JSONL at {path}:{line_no}: {exc}") from exc
-            if not isinstance(value, dict):
-                raise ValueError(f"Expected object at {path}:{line_no}")
-            rows.append(value)
+    for line_no, record in enumerate(records, start=1):
+        try:
+            value = strict_json_loads(
+                record, field_name=f"JSONL record {path}:{line_no}"
+            )
+        except ValueError as exc:
+            raise ValueError(f"Invalid JSONL at {path}:{line_no}: {exc}") from exc
+        if not isinstance(value, dict):
+            raise ValueError(f"Expected object at {path}:{line_no}")
+        rows.append(value)
     return rows
 
 

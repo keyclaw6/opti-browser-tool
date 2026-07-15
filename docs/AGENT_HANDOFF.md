@@ -1,6 +1,6 @@
 # Agent handoff: current project state
 
-Date: 2026-07-11
+Date: 2026-07-14
 
 ## Purpose of this document
 
@@ -17,7 +17,12 @@ The intended outer loop is adapted from two reference projects:
 - `neosigmaai/auto-harness`: benchmark → analyze → improve → gate → record → update learnings → repeat;
 - `china-qijizhifeng/agentic-harness-engineering`: trace-first diagnosis, constrained component changes, activation audits, predicted task flips, and falsifiable change attribution.
 
-Browser-specific additions still need to be designed and validated: executor-versus-judge visibility boundaries, synchronized browser artifacts, action-mechanism tracking, dynamic-site variance, state reset, and verifier safeguards.
+Reference contracts now define executor-versus-judge visibility, synchronized
+trace/artifact identity, epoch ordering, and verifier admission/T1 quarantine.
+They still need validation against real browser output. Backend and lane
+selection, concrete action-mechanism capture, dynamic-site variance, observable
+state reset, and source-native verifier integration remain to be designed or
+proved during bring-up.
 
 ## Completed work
 
@@ -33,6 +38,13 @@ Browser-specific additions still need to be designed and validated: executor-ver
 5. All 140 candidates are in the active provisional primary/candidate pool. Twenty are also in the nested smoke suite and provisional regression seed.
 6. A backend-neutral orchestration runner exists with fixture, command, and source-registry adapters. It validates plumbing but does not yet provide the five real benchmark bridges.
 7. The repository was reconstructed from earlier complete archives after an incomplete working directory was detected. The recovered Git history and superseded 100-task draft are preserved.
+8. Accepted trace, E0–E5 gate, auto-research loop, verifier-audit, and judge
+   boundaries have dependency-free reference implementations and tests. These
+   are code contracts, not evidence that a real browser campaign has run.
+9. Three independent auto-research audits were consolidated into
+   [`AUTO_RESEARCH_IMPLEMENTATION_LEDGER.md`](AUTO_RESEARCH_IMPLEMENTATION_LEDGER.md).
+   AR-001 and AR-002 are complete. AR-003 evidence-bundle hardening is active
+   and remains under independent review.
 
 ## Binding decisions
 
@@ -45,7 +57,8 @@ Only decisions marked **Accepted** in `docs/DECISION_REGISTER.md` are binding:
 - ADR-0012 — locally calibrated task-level success should be 35–70%, inclusive;
 - ADR-0014 — execute all 140 candidates before filtering;
 - ADR-0015 — auto-research loop architecture (accepted 2026-07-13);
-- ADR-0016 — judge panel and verifier audit protocol (accepted 2026-07-13).
+- ADR-0016 — judge panel and verifier audit protocol (accepted 2026-07-13); and
+- ADR-0017 — model and infrastructure pins for loop bring-up (accepted 2026-07-13).
 
 The 35–70 rule has an important evidence boundary: current public percentages are benchmark-family aggregates. They screened source families only. No individual task has yet been shown to fall inside the band.
 
@@ -63,7 +76,10 @@ ADR-0013 is retained as a superseded historical record because its original acti
 - No task has completed the full reset, known-good-run, adversarial-verifier, repetition, safety, and duplication audit.
 - The final approximately 100-task primary suite is not frozen.
 - The current 20-task regression manifest is only a seed, not a permanent regression gate.
-- The browser/backend baseline, harness architecture, trace store, judge council, hidden holdout, and auto-research acceptance gate remain unresolved.
+- The browser/backend baseline remains unresolved. The accepted trace, judge,
+  and gate architectures have reference implementations, but no real bridge,
+  calibrated judge council, hidden holdout, or activated production loop exists
+  yet.
 
 ## Where the actual task records are
 
@@ -77,13 +93,17 @@ Read `docs/TASK_DATA_GUIDE.md` for the exact distinction between included task d
 
 ## Immediate next execution phase
 
-1. Research existing browser harnesses and make an explicit first-baseline recommendation without silently choosing a backend.
-2. Pin and install the five upstream benchmark environments.
-3. Implement one source bridge per benchmark and prove reset, task resolution, trace capture, and native verifier execution.
-4. Run known-good/oracle paths and adversarial verifier checks.
-5. Run a pinned strong reference harness repeatedly over all 140 candidates.
-6. Record task-level uncertainty and filter toward the final suite, documenting every exclusion.
-7. Build and calibrate the completion, process, root-cause, implementation-audit, and adjudication judges.
+1. Finish AR-003's independent review loop; commit it only after the reviewer
+   reports no actionable findings.
+2. Start AR-004 symmetric run integrity and complete run identity only after
+   AR-003 sign-off, then continue the dependency-ordered ledger one package at
+   a time.
+3. In parallel only where a real dependency is available, research the first
+   browser baseline and prepare source environments without silently selecting
+   an open backend or claiming fixture evidence as browser performance.
+4. Keep real campaign activation blocked until the ledger, external source and
+   bridge work, private holdout, calibration, fault rehearsal, and explicit
+   project-owner start are all complete.
 
 ## Rules for the next agent
 

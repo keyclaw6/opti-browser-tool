@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://opti-browser-tool.local/schemas/normalized-task.schema.json",
   "title": "Opti Browser Tool normalized task",
+  "x-edge-whitespace-class": "\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF",
   "type": "object",
   "required": [
     "schema_version", "id", "source", "upstream", "goal", "site",
@@ -10,10 +11,15 @@
   ],
   "properties": {
     "schema_version": {"type": "string"},
-    "id": {"type": "string", "minLength": 1},
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 95,
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,94}(?![\\s\\S])"
+    },
     "source": {"enum": ["real_v1", "webarena_verified", "workarena_l2", "visualwebarena", "warc_bench"]},
-    "goal": {"type": "string", "minLength": 1},
-    "site": {"type": "string", "minLength": 1},
+    "goal": {"$ref": "#/$defs/nonempty_trimmed"},
+    "site": {"$ref": "#/$defs/nonempty_trimmed"},
     "state_change_expected": {"type": "boolean"},
     "suite_membership": {"type": "array", "items": {"type": "string"}, "minItems": 2, "uniqueItems": true},
     "upstream": {
@@ -44,15 +50,42 @@
             "type": "object",
             "required": ["path", "op"],
             "properties": {
-              "path": {"type": "string"},
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?!\\.)(?![\\s\\S]*\\.\\.)(?![\\s\\S]*\\.(?![\\s\\S]))[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+              },
               "op": {"enum": ["equals", "contains", "exists"]},
               "value": {}
             },
-            "additionalProperties": false
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "required": ["op"],
+                  "properties": {"op": {"enum": ["equals", "contains"]}}
+                },
+                "then": {"required": ["value"]}
+              },
+              {
+                "if": {
+                  "required": ["op"],
+                  "properties": {"op": {"const": "exists"}}
+                },
+                "then": {"not": {"required": ["value"]}}
+              }
+            ]
           }
         }
       },
       "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "nonempty_trimmed": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
     }
   },
   "additionalProperties": true

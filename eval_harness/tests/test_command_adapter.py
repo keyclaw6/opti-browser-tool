@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import sys
 import tempfile
@@ -33,6 +34,29 @@ class CommandAdapterTest(unittest.TestCase):
             return self._payload_adapter(Path(tmp), payload).run(
                 {"id": "task-a", "source": "test-source"},
                 task_dir,
+                run_id="test-run",
+            )
+
+    @staticmethod
+    def _raw_adapter(tmp: Path, raw: str) -> CommandAdapter:
+        bridge = tmp / "raw_bridge.py"
+        bridge.write_text(
+            "import os\n"
+            f"raw = {raw!r}\n"
+            "with open(os.environ['OPTI_RESULT_JSON'], 'w', encoding='utf-8', newline='') as fh:\n"
+            "    fh.write(raw)\n",
+            encoding="utf-8",
+        )
+        return CommandAdapter(f"{sys.executable} {bridge}", timeout_seconds=30)
+
+    def _run_raw(self, raw: str):
+        with tempfile.TemporaryDirectory() as tmp:
+            task_dir = Path(tmp) / "task"
+            task_dir.mkdir()
+            return self._raw_adapter(Path(tmp), raw).run(
+                {"id": "task-a", "source": "test-source"},
+                task_dir,
+                run_id="test-run",
             )
 
     def test_missing_task_id_is_invalid(self) -> None:
@@ -58,14 +82,78 @@ class CommandAdapterTest(unittest.TestCase):
         result = self._run_payload({"task_id": "task-a", "success": True})
         self.assertEqual(result.status, "invalid")
         self.assertEqual(result.error["kind"], "malformed_bridge_result")
-        self.assertIn("Unsupported result status", result.error["message"])
+        self.assertIn("unsupported fields", result.error["message"])
+
+    def test_bridge_result_reader_rejects_duplicate_and_nonfinite_json(self) -> None:
+        attacks = (
+            (
+                "duplicate task identity",
+                '{"task_id":"forged","task_id":"task-a","status":"passed"}',
+                "duplicate object key",
+            ),
+            (
+                "nan",
+                '{"task_id":"task-a","status":"passed","metrics":{"probe":NaN}}',
+                "non-JSON numeric constant",
+            ),
+            (
+                "positive infinity",
+                '{"task_id":"task-a","status":"passed","metrics":{"probe":Infinity}}',
+                "non-JSON numeric constant",
+            ),
+            (
+                "negative infinity",
+                '{"task_id":"task-a","status":"passed","metrics":{"probe":-Infinity}}',
+                "non-JSON numeric constant",
+            ),
+            (
+                "positive overflow",
+                '{"task_id":"task-a","status":"passed","metrics":{"probe":1e400}}',
+                "non-finite JSON number",
+            ),
+            (
+                "nested negative overflow",
+                '{"task_id":"task-a","status":"passed","metrics":{"probe":[-1e400]}}',
+                "non-finite JSON number",
+            ),
+        )
+        for label, raw, reason in attacks:
+            with self.subTest(attack=label):
+                result = self._run_raw(raw)
+                self.assertEqual(result.status, "invalid")
+                self.assertEqual(result.error["kind"], "malformed_bridge_result")
+                self.assertIn(reason, result.error["message"])
+
+    def test_bridge_result_reader_accepts_only_standard_document_delimiters(self) -> None:
+        raw = '{"task_id":"task-a","status":"passed"}'
+        for suffix in ("", "\n", "\r\n"):
+            with self.subTest(valid_suffix=repr(suffix)):
+                result = self._run_raw(raw + suffix)
+                self.assertEqual(result.status, "passed")
+
+        for malformed in (
+            "",
+            "\n",
+            raw + "\v",
+            raw + "\f",
+            raw + "\x1e",
+            raw + "\u0085",
+            raw + "\u2028",
+            raw + "\u2029",
+        ):
+            with self.subTest(invalid_document=repr(malformed[-8:])):
+                result = self._run_raw(malformed)
+                self.assertEqual(result.status, "invalid")
+                self.assertEqual(result.error["kind"], "malformed_bridge_result")
 
     def test_minimal_passed_payload_is_useful_but_not_reportable(self) -> None:
         result = self._run_payload({"task_id": "task-a", "status": "passed"})
         self.assertEqual(result.status, "passed")
         self.assertEqual(result.reward, 1.0)
         self.assertIs(result.metadata["benchmark_reportable"], False)
-        summary = summarize_results([result.to_dict()], adapter_reportable=True)
+        summary = summarize_results(
+            [result.to_dict(run_id="test-run")], adapter_reportable=True
+        )
         self.assertTrue(summary["run_valid"])
         self.assertFalse(summary["benchmark_reportable"])
         self.assertFalse(summary["acceptance_decision_eligible"])
@@ -79,6 +167,13 @@ class CommandAdapterTest(unittest.TestCase):
             }
         )
         self.assertIs(result.metadata["benchmark_reportable"], False)
+
+    def test_bridge_cannot_set_runner_owned_run_id(self) -> None:
+        result = self._run_payload(
+            {"run_id": "bridge-forgery", "task_id": "task-a", "status": "passed"}
+        )
+        self.assertEqual(result.status, "invalid")
+        self.assertIn("runner-owned run_id", result.error["message"])
 
     def test_summary_requires_explicit_trusted_result_marker(self) -> None:
         summary = summarize_results(
@@ -112,6 +207,12 @@ class CommandAdapterTest(unittest.TestCase):
             self.assertEqual(record["summary"]["non_reportable_result_count"], 1)
             self.assertEqual(record["summary"]["status_counts"], {"passed": 1})
             self.assertTrue((out / "tasks" / tasks[0]["id"] / "bridge-result.json").is_file())
+            persisted = json.loads(
+                (out / "tasks" / tasks[0]["id"] / "result.json").read_text()
+            )
+            self.assertEqual(persisted["run_id"], record["run_id"])
+            self.assertIsNone(persisted["trace_path"])
+            self.assertTrue(all(isinstance(ref, dict) for ref in persisted["artifacts"]))
 
 
 if __name__ == "__main__":

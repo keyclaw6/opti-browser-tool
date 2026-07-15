@@ -2,8 +2,9 @@
 
 The real Analyst is the LLM trace-analysis pipeline specified in
 ``docs/architecture/ANALYST.md`` — non-scoring, event-addressable, pinned
-like a verifier. It cannot exist before traces exist (ADR-0004 open; no
-browser bridges yet).
+like a verifier. It cannot exist before conforming real traces exist (ADR-0004
+is accepted, but first-bridge conformance is still pending and no browser
+bridges exist yet).
 
 Until then, ``StubAnalyst`` produces the same *artifacts* (L0 overview,
 cluster assignments) from result records alone, and labels every product

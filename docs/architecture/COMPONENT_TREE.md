@@ -92,4 +92,9 @@ Rationale: a minimal seed protects attribution — early gains are attributable 
 
 ## 7. What this scaffold deliberately defers
 
-Backend selection (ADR-0003, open), the concrete session-interface API surface, and all implementation of the directories above. Trace storage is decided (ADR-0004, accepted) but not yet implemented. This document constrains their shape; it does not build them.
+Backend selection (ADR-0003, open), the concrete session-interface API surface,
+and implementation of the harness-component directories above remain deferred.
+The eval/judge/loop boundary now implements ADR-0004's strict task-local
+result/trace/artifact validation and fail-closed benchmark admission; emission
+from the first real source bridge is still a pre-activation requirement. This
+document constrains the component shape; it does not build those components.

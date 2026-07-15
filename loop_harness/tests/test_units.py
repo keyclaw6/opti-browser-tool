@@ -145,10 +145,18 @@ def _run(statuses, *, eligible=True) -> EvalRun:
     inval = {"invalid", "error", "skipped"}
     valid = not any(s in inval for s in statuses.values())
     passed = sum(1 for s in statuses.values() if s == "passed")
+    results = {
+        task_id: {
+            "run_id": "r",
+            "task_id": task_id,
+            "status": status,
+        }
+        for task_id, status in statuses.items()
+    }
     return EvalRun(output_dir=Path("."), suite_name="t",
                    summary={"run_valid": valid, "acceptance_decision_eligible": eligible and valid,
                             "strict_success_rate": passed / len(statuses) if statuses else None},
-                   statuses=dict(statuses), rewards={})
+                   statuses=dict(statuses), rewards={}, run_id="r", results=results)
 
 
 class CompareTest(unittest.TestCase):
@@ -289,12 +297,13 @@ class EligibilityTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as t:
             tmp = Path(t)
             run = _run({"a": "passed"}, eligible=True)  # reportable
+            run.adapter_reportable = True
             elig = assess(run=run, run_dir=tmp, adapter_config={"verifier_id": "v", "verifier_checksum": "c"},
                           task_records={}, admissions_path=tmp / "adm.jsonl", quarantine_path=tmp / "q.jsonl")
             self.assertEqual(elig.evidence_class, "simulated")
             self.assertFalse(elig.acceptance_eligible)
 
-    def test_admitted_plus_auto_t1_routes_suspicion(self) -> None:
+    def test_admitted_incomplete_trace_is_integrity_invalid(self) -> None:
         from opti_loop.eligibility import assess
         with tempfile.TemporaryDirectory() as t:
             tmp = Path(t)
@@ -310,12 +319,14 @@ class EligibilityTest(unittest.TestCase):
                             "payload": {"method": "DELETE", "url": "/x"}}),
             ]) + "\n")
             run = _run({"a": "passed"}, eligible=True)
+            run.adapter_reportable = True
             elig = assess(run=run, run_dir=tmp,
                           adapter_config={"verifier_id": "v", "verifier_checksum": "c"},
                           task_records={"a": {"state_change_expected": False}},
                           admissions_path=tmp / "adm.jsonl", quarantine_path=tmp / "q.jsonl")
-            self.assertEqual(elig.evidence_class, "benchmark")
-            self.assertIn("a", elig.newly_quarantined)  # auto-T1 flagged the mutation
+            self.assertEqual(elig.evidence_class, "simulated")
+            self.assertEqual(elig.integrity_status, "invalid")
+            self.assertFalse(elig.acceptance_eligible)
 
 
 class VerdictTest(unittest.TestCase):

@@ -58,6 +58,9 @@ opti-eval run \
 ```
 
 Supported placeholders are `{task_json}`, `{result_json}`, `{task_id}`, `{source}`, and `{output_dir}`.
+The runner also supplies its authoritative identity as `OPTI_RUN_ID`; bridges
+copy that value into every trace event but must not write a `run_id` into the
+bridge-result JSON. The runner adds it to persisted task results itself.
 
 The included `fixture_bridge.py` marks every result synthetic and non-reportable. A command-adapter run using that example verifies the bridge contract only; the summary remains `benchmark_reportable=false`.
 
@@ -69,13 +72,27 @@ A real bridge must reset its source environment, resolve the upstream task, run 
   "status": "passed",
   "reward": 1.0,
   "verifier": {
-    "kind": "upstream_programmatic_state",
-    "valid": true
+    "id": "real-v1-upstream-programmatic-state-v1",
+    "checksum": "789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456",
+    "outcome": "passed"
   },
-  "artifacts": {
-    "trace": "trace.zip",
-    "final_screenshot": "final.png"
-  },
+  "trace_path": "trace.jsonl",
+  "artifacts": [
+    {
+      "kind": "trace",
+      "uri": "trace.jsonl",
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "media_type": "application/x-ndjson",
+      "visibility": ["judge", "orchestrator"]
+    },
+    {
+      "kind": "final_screenshot",
+      "uri": "artifacts/final.png",
+      "sha256": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+      "media_type": "image/png",
+      "visibility": ["judge", "orchestrator"]
+    }
+  ],
   "metrics": {
     "tool_calls": 17,
     "browser_actions": 25
@@ -83,7 +100,19 @@ A real bridge must reset its source environment, resolve the upstream task, run 
 }
 ```
 
-Allowed statuses are `passed`, `failed`, `invalid`, `error`, and `skipped`. Infrastructure, reset, account, and verifier failures must use `invalid` or `error`, never `failed`.
+Allowed statuses are `passed`, `failed`, `invalid`, `error`, and `skipped`.
+Infrastructure, reset, account, and verifier failures must use `invalid` or
+`error`, never `failed`. Artifact URIs are task-relative POSIX paths; the
+eligibility boundary rejects traversal, symlinks, missing files, hash
+mismatches, malformed visibility, undeclared event artifacts, and a trace that
+does not match the runner-owned run/task/result. Replay and eligibility also
+require one exact ordered task manifest across `run.json`, `results.jsonl`,
+the task directories, every `task.json`, and every task-local `result.json`;
+missing, duplicate, unexpected, or reordered tasks fail closed. Task IDs use
+the portable `^[a-z0-9][a-z0-9_-]*$` form (95 characters maximum) before any
+task path is constructed. The verifier values above are illustrative: a real
+bridge must copy the exact admitted verifier ID and checksum into its result
+and sole terminal trace event.
 
 Command and registry bridge outputs are diagnostic and non-reportable by default. Bridge-authored metadata cannot promote them into benchmark evidence; a later trusted evidence path must validate and explicitly promote each result before a run can become benchmark-reportable or acceptance-decision-eligible.
 
@@ -116,12 +145,33 @@ runs/<run-name>/
     └── <task-id>/
         ├── task.json
         ├── result.json
+        ├── trace.jsonl           # required only for benchmark eligibility
         ├── bridge-result.json   # command/registry adapters
         ├── stdout.log
         └── stderr.log
 ```
 
-A run containing `invalid`, `error`, or `skipped` results is not eligible for benchmark comparison or experiment acceptance.
+A run containing `invalid`, `error`, or `skipped` results is not eligible for
+benchmark comparison or experiment acceptance. Fixture and command rehearsals
+remain useful without traces because they are explicitly non-reportable. An
+otherwise reportable terminal result fails evidence integrity if its declared
+trace bundle or T1 execution is missing or invalid. For such a result, the
+scheduled source and pinned verifier ID/checksum must agree across runner task
+metadata, admission/config, aggregate and local results, and the sole final
+verifier-owned trace event. Trace events remain in append order with unique
+IDs, consecutive sequences, nondecreasing RFC 3339/monotonic clocks and every
+supplied browser epoch, required epochs on observation/action events, canonical JSON values,
+and a visible final `browser_state` immediately before the verifier. T1 task
+expectations are closed and type strict; malformed expectations invalidate the
+evidence instead of silently coercing values.
+
+Trace JSONL uses physical LF records; CRLF is accepted by removing only the CR
+paired with each LF, and the final LF is optional. Blank records, extra trailing
+LFs, lone CR, VT/FF/FS/NEL/Unicode line separators used as record delimiters,
+partial records, duplicate keys, and non-finite numbers are rejected. Raw
+NEL/U+2028/U+2029 characters inside a valid JSON string remain data. Semantic
+nonempty strings use one explicit Python/ECMA edge-whitespace union (including
+NEL and BOM), shared by runtime validation and all evidence schemas.
 
 ## Current evidence boundary
 

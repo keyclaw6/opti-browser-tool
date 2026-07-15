@@ -37,6 +37,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from opti_eval.util import read_json
+
 from .evidence import EvidenceContract, EvidenceError, load_trace
 from .t1_checks import side_effect_monitor
 
@@ -140,8 +142,11 @@ def _run_verifier(command: str, case: ProbeCase, workdir: Path) -> dict[str, Any
             "stderr": proc.stderr[-500:],
         }
     try:
-        return json.loads(result_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
+        payload = read_json(result_path)
+        if not isinstance(payload, dict):
+            raise ValueError("verifier result must be an object")
+        return payload
+    except (OSError, ValueError) as exc:
         return {"status": "error", "detail": f"verifier result not JSON: {exc}"}
 
 

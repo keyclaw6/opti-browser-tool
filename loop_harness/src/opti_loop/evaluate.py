@@ -10,15 +10,16 @@ infrastructure signals, never agent failures.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from opti_eval.adapters.command import CommandAdapter
 from opti_eval.adapters.fixture import FixtureAdapter
 from opti_eval.catalog import select_tasks
+from opti_eval.models import validate_nonempty_string
 from opti_eval.runner import run_evaluation
-from opti_eval.summary import load_run_artifacts
+from opti_eval.summary import load_run_artifacts, validate_run_directory
 
 
 @dataclass(slots=True)
@@ -30,6 +31,11 @@ class EvalRun:
     summary: dict[str, Any]
     statuses: dict[str, str]  # task_id -> status
     rewards: dict[str, float | None]
+    run_id: str = ""
+    results: dict[str, dict[str, Any]] = field(default_factory=dict)
+    adapter_reportable: bool = False
+    task_ids: list[str] = field(default_factory=list)
+    task_sources: dict[str, str] = field(default_factory=dict)
 
     @property
     def run_valid(self) -> bool:
@@ -96,24 +102,50 @@ def run_suite(
     max_workers: int = 4,
 ) -> EvalRun:
     suite, tasks = select_tasks(repo_root, suite_name, task_ids=task_ids)
+    adapter = build_adapter(adapter_config, repo_root=repo_root)
+    verifier_binding: dict[str, str] | None = None
+    verifier_id = adapter_config.get("verifier_id")
+    verifier_checksum = adapter_config.get("verifier_checksum")
+    if verifier_id is not None or verifier_checksum is not None:
+        verifier_binding = {
+            "id": validate_nonempty_string(
+                verifier_id, field_name="adapter verifier_id"
+            ),
+            "checksum": validate_nonempty_string(
+                verifier_checksum, field_name="adapter verifier_checksum"
+            ),
+        }
     run_evaluation(
         repo_root=repo_root,
         suite=suite,
         tasks=tasks,
-        adapter=build_adapter(adapter_config, repo_root=repo_root),
+        adapter=adapter,
         output_dir=output_dir,
         max_workers=max_workers,
         overwrite=False,
+        verifier_binding=verifier_binding,
     )
-    return _parse_run(output_dir, suite_name)
+    return _parse_run(
+        output_dir,
+        suite_name,
+        trusted_adapter_reportable=bool(adapter.benchmark_reportable),
+    )
 
 
 def load_run(output_dir: Path, suite_name: str) -> EvalRun:
     return _parse_run(output_dir, suite_name)
 
 
-def _parse_run(output_dir: Path, suite_name: str) -> EvalRun:
-    summary, results = load_run_artifacts(output_dir)
+def _parse_run(
+    output_dir: Path,
+    suite_name: str,
+    *,
+    trusted_adapter_reportable: bool = False,
+) -> EvalRun:
+    summary, results = load_run_artifacts(
+        output_dir, adapter_reportable=trusted_adapter_reportable
+    )
+    checked = validate_run_directory(output_dir)
     statuses: dict[str, str] = {}
     rewards: dict[str, float | None] = {}
     for row in results:
@@ -126,4 +158,9 @@ def _parse_run(output_dir: Path, suite_name: str) -> EvalRun:
         summary=summary,
         statuses=statuses,
         rewards=rewards,
+        run_id=str(summary.get("run_id", "")),
+        results={str(row["task_id"]): row for row in results},
+        adapter_reportable=trusted_adapter_reportable,
+        task_ids=list(checked.task_ids) if checked.ok else [],
+        task_sources=dict(checked.task_sources) if checked.ok else {},
     )

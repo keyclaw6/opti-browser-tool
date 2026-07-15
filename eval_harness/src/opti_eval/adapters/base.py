@@ -14,7 +14,7 @@ class Adapter(ABC):
     benchmark_reportable = False
 
     @abstractmethod
-    def run(self, task: dict[str, Any], task_dir: Path) -> TaskResult:
+    def run(self, task: dict[str, Any], task_dir: Path, *, run_id: str) -> TaskResult:
         raise NotImplementedError
 
     def describe(self) -> dict[str, Any]:

@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 from opti_eval.cli import main
+from opti_eval.models import validate_task_id
 from opti_eval.summary import load_run_summary
 from opti_eval.util import atomic_write_json
 
@@ -20,6 +21,25 @@ class SummaryReplayTest(unittest.TestCase):
         *,
         adapter_name: str = "diagnostic-test",
     ) -> None:
+        task_ids: list[object] = []
+        task_manifest: list[dict[str, object]] = []
+        tasks_root = run_dir / "tasks"
+        tasks_root.mkdir()
+        for index, row in enumerate(rows):
+            raw_task_id = row.get("task_id") if isinstance(row, dict) else None
+            source = row.get("source", "test-source") if isinstance(row, dict) else "test-source"
+            task_ids.append(raw_task_id)
+            task_manifest.append({"task_id": raw_task_id, "source": source})
+            try:
+                directory_name = validate_task_id(raw_task_id)
+            except ValueError:
+                directory_name = f"invalid-row-{index}"
+            task_dir = tasks_root / directory_name
+            task_dir.mkdir(exist_ok=True)
+            atomic_write_json(
+                task_dir / "task.json", {"id": raw_task_id, "source": source}
+            )
+            atomic_write_json(task_dir / "result.json", row)
         run_dir.joinpath("results.jsonl").write_text(
             "".join(json.dumps(row) + "\n" for row in rows),
             encoding="utf-8",
@@ -40,7 +60,19 @@ class SummaryReplayTest(unittest.TestCase):
         )
         atomic_write_json(
             run_dir / "run.json",
-            {"adapter": {"name": adapter_name, "benchmark_reportable": True}},
+            {
+                "run_id": "run-1",
+                "status": "completed",
+                "suite": {
+                    "id": "suite-1",
+                    "kind": "test",
+                    "task_count_requested": len(rows),
+                },
+                "task_count": len(rows),
+                "task_ids": task_ids,
+                "task_manifest": task_manifest,
+                "adapter": {"name": adapter_name, "benchmark_reportable": True},
+            },
         )
 
     @classmethod
@@ -58,11 +90,23 @@ class SummaryReplayTest(unittest.TestCase):
                 metadata["benchmark_reportable"] = marker
             results.append(
                 {
+                    "schema_version": "0.1.0",
+                    "run_id": "run-1",
                     "task_id": f"task-{index}",
                     "source": "test-source",
                     "status": "passed",
                     "reward": 1.0,
+                    "verifier": {},
+                    "error": None,
+                    "trace_path": None,
+                    "artifacts": [],
+                    "metrics": {},
                     "metadata": metadata,
+                    "timing": {
+                        "started_at": "2026-07-14T00:00:00Z",
+                        "finished_at": "2026-07-14T00:00:01Z",
+                        "elapsed_seconds": 1.0,
+                    },
                 }
             )
         cls._write_rows(run_dir, results, adapter_name=adapter_name)
@@ -121,11 +165,23 @@ class SummaryReplayTest(unittest.TestCase):
 
     def test_malformed_result_matrix_fails_closed_for_helper_and_cli(self) -> None:
         valid = {
+            "schema_version": "0.1.0",
+            "run_id": "run-1",
             "task_id": "task-a",
             "source": "test-source",
             "status": "passed",
             "reward": 1.0,
+            "verifier": {},
+            "error": None,
+            "trace_path": None,
+            "artifacts": [],
+            "metrics": {},
             "metadata": {"benchmark_reportable": True},
+            "timing": {
+                "started_at": "2026-07-14T00:00:00Z",
+                "finished_at": "2026-07-14T00:00:01Z",
+                "elapsed_seconds": 1.0,
+            },
         }
         cases: dict[str, list[object]] = {
             "bogus_status": [{**valid, "status": "bogus"}],

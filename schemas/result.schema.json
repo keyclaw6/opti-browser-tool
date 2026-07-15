@@ -1,89 +1,127 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.invalid/opti-browser-tool/result.schema.json",
-  "title": "Browser Run Result",
+  "title": "Persisted task result",
+  "x-edge-whitespace-class": "\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF",
   "type": "object",
   "required": [
     "schema_version",
     "run_id",
     "task_id",
-    "validity",
-    "success",
+    "source",
+    "status",
+    "reward",
     "verifier",
+    "error",
+    "trace_path",
+    "artifacts",
     "metrics",
-    "artifacts"
+    "metadata",
+    "timing"
   ],
   "additionalProperties": false,
   "properties": {
-    "schema_version": {
-      "const": "0.1-draft"
-    },
-    "run_id": {
-      "type": "string",
-      "minLength": 1
-    },
-    "task_id": {
-      "type": "string",
-      "minLength": 1
-    },
-    "validity": {
-      "enum": [
-        "valid",
-        "invalid_infrastructure",
-        "invalid_implementation",
-        "invalid_evaluator",
-        "safety_incident"
-      ]
-    },
-    "success": {
-      "type": [
-        "boolean",
-        "null"
-      ]
-    },
+    "schema_version": {"const": "0.1.0"},
+    "run_id": {"$ref": "#/$defs/nonempty_trimmed"},
+    "task_id": {"$ref": "#/$defs/task_id"},
+    "source": {"$ref": "#/$defs/nonempty_trimmed"},
+    "status": {"enum": ["passed", "failed", "invalid", "error", "skipped"]},
+    "reward": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
     "verifier": {
       "type": "object",
-      "required": [
-        "version",
-        "outcome"
-      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/nonempty_trimmed"},
+        "checksum": {"$ref": "#/$defs/nonempty_trimmed"}
+      },
       "additionalProperties": true
     },
-    "metrics": {
-      "type": "object",
-      "required": [
-        "elapsed_ms",
-        "tool_calls",
-        "browser_actions",
-        "failed_actions",
-        "retries"
-      ],
-      "additionalProperties": true
-    },
-    "failure_class": {
-      "type": [
-        "string",
-        "null"
+    "error": {"type": ["object", "null"]},
+    "trace_path": {
+      "anyOf": [
+        {"$ref": "#/$defs/safe_relative_path"},
+        {"type": "null"}
       ]
-    },
-    "earliest_divergence_event_id": {
-      "type": [
-        "string",
-        "null"
-      ]
-    },
-    "judges": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": true
-      }
     },
     "artifacts": {
       "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": true
+      "items": {"$ref": "#/$defs/artifact_ref"}
+    },
+    "metrics": {"type": "object"},
+    "metadata": {
+      "type": "object",
+      "properties": {"benchmark_reportable": {"type": "boolean"}},
+      "additionalProperties": true
+    },
+    "timing": {"$ref": "#/$defs/timing"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["status"],
+        "properties": {"status": {"enum": ["passed", "failed"]}}
+      },
+      "then": {"properties": {"reward": {"type": "number"}}}
+    },
+    {
+      "if": {
+        "required": ["status"],
+        "properties": {"status": {"enum": ["invalid", "error", "skipped"]}}
+      },
+      "then": {"properties": {"reward": {"type": "null"}}}
+    }
+  ],
+  "$defs": {
+    "nonempty_trimmed": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 95,
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,94}(?![\\s\\S])"
+    },
+    "safe_relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?![\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])(?![\\s\\S]*[\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?![\\s\\S]))(?![\\s\\S]*(?:^|/)\\.\\.?(?:/|(?![\\s\\S])))[^/\\\\\\u0000]+(?:/[^/\\\\\\u0000]+)*(?![\\s\\S])"
+    },
+    "artifact_ref": {
+      "type": "object",
+      "required": ["kind", "uri", "sha256", "media_type", "visibility"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"$ref": "#/$defs/nonempty_trimmed"},
+        "uri": {"$ref": "#/$defs/safe_relative_path"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}(?![\\s\\S])"},
+        "media_type": {"$ref": "#/$defs/nonempty_trimmed"},
+        "visibility": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["executor", "judge", "orchestrator", "restricted"]
+          }
+        }
+      }
+    },
+    "timing": {
+      "type": "object",
+      "required": ["started_at", "finished_at", "elapsed_seconds"],
+      "additionalProperties": false,
+      "properties": {
+        "started_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})(?![\\s\\S])"
+        },
+        "finished_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})(?![\\s\\S])"
+        },
+        "elapsed_seconds": {"type": "number", "minimum": 0}
       }
     }
   }

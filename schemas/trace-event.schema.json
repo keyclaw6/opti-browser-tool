@@ -2,10 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.invalid/opti-browser-tool/trace-event.schema.json",
   "title": "Trace Event",
+  "x-edge-whitespace-class": "\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF",
   "type": "object",
   "required": [
     "schema_version",
     "run_id",
+    "task_id",
     "event_id",
     "sequence",
     "timestamp",
@@ -23,16 +25,28 @@
     },
     "run_id": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 95,
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,94}(?![\\s\\S])"
     },
     "event_id": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
     },
     "parent_event_id": {
-      "type": [
-        "string",
-        "null"
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+        },
+        {"type": "null"}
       ]
     },
     "sequence": {
@@ -41,7 +55,8 @@
     },
     "timestamp": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})(?![\\s\\S])"
     },
     "monotonic_ms": {
       "type": "number",
@@ -80,6 +95,7 @@
     },
     "visibility": {
       "type": "array",
+      "minItems": 1,
       "items": {
         "enum": [
           "executor",
@@ -107,14 +123,105 @@
         "type": "object",
         "required": [
           "kind",
-          "uri"
+          "uri",
+          "sha256",
+          "media_type",
+          "visibility"
         ],
-        "additionalProperties": true
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+          },
+          "uri": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?![\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])(?![\\s\\S]*[\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?![\\s\\S]))(?![\\s\\S]*(?:^|/)\\.\\.?(?:/|(?![\\s\\S])))[^/\\\\\\u0000]+(?:/[^/\\\\\\u0000]+)*(?![\\s\\S])"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+          },
+          "media_type": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+          },
+          "visibility": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "executor",
+                "judge",
+                "orchestrator",
+                "restricted"
+              ]
+            }
+          }
+        }
       }
     },
     "redaction": {
       "type": "object",
       "additionalProperties": true
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["event_type"],
+        "properties": {"event_type": {"const": "verifier_result"}}
+      },
+      "then": {
+        "properties": {
+          "actor": {"const": "verifier"},
+          "payload": {
+            "type": "object",
+            "required": ["status", "verifier_id", "verifier_checksum"],
+            "properties": {
+              "status": {"enum": ["passed", "failed", "invalid", "error", "skipped"]},
+              "verifier_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+              },
+              "verifier_checksum": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["event_type"],
+        "properties": {
+          "event_type": {
+            "enum": [
+              "model_observation",
+              "action_requested",
+              "action_result",
+              "browser_state",
+              "browser_event",
+              "page_transition",
+              "tab_event"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": ["browser_state_epoch"],
+        "properties": {
+          "browser_state_epoch": {"type": "integer", "minimum": 0}
+        }
+      }
+    }
+  ]
 }

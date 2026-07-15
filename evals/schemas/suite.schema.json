@@ -2,15 +2,29 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://opti-browser-tool.local/schemas/suite.schema.json",
   "title": "Opti Browser Tool suite manifest",
+  "x-edge-whitespace-class": "\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF",
   "type": "object",
   "required": ["schema_version", "id", "kind", "status", "task_count", "task_ids", "policy"],
   "properties": {
     "schema_version": {"type": "string"},
-    "id": {"type": "string", "minLength": 1},
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+    },
     "kind": {"enum": ["candidate_pool", "primary", "smoke", "regression", "holdout"]},
     "status": {"type": "string"},
     "task_count": {"type": "integer", "minimum": 0},
-    "task_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "task_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 95,
+        "pattern": "^[a-z0-9][a-z0-9_-]{0,94}(?![\\s\\S])"
+      },
+      "uniqueItems": true
+    },
     "source_quotas": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
     "policy": {"type": "object"}
   },

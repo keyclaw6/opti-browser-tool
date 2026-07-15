@@ -4,7 +4,6 @@ from __future__ import annotations
 import copy
 import json
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -20,7 +19,11 @@ SCHEMA_PATH = REPO_ROOT / "schemas/experiment.schema.json"
 EXAMPLE_PATH = REPO_ROOT / "examples/experiment.example.json"
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
-from experiment_contract_corpus import build_contract_corpus
+from experiment_contract_corpus import build_contract_corpus  # noqa: E402
+from validate_json_schemas import (  # noqa: E402
+    load_json as schema_load_json,
+    strict_json_loads as schema_strict_json_loads,
+)
 
 
 def _load(path: Path) -> dict:
@@ -251,6 +254,32 @@ class ManifestContractTest(unittest.TestCase):
                         list(schema_validators["canonical"].iter_errors(rejected)),
                         [],
                     )
+
+    def test_schema_loader_rejects_top_level_and_nested_numeric_overflow(self) -> None:
+        positive = (
+            ("finite top-level", "1e308", 1e308),
+            ("finite negative top-level", "-1e308", -1e308),
+            ("finite nested", '{"values":[1e308,-1e308]}', {"values": [1e308, -1e308]}),
+        )
+        for label, raw, expected in positive:
+            with self.subTest(valid=label):
+                self.assertEqual(schema_strict_json_loads(raw), expected)
+
+        negative = (
+            ("positive top-level", "1e400"),
+            ("negative top-level", "-1e400"),
+            ("positive nested", '{"values":[1e400]}'),
+            ("negative nested", '{"outer":{"value":-1e400}}'),
+        )
+        for label, raw in negative:
+            with self.subTest(invalid=label):
+                with self.assertRaisesRegex(ValueError, "non-finite JSON number"):
+                    schema_strict_json_loads(raw)
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    path = Path(temp_dir) / "schema.json"
+                    path.write_text(raw, encoding="utf-8")
+                    with self.assertRaisesRegex(ValueError, "non-finite JSON number"):
+                        schema_load_json(path)
 
     def test_schema_tool_skips_derived_corpus_for_invalid_optimizer_example(self) -> None:
         try:

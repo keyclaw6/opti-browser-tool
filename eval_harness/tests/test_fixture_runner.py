@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import tempfile
 import unittest
@@ -9,6 +8,7 @@ from pathlib import Path
 from opti_eval.adapters.fixture import FixtureAdapter
 from opti_eval.catalog import select_tasks
 from opti_eval.runner import run_evaluation
+from opti_eval.summary import load_run_summary
 
 
 class FixtureRunnerTest(unittest.TestCase):
@@ -31,6 +31,13 @@ class FixtureRunnerTest(unittest.TestCase):
             self.assertFalse(record["summary"]["benchmark_reportable"])
             self.assertEqual(len((out / "results.jsonl").read_text().splitlines()), 140)
             self.assertEqual(len(list((out / "tasks").iterdir())), 140)
+            self.assertEqual(record["task_count"], 140)
+            self.assertEqual(
+                [row["task_id"] for row in record["task_manifest"]],
+                record["task_ids"],
+            )
+            replayed = load_run_summary(out)
+            self.assertTrue(replayed["run_valid"], replayed.get("replay_errors"))
 
 
 if __name__ == "__main__":

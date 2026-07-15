@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import json
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
 from .catalog import load_catalog, load_suite
-from .util import read_jsonl
+from .util import read_json, read_jsonl
 
 EXPECTED_SOURCE_COUNTS = {
     "real_v1": 30,
@@ -55,9 +54,12 @@ def validate_repository(repo_root: Path) -> dict[str, Any]:
     by_id_ids: set[str] = set()
     for path in by_id_paths:
         try:
-            record = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
+            record = read_json(path)
+        except (OSError, ValueError) as exc:
             errors.append(f"Invalid individual task file {path}: {exc}")
+            continue
+        if not isinstance(record, dict):
+            errors.append(f"Invalid individual task file {path}: expected object")
             continue
         task_id = str(record.get("id"))
         by_id_ids.add(task_id)
@@ -106,8 +108,8 @@ def validate_repository(repo_root: Path) -> dict[str, Any]:
 
     for path in sorted((repo_root / "evals" / "schemas").glob("*.json")):
         try:
-            json.loads(path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:
+            read_json(path)
+        except (OSError, ValueError) as exc:
             errors.append(f"Invalid JSON schema file {path}: {exc}")
 
     historical = repo_root / "archive" / "superseded" / "runnable-suite-v0-100"

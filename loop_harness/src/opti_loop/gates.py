@@ -15,7 +15,6 @@ LLM participates (ADR-0015 §5.3). Rewritten after the adversarial review:
 """
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -25,7 +24,7 @@ from .attribution import attribute
 from .compare import NoiseBand, compare_runs
 from .eligibility import Eligibility, assess
 from .evaluate import EvalRun, run_suite
-from .manifest import ManifestReport, load_and_validate, predicted_task_ids
+from .manifest import ManifestReport, predicted_task_ids
 from .verdict import Verdict
 
 
@@ -82,7 +81,6 @@ def run_gate(
     task_sources: dict[str, str],
     task_records: dict[str, dict[str, Any]],
     regression_last_results: dict[str, str],
-    quarantined_task_ids: set[str],
     admissions_path: Path,
     quarantine_path: Path,
 ) -> GateReport:
@@ -194,8 +192,22 @@ def run_gate(
     report.eligibility = eligibility.to_dict()
     evidence_class = eligibility.evidence_class
 
-    # Auto-T1 may have just quarantined tasks; fold them into the closed set.
-    quarantined = set(quarantined_task_ids) | set(eligibility.newly_quarantined)
+    if eligibility.integrity_status == "invalid":
+        report.rungs.append(RungResult("E5", "invalid", {
+            "reason": "evidence integrity invalid",
+            "task_errors": eligibility.integrity_errors,
+        }))
+        return _finish(report, "invalid", evidence_class)
+    if eligibility.integrity_status == "valid" and not eligibility.acceptance_eligible:
+        report.rungs.append(RungResult("E5", "invalid", {
+            "reason": "validated evidence has unresolved exact-run T1 quarantine",
+            "quarantined_tasks": eligibility.quarantined_tasks,
+        }))
+        return _finish(report, "invalid", evidence_class)
+
+    # Any exact-run quarantine already returned above.  Keep the comparison's
+    # exclusion input exact-run scoped rather than importing task-only state.
+    quarantined = set(eligibility.quarantined_tasks)
     comparison = compare_runs(
         baseline_dev, treatment,
         policy=str(thresholds.get("validity_policy", "strict")),

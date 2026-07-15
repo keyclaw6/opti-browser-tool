@@ -5,7 +5,7 @@ from typing import Any
 
 from .base import Adapter
 from .command import CommandAdapter
-from ..models import TaskResult
+from ..models import TaskResult, validate_nonempty_string, validate_task_id
 from ..util import read_json
 
 
@@ -26,9 +26,9 @@ class RegistryAdapter(Adapter):
             str(key): dict(value) for key, value in sources.items() if isinstance(value, dict)
         }
 
-    def run(self, task: dict[str, Any], task_dir: Path) -> TaskResult:
-        task_id = str(task["id"])
-        source = str(task["source"])
+    def run(self, task: dict[str, Any], task_dir: Path, *, run_id: str) -> TaskResult:
+        task_id = validate_task_id(task.get("id"))
+        source = validate_nonempty_string(task.get("source"), field_name="source")
         entry = self.sources.get(source)
         if entry is None:
             return TaskResult(
@@ -70,7 +70,7 @@ class RegistryAdapter(Adapter):
             extra_env={str(k): str(v) for k, v in dict(entry.get("env") or {}).items()},
             label=f"registry:{source}",
         )
-        return adapter.run(task, task_dir)
+        return adapter.run(task, task_dir, run_id=run_id)
 
     def describe(self) -> dict[str, Any]:
         return {

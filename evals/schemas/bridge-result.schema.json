@@ -2,23 +2,84 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://opti-browser-tool.local/schemas/bridge-result.schema.json",
   "title": "Opti Browser Tool bridge result",
+  "x-edge-whitespace-class": "\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF",
   "type": "object",
   "required": ["task_id", "status"],
   "properties": {
-    "task_id": {"type": "string", "minLength": 1},
+    "task_id": {"$ref": "#/$defs/task_id"},
     "status": {"enum": ["passed", "failed", "invalid", "error", "skipped"]},
     "reward": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
-    "verifier": {"type": "object"},
+    "verifier": {
+      "type": "object",
+      "properties": {
+        "id": {"$ref": "#/$defs/nonempty_trimmed"},
+        "checksum": {"$ref": "#/$defs/nonempty_trimmed"}
+      },
+      "additionalProperties": true
+    },
     "error": {"type": ["object", "null"]},
-    "artifacts": {"type": "object", "additionalProperties": {"type": "string"}},
+    "trace_path": {
+      "anyOf": [
+        {"$ref": "#/$defs/safe_relative_path"},
+        {"type": "null"}
+      ]
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/artifact_ref"}
+    },
     "metrics": {"type": "object"},
-    "metadata": {"type": "object"}
+    "metadata": {
+      "type": "object",
+      "properties": {"benchmark_reportable": {"type": "boolean"}},
+      "additionalProperties": true
+    }
   },
   "allOf": [
     {
-      "if": {"properties": {"status": {"enum": ["invalid", "error", "skipped"]}}},
+      "if": {
+        "required": ["status"],
+        "properties": {"status": {"enum": ["invalid", "error", "skipped"]}}
+      },
       "then": {"properties": {"reward": {"type": "null"}}}
     }
   ],
-  "additionalProperties": true
+  "additionalProperties": false,
+  "$defs": {
+    "nonempty_trimmed": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?:[\\s\\S]*[^\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])?(?![\\s\\S])"
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 95,
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,94}(?![\\s\\S])"
+    },
+    "safe_relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?![\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF])(?![\\s\\S]*[\\u0009-\\u000D\\u001C-\\u0020\\u0085\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF](?![\\s\\S]))(?![\\s\\S]*(?:^|/)\\.\\.?(?:/|(?![\\s\\S])))[^/\\\\\\u0000]+(?:/[^/\\\\\\u0000]+)*(?![\\s\\S])"
+    },
+    "artifact_ref": {
+      "type": "object",
+      "required": ["kind", "uri", "sha256", "media_type", "visibility"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"$ref": "#/$defs/nonempty_trimmed"},
+        "uri": {"$ref": "#/$defs/safe_relative_path"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}(?![\\s\\S])"},
+        "media_type": {"$ref": "#/$defs/nonempty_trimmed"},
+        "visibility": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["executor", "judge", "orchestrator", "restricted"]
+          }
+        }
+      }
+    }
+  }
 }

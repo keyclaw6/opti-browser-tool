@@ -24,18 +24,19 @@ import json
 from pathlib import Path
 from typing import Any
 
+from opti_eval.catalog import load_catalog
+
 from . import fileguard, gitutil
 from .analyst import StubAnalyst
 from .campaign import Campaign
 from .clusters import load_register, ranked_unresolved, save_register, update_after_iteration
 from .compare import NoiseBand, NoiseBandError, measure_noise_band
-from .eligibility import assess
 from .evaluate import EvalRun, load_run, run_suite
 from .gates import GateReport, run_gate
 from .ledger import learnings_template
 from .manifest import load_and_validate, rejected_submission_record
 from .packet import build_packet
-from .store import append_jsonl, atomic_write_json, atomic_write_text
+from .store import append_jsonl, atomic_write_json
 from .verdict import Verdict
 
 DEV_BASELINE_DIR = "eval/dev_baseline"
@@ -44,12 +45,7 @@ ACCEPTED_REF = "refs/opti/{campaign}/accepted"
 
 # ── helpers ───────────────────────────────────────────────────────────────
 def _catalog(repo_root: Path) -> dict[str, dict[str, Any]]:
-    path = repo_root / "evals/catalog/tasks.jsonl"
-    records: dict[str, dict[str, Any]] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if line.strip():
-            row = json.loads(line)
-            records[str(row["id"])] = row
+    _, records = load_catalog(repo_root)
     return records
 
 
@@ -69,18 +65,6 @@ def _run_identity(campaign: Campaign, worktree: Path) -> str:
         "catalog_sha256": hashlib.sha256(catalog_bytes).hexdigest(),
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
-
-
-def _pending_quarantine(campaign: Campaign) -> set[str]:
-    path = campaign.store.quarantine_path
-    ids: set[str] = set()
-    if path.is_file():
-        for line in path.read_text(encoding="utf-8").splitlines():
-            if line.strip():
-                entry = json.loads(line)
-                if entry.get("status") == "pending":
-                    ids.add(str(entry.get("task_id")))
-    return ids
 
 
 def _write_trusted_manifest_snapshot(
@@ -268,7 +252,6 @@ def run_iteration(campaign: Campaign) -> dict[str, Any]:
         thresholds=campaign.config["thresholds"], noise_band=band, run_identity=run_identity,
         task_sources=sources, task_records=records,
         regression_last_results=campaign.state.get("regression_last_results", {}),
-        quarantined_task_ids=_pending_quarantine(campaign),
         admissions_path=campaign.store.admissions_path, quarantine_path=campaign.store.quarantine_path,
     )
     atomic_write_json(iteration_dir / "gate-report.json", report.to_dict())

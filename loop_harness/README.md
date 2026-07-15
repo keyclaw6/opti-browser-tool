@@ -57,9 +57,20 @@ separable, and `simulated:accepted` mutated real state. v2 closes these:
   record + accept/reset in a single step; no forgeable gate report to plant.
 - **Typed verdict** (`verdict.py`) — only `(accepted, benchmark)` advances
   state; every `simulated` verdict is inert for promotion, drift, and ranking.
-- **Benchmark eligibility** (`eligibility.py`) — a run is benchmark evidence
-  only with an admitted, checksum-matched verifier and auto-T1 run over its
-  traces; the noise band must be non-synthetic and bound to this run identity.
+- **Benchmark eligibility** (`eligibility.py`) — every terminal task in an
+  otherwise reportable run must have an admitted, checksum-matched verifier, a
+  strict runner/task/result-linked trace and hashed task-local artifact bundle,
+  an exact runner-owned ordered task manifest, pinned source/verifier identity,
+  consecutive trace sequence, ordered wall/monotonic time and every supplied
+  browser epoch,
+  canonical final browser state, and a successful T1 run. Missing/malformed/
+  spliced/reordered evidence, unavailable T1, unsafe artifacts, malformed task
+  expectations, or an unclosed T1 flag is an explicit E5 integrity-invalid
+  outcome. Missing quarantine storage is empty; any present but unavailable or
+  malformed quarantine storage is integrity-invalid. A defect/undecidable
+  quarantine resolution remains blocking for the
+  exact old run; favorable confirmation alone clears it. Fixture/command
+  rehearsals remain simulated.
 
 ## Honest limitations (current)
 
