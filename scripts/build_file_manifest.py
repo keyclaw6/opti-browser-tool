@@ -6,7 +6,19 @@ import hashlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXCLUDED_DIRS = {".git", ".venv", "__pycache__", ".pytest_cache", "runs", "campaigns"}
+EXCLUDED_DIRS = {
+    ".git",
+    ".venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".mypy_cache",
+    ".codebase-memory",
+    "runs",
+    "campaigns",
+    "build",
+    "dist",
+}
 EXCLUDED_FILES = {"FILE_INVENTORY.tsv", "MANIFEST.sha256"}
 
 
@@ -24,7 +36,10 @@ def included_files() -> list[Path]:
         if not path.is_file():
             continue
         rel = path.relative_to(ROOT)
-        if any(part in EXCLUDED_DIRS for part in rel.parts):
+        if any(
+            part in EXCLUDED_DIRS or part.endswith(".egg-info")
+            for part in rel.parts
+        ):
             continue
         if rel.as_posix() in EXCLUDED_FILES:
             continue

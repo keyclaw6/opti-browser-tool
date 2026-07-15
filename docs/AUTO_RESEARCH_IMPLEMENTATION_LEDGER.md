@@ -54,11 +54,13 @@ findings, and only then may the package be committed and the next package start.
 
 AR-001 through AR-003 are complete; AR-004 through AR-020 remain queued. The
 active sequence is now governed jointly with
-`docs/AUTO_RESEARCH_READINESS_EXECUTION.md`: milestone C clean installability
-comes next, followed by the required ADR transition before milestones D, E, or
-F change accepted architecture. Later ledger packages are pulled into bounded
-milestones only when their dependencies and review boundaries align. This
-ordering change does not mark, skip, or silently supersede any queued package.
+`docs/AUTO_RESEARCH_READINESS_EXECUTION.md`: milestone-C code is committed at
+`9d0a7ab`, and its committed-HEAD clean-install proof passes; closure awaits the
+reviewed evidence/manifest commit and a full portable-archive proof from that
+commit. The required ADR transition follows before milestones D, E, or F change
+accepted architecture. Later ledger packages are pulled into bounded milestones
+only when their dependencies and review boundaries align. This ordering change
+does not mark, skip, or silently supersede any queued package.
 
 ## Required work deferred by real dependencies
 

@@ -44,8 +44,10 @@ proved during bring-up.
 9. Three independent auto-research audits were consolidated into
    [`AUTO_RESEARCH_IMPLEMENTATION_LEDGER.md`](AUTO_RESEARCH_IMPLEMENTATION_LEDGER.md).
    AR-001 through AR-003 are complete. AR-003 closed at `72e73c2` after clean
-   independent correctness and elegance reviews. Milestone C clean
-   installability is the next implementation boundary.
+   independent correctness and elegance reviews. Milestone-C installability
+   code is committed at `9d0a7ab`, and its committed-HEAD clean-install plus
+   no-network-namespace proof passes. Closure awaits the reviewed evidence and
+   manifest commit followed by a full portable-archive proof from that commit.
 
 ## Binding decisions
 
@@ -94,9 +96,10 @@ Read `docs/TASK_DATA_GUIDE.md` for the exact distinction between included task d
 
 ## Immediate next execution phase
 
-1. Complete milestone C with the smallest explicit package-dependency and
-   clean-install repair; prove every CLI imports and runs without repository
-   `PYTHONPATH` composition.
+1. Close milestone C by independently reviewing and committing the refreshed
+   evidence/manifests, then building and verifying the full portable archive
+   from that committed state. Do not repeat or broaden the completed package
+   repair unless a review finds a concrete defect.
 2. Before milestones D, E, or F change accepted architecture, create the
    minimal required ADR amendment or superseding record and update the decision
    register and timeline. Do not silently settle the open backend decision.

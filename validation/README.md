@@ -16,7 +16,9 @@ These files record checks against the reconstructed repository state. They are e
 - `fixture-140-run.json` and `fixture-140-summary.json` — complete orchestration over all 140 task records using a deterministic synthetic adapter.
 - `command-bridge-summary.json` — one-task external command-bridge contract check using the included synthetic bridge.
 - `registry-doctor.json` — parsing and source coverage of the disabled example registry.
-- `install-check.txt` — prior editable-install and CLI check.
+- `install-check.txt` — committed-HEAD source-to-wheel, transitive clean-install,
+  CLI, test, negative-resolver, and network-namespace proof for milestone C.
+  It records installation plumbing only, never benchmark evidence.
 
 Both the fixture adapter and included fixture command bridge are synthetic. Their summaries must contain:
 
@@ -35,12 +37,21 @@ From the repository root:
 
 ```bash
 python scripts/verify_documentation.py --repo-root .
-python scripts/validate_json_schemas.py --repo-root .
+uv run --offline --with jsonschema \
+  python scripts/validate_json_schemas.py --repo-root .
 PYTHONPATH=eval_harness/src python -m opti_eval validate --repo-root . --json
 OPTI_BROWSER_REPO_ROOT="$PWD" PYTHONPATH=eval_harness/src \
   python -m unittest discover -s eval_harness/tests -v
+python scripts/verify_clean_install.py --repo-root . --snapshot head
+unshare -Urn python scripts/verify_clean_install.py --repo-root . --snapshot head
 python scripts/verify_repository_completeness.py --repo-root .
 python scripts/verify_file_manifest.py --repo-root .
 ```
 
-The schema check has an optional dependency: `python -m pip install jsonschema`. The evaluation runner itself remains standard-library-only.
+The schema check has an optional `jsonschema` dependency; the command above
+uses only an already-cached package and fails offline when it is unavailable.
+The `unshare` command is Linux-specific and may be unavailable or forbidden by
+the host. The ordinary clean-install verifier still enforces uv offline mode,
+`--no-index`, a local wheelhouse, and an empty install cache, but only the
+successful `unshare -Urn` run is an OS-level no-network proof. The evaluation
+runner itself remains standard-library-only.

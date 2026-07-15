@@ -1,2 +1,60 @@
-Editable install and CLI validation succeeded.
-Python: Python 3.13.5
+Milestone-C committed-HEAD clean-install evidence
+=================================================
+
+Source commit
+-------------
+- Commit: 9d0a7ab5b1673790267a6305b515503feb728a4d
+- Command: python scripts/verify_clean_install.py --repo-root . --snapshot head
+- Result: PASS
+- Network-namespace command: unshare -Urn python scripts/verify_clean_install.py --repo-root . --snapshot head
+- Network-namespace result: PASS
+
+Build and resolver environment
+------------------------------
+- Python: 3.14.5
+- uv: 0.11.6 (x86_64-unknown-linux-gnu)
+- Source-to-wheel build prerequisite: setuptools>=68 was already available in
+  uv's build cache. The verifier permits no index or network fallback.
+- Built exactly these three pure-Python wheels:
+  - opti_browser_eval-0.1.0-py3-none-any.whl
+  - opti_judge-0.1.0-py3-none-any.whl
+  - opti_loop-0.1.0-py3-none-any.whl
+- The install environment started without setuptools.
+- The only requested distribution was opti-loop==0.1.0, installed with
+  `uv pip install --offline --no-index --find-links <wheelhouse>` and an empty
+  install cache.
+- Exact installed distribution and requirement graph:
+  - opti-browser-eval==0.1.0: no runtime requirements
+  - opti-judge==0.1.0: opti-browser-eval==0.1.0
+  - opti-loop==0.1.0: opti-browser-eval==0.1.0, opti-judge==0.1.0
+- No undeclared or extra distribution was installed. Setuptools remained
+  absent after installation.
+- Negative resolver control: removing the opti-judge wheel made the opti-loop
+  install fail specifically because opti-judge was unavailable.
+
+Installed CLI and test proof
+----------------------------
+- `opti-eval --help`, `opti-judge --help`, and `opti-loop --help` passed from
+  outside the source tree with PYTHONPATH removed.
+- `opti-eval validate --repo-root <snapshot>` passed from outside the tree.
+- `opti-eval validate` discovered the repository from the snapshot root.
+- Pure `opti-loop --store-root <unused> transfer-eval --deltas noop=0` passed
+  and did not create the configured store.
+- Installed-environment unittest discovery passed for all three packages.
+- Independent source-dependency-path runs observed:
+  - eval: 30 passed;
+  - judge: 28 passed;
+  - loop: 77 run; 76 passed and 1 skipped because optional jsonschema was not
+    installed.
+
+Evidence boundary
+-----------------
+- Both verifier runs used offline/no-index dependency resolution. The normal
+  invocation is not itself an OS network sandbox; the successful `unshare
+  -Urn` invocation separately proves the same workflow with no network
+  namespace access.
+- Tests used deterministic local fixtures and pure commands only. No live
+  backend, source platform, credential, campaign, browser benchmark, paid API,
+  or external benchmark asset was accessed.
+- This is installation and plumbing evidence only. It is not benchmark
+  evidence, does not authorize a campaign, and makes no performance claim.
