@@ -1,11 +1,11 @@
 # ADR-0018: Auto-research readiness protocol transition
 
-- Status: Proposed
+- Status: Accepted
 - Date proposed: 2026-07-15
-- Date accepted: —
-- Approval state: Not accepted; no project-owner approval has been recorded
-- Proposes amendments to: [ADR-0005](0005-experiment-gating.md) and [ADR-0015](0015-auto-research-loop-architecture.md)
-- Proposes a conforming writable-path amendment to: [ADR-0017](0017-model-and-infrastructure-pins.md) item 7; its two-user confinement remains unchanged
+- Date accepted: 2026-07-15
+- Approval state: Accepted — the owner-delegated coordinator, acting under the founder's delegated architecture-decision authority, approved the exact reviewed proposal on 2026-07-15: `Accept ADR-0018 as written.`
+- Amends: [ADR-0005](0005-experiment-gating.md) and [ADR-0015](0015-auto-research-loop-architecture.md)
+- Conforming writable-path amendment to: [ADR-0017](0017-model-and-infrastructure-pins.md) item 7; its two-user confinement remains unchanged
 - Leaves open: [ADR-0002](0002-shared-substrate-and-lane-boundaries.md) and [ADR-0003](0003-initial-browser-backend.md)
 - Supersedes: —
 - Superseded by: —
@@ -17,8 +17,10 @@ boundary remain useful, but a single treatment observation can still be lucky,
 the candidate boundary is narrower than the charter's permitted harness
 research, and current identity and activation contracts do not yet bind the
 exact evaluated build. This proposal records the smallest coherent transition
-needed before milestones D-F can change those accepted contracts. It does not
-authorize implementation, source acquisition, or a campaign.
+needed before milestones D-F can change those accepted contracts. The proposal
+alone did not authorize implementation. Acceptance authorizes readiness
+implementation only; it does not authorize external source acquisition or a
+live campaign.
 
 ## Proposed amendments
 
@@ -191,20 +193,15 @@ state. Real activation additionally requires the existing ADR-0004/0005/0016
 preconditions, owner-supplied external inputs, and explicit campaign
 authorization.
 
-## Owner decision gate
+## Approval record
 
-This proposal is nonbinding until the project owner explicitly says:
+The owner-delegated coordinator, acting under the founder's delegated
+architecture-decision authority, approved the exact proposal committed at
+`544750b` on 2026-07-15:
 
 > Accept ADR-0018 as written.
 
-An unmistakable approval of the complete substance is also valid under the
-decision process. Only then, before milestones D-F implement the changes:
-
-1. change this ADR to Accepted, fill `Date accepted`, and record the approval;
-2. update the decision register and timeline; and
-3. replace the nonbinding transition-proposal line in each of ADR-0005,
-   ADR-0015, and ADR-0017 with an `Amended by ADR-0018` relationship and the
-   acceptance date.
-
-ADR-0018 amends those decisions rather than superseding them. ADR-0002 and
-ADR-0003 remain Open.
+No substantive decision clause changed between that reviewed proposal and this
+acceptance record. ADR-0018 amends ADR-0005 and ADR-0015 and makes the stated
+conforming writable-path amendment to ADR-0017; it does not supersede them.
+ADR-0002 and ADR-0003 remain Open.

@@ -48,6 +48,11 @@ proved during bring-up.
    is complete through code commit `9d0a7ab`, evidence commit `ef0da6b`, clean
    committed-HEAD install plus no-network-namespace proof, and the successful
    full portable ZIP/extraction and standalone Git-bundle proof from `ef0da6b`.
+10. The independently reviewed ADR-0018 proposal is committed at `544750b`.
+    On 2026-07-15 the owner-delegated coordinator, acting under the founder's
+    delegated architecture-decision authority, accepted it exactly as written;
+    the acceptance-only documentation slice records that decision without D/E/F
+    implementation.
 
 ## Binding decisions
 
@@ -60,16 +65,17 @@ Only decisions marked **Accepted** in `docs/DECISION_REGISTER.md` are binding:
 - ADR-0012 — locally calibrated task-level success should be 35–70%, inclusive;
 - ADR-0014 — execute all 140 candidates before filtering;
 - ADR-0015 — auto-research loop architecture (accepted 2026-07-13);
-- ADR-0016 — judge panel and verifier audit protocol (accepted 2026-07-13); and
-- ADR-0017 — model and infrastructure pins for loop bring-up (accepted 2026-07-13).
+- ADR-0016 — judge panel and verifier audit protocol (accepted 2026-07-13);
+- ADR-0017 — model and infrastructure pins for loop bring-up (accepted 2026-07-13); and
+- ADR-0018 — repeated decisions, exact identity/activation, the candidate-owned
+  harness-build boundary, indivisible evaluated builds, atomic advancement, and
+  one reversible WARC/BrowserGym/Playwright qualification path (accepted
+  2026-07-15).
 
-ADR-0018 is **Proposed, not binding**. It proposes amendments to ADR-0005 and
-ADR-0015 plus a conforming writable-path amendment to ADR-0017, recording the
-readiness transition for repeated decisions, exact identity/activation, the
-candidate-owned harness-build boundary, indivisible evaluated builds, atomic
-advancement, and one reversible WARC/BrowserGym/Playwright qualification path.
-Milestones D-F must not implement that transition until the project owner
-explicitly accepts ADR-0018. ADR-0002 and ADR-0003 remain Open.
+ADR-0018 amends ADR-0005 and ADR-0015 and makes a conforming writable-path
+amendment to ADR-0017. It authorizes the D-F readiness implementation, not a
+live campaign, final backend selection, asset fetch, or benchmark claim.
+ADR-0002 and ADR-0003 remain Open.
 
 The 35–70 rule has an important evidence boundary: current public percentages are benchmark-family aggregates. They screened source families only. No individual task has yet been shown to fall inside the band.
 
@@ -104,14 +110,12 @@ Read `docs/TASK_DATA_GUIDE.md` for the exact distinction between included task d
 
 ## Immediate next execution phase
 
-1. Independently review proposed ADR-0018, then obtain explicit project-owner
-   acceptance using its recorded decision gate. If accepted, update its status,
-   approval date, decision register, and timeline before D/E/F code begins. Do
-   not silently settle ADR-0002 or ADR-0003.
-2. Only after acceptance, continue the readiness execution order through exact identity and
-   activation, repeated decisions and champion protection, and one reversible
-   source/backend readiness seam, using separate implementation and review
-   loops.
+1. Begin milestone D with a bounded implementation/review loop for exact run,
+   build, protocol, environment, verifier, and executor identity; immutable
+   candidate execution; and trusted activation proof.
+2. Continue the accepted readiness order through repeated decisions and
+   champion protection, then one reversible source/backend readiness seam.
+   Do not silently settle ADR-0002 or ADR-0003.
 3. In parallel only where a real dependency is available, research the first
    browser baseline and prepare source environments without silently selecting
    an open backend or claiming fixture evidence as browser performance.

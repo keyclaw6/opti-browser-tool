@@ -44,9 +44,12 @@ This directory is the review surface for Opti Browser Tool. A new implementation
 - ADR-0015: the auto-research loop architecture (trusted experiment boundary, exploration policy).
 - ADR-0016: the judge panel and verifier audit protocol (probe-kit admission, calibration-before-trust).
 - ADR-0017: model and infrastructure pins (MiniMax-M3 executor; GPT-5.6 Sol Ultra judges; confined single-host deployment).
+- ADR-0018: the repeated decision, exact identity/activation,
+  candidate-boundary, indivisible-build, atomic advancement, and reversible
+  first-adapter readiness transition.
 
-ADR-0018 proposes, but does not yet authorize, the repeated decision,
-identity/activation, candidate-boundary, indivisible-build, and reversible
-first-adapter readiness transition. ADR-0002 and ADR-0003 remain Open.
+ADR-0018 is accepted for readiness implementation. Its WARC `online.4` with
+BrowserGym/Playwright path is a reversible qualification target, not a final
+backend selection. ADR-0002 and ADR-0003 remain Open.
 
 No browser backend, browser-control library, final lane architecture, or live-site operating policy has been accepted, and the auto-research loop is not yet authorized to run (pre-activation requirements in ADR-0004/0005 stand).

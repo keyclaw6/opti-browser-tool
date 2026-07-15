@@ -22,7 +22,8 @@ For each accepted ADR, check:
 - later documents do not silently contradict it; and
 - any later change uses a superseding ADR.
 
-Current accepted ADRs are 0001, 0004, 0005, 0007, 0012, 0014, 0015, 0016, and 0017.
+Current accepted ADRs are 0001, 0004, 0005, 0007, 0012, 0014, 0015, 0016,
+0017, and 0018.
 
 ## 3. Check non-decisions
 
@@ -36,8 +37,9 @@ Confirm that the repository does not falsely claim selection of:
 
 (Models, judges, and the reference harness are now selected by ADR-0017; judge PROMPTS remain uncalibrated and untrusted until measured.)
 
-ADR-0018 is Proposed and must remain nonbinding unless its exact owner-approval
-gate has been satisfied and recorded.
+ADR-0018 is Accepted. Verify its owner-delegated coordinator approval record,
+its dated amendment relationships with ADR-0005/0015/0017, and that its
+reversible adapter qualification leaves ADR-0002 and ADR-0003 Open.
 
 Implemented bridge and fixture code is provisional infrastructure, not evidence that any of those choices is accepted.
 

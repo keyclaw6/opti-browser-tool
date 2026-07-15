@@ -57,8 +57,10 @@ active sequence is now governed jointly with
 `docs/AUTO_RESEARCH_READINESS_EXECUTION.md`: milestone C is complete through
 code commit `9d0a7ab`, evidence commit `ef0da6b`, and the successful full
 portable-archive proof from that clean evidence commit. The minimal required ADR
-transition is Proposed as ADR-0018 and awaits explicit project-owner acceptance
-before milestones D, E, or F change accepted architecture.
+transition was proposed at `544750b` and accepted as ADR-0018 on 2026-07-15 by
+the owner-delegated coordinator acting under the founder's delegated
+architecture-decision authority: `Accept ADR-0018 as written.` Milestone D is
+next; no D/E/F implementation was included in the proposal or acceptance slice.
 AR-004 through AR-020 remain queued and are pulled into bounded milestones only
 when their dependencies and review boundaries align. This ordering does not
 mark, skip, or silently supersede any queued package.

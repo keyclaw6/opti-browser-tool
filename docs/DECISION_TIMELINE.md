@@ -98,22 +98,27 @@ Two clarifications recorded with the acceptance: (a) each ADR's empirical decisi
 
 **ADR-0017 — Accepted** on explicit project-owner direction: MiniMax-M3 as the loop executor via the owner's OpenCode Go subscription; the judge panel and Analyst as Codex-spawned sub-agents on the GPT-5.6 Sol Ultra preset; GPT-4 Pro (via OpenCode Go) for research/exploration tasks; BrowserGym GenericAgent + GPT-5.6 Sol Ultra as the calibration reference; a GPT-5.6 Sol Ultra + GPT-4 Pro transfer panel. The owner delegated the hidden-holdout location to automation; it is chosen by the CONDUCTOR-side setup before iteration 1 (default: inside the owner-only trusted store) — never by the optimizer, preserving the holdout invariant. Compute home: one dedicated Linux host with two-user confinement (conductor/store owner vs. optimizer restricted to its worktree components).
 
-## 13. Readiness protocol transition proposed (2026-07-15)
+## 13. Readiness protocol transition proposed and accepted (2026-07-15)
 
-**ADR-0018 — Proposed, not binding.** Three independent readiness reviews were
-synthesized into one minimal transition proposal: preserve E0-E5 while requiring
-a prespecified repeated paired/interleaved E5 decision; bind exact
+**ADR-0018 — Accepted.** Three independent readiness reviews were synthesized
+into one minimal transition proposal at commit `544750b`: preserve E0-E5 while
+requiring a prespecified repeated paired/interleaved E5 decision; bind exact
 run/build/protocol/evaluator/executor identity and trusted activation; widen the
 explicit candidate-owned surface only to charter-permitted harness behavior;
 treat the evaluated build as indivisible; and publish accepted state atomically
 only for accepted benchmark evidence.
 
-The proposal also records WARC-Bench `online.4` with the minimum
+After clean independent re-reviews, the owner-delegated coordinator, acting
+under the founder's delegated architecture-decision authority, approved the
+exact reviewed proposal: `Accept ADR-0018 as written.` ADR-0018 therefore
+amends ADR-0005 and ADR-0015 and makes the conforming writable-path amendment to
+ADR-0017.
+
+The accepted decision also records WARC-Bench `online.4` with the minimum
 BrowserGym/Playwright path as a reversible first-adapter qualification target.
-It does not select the final backend, resolve the lane architecture, authorize
-implementation, fetch external assets, or authorize a campaign. ADR-0002 and
-ADR-0003 remain Open. Explicit project-owner acceptance of ADR-0018 is required
-before milestones D-F implement the transition.
+It does not select the final backend, resolve the lane architecture, fetch
+external assets, authorize a campaign, or make fixture evidence reportable.
+ADR-0002 and ADR-0003 remain Open.
 
 ## Current accepted decisions
 
@@ -126,14 +131,14 @@ before milestones D-F implement the transition.
 - ADR-0015: auto-research loop architecture (five planes, phases A–F, trusted experiment boundary, exploration policy).
 - ADR-0016: judge panel and verifier audit protocol (T0–T3, probe-kit admission, quarantine, calibration-before-trust).
 - ADR-0017: model and infrastructure pins (MiniMax-M3 executor via OpenCode Go; Codex sub-agent judges on GPT-5.6 Sol Ultra; conductor-side holdout; single confined host).
+- ADR-0018: repeated readiness protocol, exact identity/activation,
+  candidate-build boundary, indivisible build, atomic advancement, and a
+  reversible first-adapter qualification pin.
 
 ## Current proposed decisions
 
 - ADR-0008: primary benchmark-source portfolio.
 - ADR-0009: regression-suite seeding and promotion.
-- ADR-0018: repeated readiness protocol, exact identity/activation,
-  candidate-build boundary, indivisible build, atomic advancement, and a
-  reversible first-adapter qualification pin.
 
 ## Current non-decisions
 
@@ -149,6 +154,8 @@ The repository has **not** selected:
 - detailed live-site procedures; or
 - the final approximately 100 admitted tasks.
 
-It also has not activated any ADR-0018 transition: that ADR remains Proposed.
+ADR-0018 acceptance authorizes implementation of its readiness transition, not
+operation of a live campaign. Neither proposal commit `544750b` nor this
+acceptance-only slice includes milestone D/E/F implementation.
 
 These items remain open because the required evidence has not yet been gathered.

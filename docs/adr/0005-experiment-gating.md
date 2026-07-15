@@ -7,7 +7,7 @@
 - Approval state: Accepted — explicit project-owner approval (2026-07-13). The synthetic failure-injection catalog in the decision gate carries forward as a pre-activation requirement; numeric thresholds remain TBD-from-measurement.
 - Supersedes: —
 - Superseded by: —
-- Nonbinding transition proposal: [ADR-0018](0018-auto-research-readiness-protocol-transition.md) would preserve E0-E5 while making E5 a prespecified repeated paired/interleaved decision; it has no effect unless explicitly accepted.
+- Amended by: [ADR-0018](0018-auto-research-readiness-protocol-transition.md) — accepted 2026-07-15; E0-E5 is preserved and E5 becomes a prespecified repeated paired/interleaved decision.
 
 ## Question
 
