@@ -13,9 +13,26 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+import opti_eval
+import opti_judge
+import opti_loop
+from opti_loop.compare import NoiseBand, NoiseBandError, measure_noise_band
+from opti_loop.conductor import (
+    _load_accepted_run,
+    _revalidate_noise_band_for_decision,
+)
 from opti_loop.evaluate import EvalRun
 from opti_loop.eligibility import assess
 from opti_loop.gates import run_gate
+from opti_loop.protocol import ProtocolError, freeze_protocol, verify_runtime_bindings
+from opti_eval.identity import (
+    code_component_identity,
+    digest_json,
+    expected_live_run_receipt,
+    finalize_protocol_snapshot,
+    make_run_context,
+    simulated_protocol,
+)
 from opti_eval.models import (
     EDGE_WHITESPACE_CHARS,
     EDGE_WHITESPACE_SCHEMA_CLASS,
@@ -29,6 +46,24 @@ from opti_judge.t1_checks import expectations_from_task
 ROOT = Path(os.environ["OPTI_BROWSER_REPO_ROOT"])
 sys.path.insert(0, str(ROOT / "scripts"))
 from evidence_contract_corpus import build_evidence_contract_corpus  # noqa: E402
+
+
+def _admitted_gate_result() -> SimpleNamespace:
+    return SimpleNamespace(
+        evidence_class="benchmark",
+        acceptance_eligible=True,
+        integrity_status="valid",
+        reasons=[],
+        integrity_errors=[],
+        quarantined_tasks=[],
+        admission_receipt={"receipt_digest": "a" * 64},
+        to_dict=lambda: {
+            "evidence_class": "benchmark",
+            "acceptance_eligible": True,
+            "integrity_status": "valid",
+            "admission_receipt": {"receipt_digest": "a" * 64},
+        },
+    )
 
 
 def _ref(path: Path, root: Path, kind: str, media_type: str) -> dict:
@@ -93,12 +128,136 @@ def _prepend_json_member(text: str, key: str, raw_value: str) -> str:
     return text[:start] + f'{{"{key}":{raw_value},' + text[start + 1 :]
 
 
+def _benchmark_identity(
+    tasks: list[dict],
+    *,
+    run_id: str,
+    admissions_path: Path,
+    verifier_id: str = "verifier-v1",
+    verifier_checksum: str = "checksum-v1",
+    purpose: str = "iteration",
+    arm: str = "treatment",
+    repeat_index: int = 0,
+    repeat_count: int = 1,
+) -> tuple[dict, dict, dict]:
+    protocol = simulated_protocol(
+        suite={"id": "test", "kind": "test"},
+        tasks=tasks,
+        adapter={"name": "test", "benchmark_reportable": True},
+    )
+
+    def pin(value):
+        if isinstance(value, str) and value.startswith("simulated:"):
+            return "fixture-pinned:" + hashlib.sha256(value.encode()).hexdigest()[:16]
+        if isinstance(value, list):
+            return [pin(item) for item in value]
+        if isinstance(value, dict):
+            return {key: pin(item) for key, item in value.items()}
+        return value
+
+    protocol = pin(protocol)
+    protocol["evidence_mode"] = "benchmark"
+    protocol["purpose"] = purpose
+    protocol["suites"][0]["role"] = "dev"
+    dev_suite = protocol["suites"][0]
+    protocol["suites"] = [
+        dev_suite,
+        {**json.loads(json.dumps(dev_suite)), "role": "smoke", "id": "test-smoke"},
+        {
+            **json.loads(json.dumps(dev_suite)),
+            "role": "regression",
+            "id": "test-regression",
+        },
+    ]
+    protocol["execution"]["suites"] = {
+        "dev": "test",
+        "smoke": "test-smoke",
+        "regression": "test-regression",
+    }
+    components = [
+        code_component_identity(
+            package=package,
+            version=module.__version__,
+            package_root=Path(module.__file__).resolve().parent,
+        )
+        for package, module in (
+            ("opti_eval", opti_eval),
+            ("opti_loop", opti_loop),
+            ("opti_judge", opti_judge),
+        )
+    ]
+    protocol["evaluator"] = {
+        "components": components,
+        "apparatus_digest": digest_json(
+            components,
+            domain="opti.trusted-code-apparatus.v1",
+        ),
+    }
+    protocol["verifier_bundle"] = {
+        "id": verifier_id,
+        "checksum": verifier_checksum,
+        "bundle_digest": hashlib.sha256(verifier_checksum.encode()).hexdigest(),
+        "admissions_digest": hashlib.sha256(
+            b"opti.admissions.v1\0" + admissions_path.read_bytes()
+        ).hexdigest(),
+    }
+    protocol["accepted_build"] = {
+        "role": "accepted",
+        "commit_sha": "a" * 40,
+        "tree_sha": "b" * 40,
+        "materialized_digest": hashlib.sha256(b"accepted-build").hexdigest(),
+        "immutable": True,
+    }
+    protocol["repeated_protocol"]["repeats"]["count"] = repeat_count
+    protocol["repeated_protocol"]["stopping"]["valid_after"] = repeat_count
+    protocol["repeated_protocol"]["limits"]["max_runs"] = max(
+        repeat_count,
+        protocol["repeated_protocol"]["limits"]["max_runs"],
+    )
+    protocol.pop("calibration_binding_digest", None)
+    protocol.pop("comparison_apparatus_digest", None)
+    protocol.pop("protocol_digest", None)
+    protocol = finalize_protocol_snapshot(protocol)
+    candidate = {
+        "role": "candidate",
+        "commit_sha": "c" * 40,
+        "tree_sha": "d" * 40,
+        "materialized_digest": hashlib.sha256(b"candidate-build").hexdigest(),
+        "immutable": True,
+    }
+    context = make_run_context(
+        protocol,
+        protocol["accepted_build"] if arm == "baseline" else candidate,
+        arm=arm,
+        suite_role="dev",
+        task_ids=[task["id"] for task in tasks],
+        repeat_index=repeat_index,
+        seed=0,
+        run_id=run_id,
+    )
+    return protocol, context, candidate
+
+
 class _Bundle:
-    def __init__(self, root: Path) -> None:
-        self.run_id = "run-1"
+    def __init__(
+        self,
+        root: Path,
+        *,
+        run_id: str = "run-1",
+        run_dir_name: str = "run",
+        purpose: str = "iteration",
+        arm: str = "treatment",
+        repeat_index: int = 0,
+        repeat_count: int = 1,
+    ) -> None:
+        self.run_id = run_id
+        self.purpose = purpose
+        self.arm = arm
+        self.repeat_index = repeat_index
+        self.repeat_count = repeat_count
         self.verifier_id = "verifier-v1"
         self.verifier_checksum = "checksum-v1"
-        self.run_dir = root / "run"
+        self.run_dir = root / run_dir_name
         self.task_dir = self.run_dir / "tasks" / "task-a"
         self.task_dir.mkdir(parents=True)
         self.trace_path = self.task_dir / "trace.jsonl"
@@ -118,11 +277,11 @@ class _Bundle:
         self.screenshot.write_bytes(b"trusted screenshot")
         screenshot_ref = _ref(self.screenshot, self.task_dir, "screenshot", "image/png")
         self.events = [
-            _event(1, "browser_state", {"done": False}, refs=[screenshot_ref]),
-            _event(2, "action_requested", {"action": "click", "target": "#save"}),
-            _event(3, "action_result", {"outcome": "ok"}),
-            _event(4, "browser_state", {"done": False}),
-            _event(5, "verifier_result", {"status": "passed"}, actor="verifier"),
+            _event(1, "browser_state", {"done": False}, run_id=self.run_id, refs=[screenshot_ref]),
+            _event(2, "action_requested", {"action": "click", "target": "#save"}, run_id=self.run_id),
+            _event(3, "action_result", {"outcome": "ok"}, run_id=self.run_id),
+            _event(4, "browser_state", {"done": False}, run_id=self.run_id),
+            _event(5, "verifier_result", {"status": "passed"}, actor="verifier", run_id=self.run_id),
         ]
         self._write_trace(self.events)
         self.result = {
@@ -151,22 +310,6 @@ class _Bundle:
                 "elapsed_seconds": 5.0,
             },
         }
-        self.run = EvalRun(
-            output_dir=self.run_dir,
-            suite_name="test",
-            summary={
-                "run_valid": True,
-                "acceptance_decision_eligible": True,
-                "strict_success_rate": 1.0,
-            },
-            statuses={"task-a": "passed"},
-            rewards={"task-a": 1.0},
-            run_id=self.run_id,
-            results={"task-a": self.result},
-            adapter_reportable=True,
-            task_ids=["task-a"],
-            task_sources={"task-a": "test-source"},
-        )
         self.admissions = root / "admissions.jsonl"
         self.admissions.write_text(
             json.dumps(
@@ -179,6 +322,42 @@ class _Bundle:
             )
             + "\n",
             encoding="utf-8",
+        )
+        self.protocol, self.context, self.candidate_build = _benchmark_identity(
+            [self.task_record],
+            run_id=self.run_id,
+            admissions_path=self.admissions,
+            verifier_id=self.verifier_id,
+            verifier_checksum=self.verifier_checksum,
+            purpose=self.purpose,
+            arm=self.arm,
+            repeat_index=self.repeat_index,
+            repeat_count=self.repeat_count,
+        )
+        self.result["metadata"]["run_context_digest"] = self.context["run_digest"]
+        self.run = EvalRun(
+            output_dir=self.run_dir,
+            suite_name="test",
+            summary={
+                "run_valid": True,
+                "acceptance_decision_eligible": True,
+                "strict_success_rate": 1.0,
+            },
+            statuses={"task-a": "passed"},
+            rewards={"task-a": 1.0},
+            run_id=self.run_id,
+            results={"task-a": self.result},
+            live_receipt=expected_live_run_receipt(
+                self.protocol,
+                run_digest=self.context["run_digest"],
+            ),
+            task_ids=["task-a"],
+            task_sources={"task-a": "test-source"},
+            protocol_digest=self.protocol["protocol_digest"],
+            run_context_digest=self.context["run_digest"],
+            run_context=self.context,
+            protocol_snapshot=self.protocol,
+            task_records={"task-a": self.task_record},
         )
         self.quarantine = root / "quarantine.jsonl"
         self._write_result()
@@ -202,13 +381,47 @@ class _Bundle:
         trace_ref["sha256"] = hashlib.sha256(self.trace_path.read_bytes()).hexdigest()
         self._write_result()
 
+    def refreeze_admissions(self) -> None:
+        """Bind the current raw admissions bytes so parser tests reach parsing."""
+        self._write_result()
+
     def _write_result(self) -> None:
         self.run.results["task-a"] = self.result
-        (self.task_dir / "result.json").write_text(
-            json.dumps(self.result, sort_keys=True) + "\n", encoding="utf-8"
+        self.protocol, self.context, self.candidate_build = _benchmark_identity(
+            [self.run.task_records[task_id] for task_id in self.run.task_ids],
+            run_id=self.run_id,
+            admissions_path=self.admissions,
+            verifier_id=self.verifier_id,
+            verifier_checksum=self.verifier_checksum,
+            purpose=self.purpose,
+            arm=self.arm,
+            repeat_index=self.repeat_index,
+            repeat_count=self.repeat_count,
         )
+        self.run.protocol_snapshot = self.protocol
+        self.run.protocol_digest = self.protocol["protocol_digest"]
+        self.run.run_context = self.context
+        self.run.run_context_digest = self.context["run_digest"]
+        self.run.live_receipt = expected_live_run_receipt(
+            self.protocol,
+            run_digest=self.context["run_digest"],
+        )
+        for task_id in self.run.task_ids:
+            row = self.run.results[task_id]
+            row["metadata"]["run_context_digest"] = self.context["run_digest"]
+            (self.run_dir / "tasks" / task_id / "task.json").write_text(
+                json.dumps(self.run.task_records[task_id], sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            (self.run_dir / "tasks" / task_id / "result.json").write_text(
+                json.dumps(row, sort_keys=True) + "\n", encoding="utf-8"
+            )
         (self.run_dir / "results.jsonl").write_text(
-            json.dumps(self.result, sort_keys=True) + "\n", encoding="utf-8"
+            "".join(
+                json.dumps(self.run.results[task_id], sort_keys=True) + "\n"
+                for task_id in self.run.task_ids
+            ),
+            encoding="utf-8",
         )
         (self.run_dir / "summary.json").write_text(
             json.dumps(
@@ -216,10 +429,13 @@ class _Bundle:
                     "schema_version": "0.1.0",
                     "run_id": self.run_id,
                     "suite_id": "test",
-                    "task_count": 1,
+                    "task_count": len(self.run.task_ids),
                     "run_valid": True,
                     "benchmark_reportable": True,
                     "acceptance_decision_eligible": True,
+                    "protocol_digest": self.protocol["protocol_digest"],
+                    "run_context_digest": self.context["run_digest"],
+                    "adapter_digest": self.protocol["adapter"]["digest"],
                 }
             )
             + "\n",
@@ -228,24 +444,28 @@ class _Bundle:
         (self.run_dir / "run.json").write_text(
             json.dumps(
                 {
-                    "schema_version": "0.1.0",
+                    "schema_version": "0.2.0",
                     "run_id": self.run_id,
                     "status": "completed",
                     "suite": {
                         "id": "test",
                         "kind": "test",
-                        "task_count_requested": 1,
+                        "task_count_requested": len(self.run.task_ids),
                     },
-                    "task_count": 1,
-                    "task_ids": ["task-a"],
+                    "task_count": len(self.run.task_ids),
+                    "task_ids": self.run.task_ids,
                     "task_manifest": [
-                        {"task_id": "task-a", "source": "test-source"}
+                        {"task_id": task_id, "source": self.run.task_sources[task_id]}
+                        for task_id in self.run.task_ids
                     ],
                     "verifier": {
                         "id": self.verifier_id,
                         "checksum": self.verifier_checksum,
                     },
-                    "adapter": {"name": "test", "benchmark_reportable": True},
+                    "adapter": self.protocol["adapter"],
+                    "protocol": self.protocol,
+                    "run_context": self.context,
+                    "run_context_digest": self.context["run_digest"],
                 }
             )
             + "\n",
@@ -256,10 +476,7 @@ class _Bundle:
         return assess(
             run=self.run,
             run_dir=self.run_dir,
-            adapter_config={
-                "verifier_id": self.verifier_id,
-                "verifier_checksum": self.verifier_checksum,
-            },
+            expected_receipt=self.run.live_receipt,
             task_records={"task-a": self.task_record},
             admissions_path=self.admissions,
             quarantine_path=self.quarantine,
@@ -288,6 +505,26 @@ class _Bundle:
         self.run.run_id = self.run_id
         self.task_record["verification"]["verifier_id"] = self.verifier_id
         self.task_record["verification"]["verifier_checksum"] = self.verifier_checksum
+        self.protocol, self.context, self.candidate_build = _benchmark_identity(
+            [self.task_record],
+            run_id=self.run_id,
+            admissions_path=self.admissions,
+            verifier_id=self.verifier_id,
+            verifier_checksum=self.verifier_checksum,
+            purpose=self.purpose,
+            arm=self.arm,
+            repeat_index=self.repeat_index,
+            repeat_count=self.repeat_count,
+        )
+        self.result["metadata"]["run_context_digest"] = self.context["run_digest"]
+        self.run.run_context = self.context
+        self.run.run_context_digest = self.context["run_digest"]
+        self.run.protocol_snapshot = self.protocol
+        self.run.protocol_digest = self.protocol["protocol_digest"]
+        self.run.live_receipt = expected_live_run_receipt(
+            self.protocol,
+            run_digest=self.context["run_digest"],
+        )
         (self.task_dir / "task.json").write_text(
             json.dumps(self.task_record) + "\n", encoding="utf-8"
         )
@@ -381,7 +618,77 @@ class _Bundle:
         self.run.results[task_id] = result
         self.run.task_ids.append(task_id)
         self.run.task_sources[task_id] = source
+        self.run.task_records[task_id] = task_record
+        self.protocol, self.context, self.candidate_build = _benchmark_identity(
+            [self.task_record, task_record],
+            run_id=self.run_id,
+            admissions_path=self.admissions,
+            verifier_id=self.verifier_id,
+            verifier_checksum=self.verifier_checksum,
+            purpose=self.purpose,
+            arm=self.arm,
+            repeat_index=self.repeat_index,
+            repeat_count=self.repeat_count,
+        )
+        self.run.protocol_snapshot = self.protocol
+        self.run.protocol_digest = self.protocol["protocol_digest"]
+        self.run.run_context = self.context
+        self.run.run_context_digest = self.context["run_digest"]
+        self.result["metadata"]["run_context_digest"] = self.context["run_digest"]
+        result["metadata"]["run_context_digest"] = self.context["run_digest"]
+        self._write_result()
         return task_record
+
+
+def _real_noise_revalidation_fixture(root: Path):
+    samples = [
+        _Bundle(
+            root,
+            run_id=f"noise-run-{index}",
+            run_dir_name=f"noise/run-{index:02d}",
+            purpose="noise-calibration",
+            arm="baseline",
+            repeat_index=index,
+            repeat_count=2,
+        )
+        for index in range(2)
+    ]
+    if samples[0].protocol != samples[1].protocol:
+        raise AssertionError("noise samples must share one frozen protocol")
+    freeze_protocol(root / "noise", samples[0].protocol)
+    for sample in samples:
+        eligibility = sample.evaluate()
+        if not eligibility.acceptance_eligible:
+            raise AssertionError(eligibility.to_dict())
+    band = measure_noise_band(
+        [sample.run for sample in samples],
+        synthetic=False,
+        run_identity=samples[0].protocol["calibration_binding_digest"],
+        evidence_root=root,
+    )
+    current_protocol = json.loads(json.dumps(samples[0].protocol))
+    current_protocol["purpose"] = "iteration"
+    current_protocol["iteration"] = 1
+    current_protocol["repeated_protocol"]["repeats"]["count"] = 1
+    current_protocol["repeated_protocol"]["stopping"]["valid_after"] = 1
+    current_protocol["execution"]["noise_band"] = band.to_dict()
+    for field in (
+        "calibration_binding_digest",
+        "comparison_apparatus_digest",
+        "protocol_digest",
+    ):
+        current_protocol.pop(field)
+    current_protocol = finalize_protocol_snapshot(current_protocol)
+    if band.run_identity != current_protocol["calibration_binding_digest"]:
+        raise AssertionError("iteration and calibration bindings must match")
+    campaign = SimpleNamespace(
+        store=SimpleNamespace(
+            campaign_dir=root,
+            admissions_path=samples[0].admissions,
+            quarantine_path=samples[0].quarantine,
+        )
+    )
+    return campaign, current_protocol, band, samples
 
 
 class EvidenceEligibilityTest(unittest.TestCase):
@@ -468,11 +775,320 @@ class EvidenceEligibilityTest(unittest.TestCase):
     def test_conforming_positive_control_reaches_benchmark_eligibility(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             bundle = _Bundle(Path(tmp))
+            bundle.run.summary["benchmark_reportable"] = False
+            bundle.run.summary["acceptance_decision_eligible"] = False
             eligibility = bundle.evaluate()
             self.assertEqual(eligibility.integrity_status, "valid")
             self.assertEqual(eligibility.evidence_class, "benchmark")
             self.assertTrue(eligibility.acceptance_eligible)
             self.assertEqual(eligibility.t1_flag_count, 0)
+            self.assertIsNotNone(eligibility.admission_receipt)
+            self.assertTrue(bundle.run.benchmark_admitted)
+
+    def test_benchmark_result_marker_is_preliminary_but_required(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle = _Bundle(Path(tmp))
+            bundle.result["metadata"].pop("benchmark_reportable")
+            bundle._write_result()
+            eligibility = bundle.evaluate()
+            self.assertEqual(eligibility.integrity_status, "invalid")
+            self.assertFalse(eligibility.acceptance_eligible)
+            self.assertIn(
+                "benchmark result marker is missing",
+                " ".join(eligibility.integrity_errors),
+            )
+
+    def test_accepted_run_replays_ar003_and_requires_exact_anchor(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle = _Bundle(Path(tmp))
+            admitted = bundle.evaluate()
+            anchor = admitted.admission_receipt
+            self.assertIsNotNone(anchor)
+            campaign = SimpleNamespace(
+                state={
+                    "last_accepted_treatment_dir": str(bundle.run_dir),
+                    "last_accepted_admission_receipt": anchor,
+                },
+                store=SimpleNamespace(
+                    admissions_path=bundle.admissions,
+                    quarantine_path=bundle.quarantine,
+                ),
+            )
+            loaded = _load_accepted_run(campaign)
+            self.assertIsNotNone(loaded)
+            self.assertTrue(loaded.benchmark_admitted)
+
+            campaign.state["last_accepted_admission_receipt"] = {
+                **anchor,
+                "receipt_digest": "0" * 64,
+            }
+            with self.assertRaisesRegex(RuntimeError, "anchor is missing or tampered"):
+                _load_accepted_run(campaign)
+
+            campaign.state["last_accepted_admission_receipt"] = anchor
+            shutil.rmtree(bundle.run_dir)
+            with self.assertRaisesRegex(RuntimeError, "evidence directory is missing"):
+                _load_accepted_run(campaign)
+
+    def test_real_noise_band_restart_reloads_every_exact_ar003_anchor(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            campaign, current_protocol, band, _ = _real_noise_revalidation_fixture(
+                root
+            )
+            persisted_path = root / "noise-band.json"
+            persisted_path.write_text(
+                json.dumps(band.to_dict()) + "\n", encoding="utf-8"
+            )
+            for _ in range(2):
+                reloaded = NoiseBand.from_dict(
+                    json.loads(persisted_path.read_text(encoding="utf-8"))
+                )
+                self.assertFalse(reloaded.anchors_validated)
+                _revalidate_noise_band_for_decision(
+                    campaign, reloaded, current_protocol
+                )
+                self.assertTrue(reloaded.anchors_validated)
+
+    def test_real_noise_band_rederives_every_persisted_authoritative_field(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            campaign, current_protocol, band, _ = _real_noise_revalidation_fixture(
+                root
+            )
+            self.assertEqual(band.aggregate_margin, 0.0)
+            self.assertEqual(band.max_benign_flips, 0)
+
+            widened = band.to_dict()
+            widened["aggregate_margin"] = 1.0
+            widened["max_benign_flips"] = widened["task_count"]
+            with self.assertRaisesRegex(
+                NoiseBandError,
+                "persisted noise-band authority does not match freshly measured samples",
+            ):
+                _revalidate_noise_band_for_decision(
+                    campaign, NoiseBand.from_dict(widened), current_protocol
+                )
+
+            wrong_task_count = band.to_dict()
+            wrong_task_count["task_count"] += 1
+            with self.assertRaisesRegex(NoiseBandError, "sample count or task count"):
+                _revalidate_noise_band_for_decision(
+                    campaign,
+                    NoiseBand.from_dict(wrong_task_count),
+                    current_protocol,
+                )
+
+            reordered = band.to_dict()
+            reordered["sample_anchors"].reverse()
+            with self.assertRaisesRegex(NoiseBandError, "out of order"):
+                _revalidate_noise_band_for_decision(
+                    campaign, NoiseBand.from_dict(reordered), current_protocol
+                )
+
+    def test_real_noise_band_rejects_missing_and_tampered_sample_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            campaign, current_protocol, band, samples = (
+                _real_noise_revalidation_fixture(root)
+            )
+            shutil.rmtree(samples[1].run_dir)
+            with self.assertRaisesRegex(NoiseBandError, "directory is missing"):
+                _revalidate_noise_band_for_decision(
+                    campaign, NoiseBand.from_dict(band.to_dict()), current_protocol
+                )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            campaign, current_protocol, band, samples = (
+                _real_noise_revalidation_fixture(root)
+            )
+            samples[0].trace_path.write_text("{}\n", encoding="utf-8")
+            with self.assertRaisesRegex(NoiseBandError, "invalid"):
+                _revalidate_noise_band_for_decision(
+                    campaign, NoiseBand.from_dict(band.to_dict()), current_protocol
+                )
+
+    def test_real_noise_band_rejects_stale_admissions_and_fabricated_anchor(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            campaign, current_protocol, band, samples = (
+                _real_noise_revalidation_fixture(root)
+            )
+            samples[0].admissions.write_text(
+                samples[0].admissions.read_text(encoding="utf-8")
+                + samples[0].admissions.read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(NoiseBandError, "apparatus drifted"):
+                _revalidate_noise_band_for_decision(
+                    campaign, NoiseBand.from_dict(band.to_dict()), current_protocol
+                )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            campaign, current_protocol, band, _ = _real_noise_revalidation_fixture(
+                root
+            )
+            payload = band.to_dict()
+            receipt = payload["sample_anchors"][0]["admission_receipt"]
+            receipt["task_bundle_digest"] = "f" * 64
+            receipt["receipt_digest"] = digest_json(
+                {
+                    key: value
+                    for key, value in receipt.items()
+                    if key != "receipt_digest"
+                },
+                domain="opti.ar003-admission-receipt.v1",
+            )
+            fabricated = NoiseBand.from_dict(payload)
+            with self.assertRaisesRegex(NoiseBandError, "anchor is missing or tampered"):
+                _revalidate_noise_band_for_decision(
+                    campaign, fabricated, current_protocol
+                )
+
+    def test_real_noise_band_rejects_wrong_path_symlink_and_protocol(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            campaign, current_protocol, band, _ = _real_noise_revalidation_fixture(
+                root
+            )
+            drifted = json.loads(json.dumps(current_protocol))
+            drifted["executor"]["revision"] = "fixture-pinned:changed"
+            for field in (
+                "calibration_binding_digest",
+                "comparison_apparatus_digest",
+                "protocol_digest",
+            ):
+                drifted.pop(field)
+            drifted = finalize_protocol_snapshot(drifted)
+            with self.assertRaisesRegex(NoiseBandError, "current iteration"):
+                _revalidate_noise_band_for_decision(
+                    campaign, NoiseBand.from_dict(band.to_dict()), drifted
+                )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            campaign, current_protocol, band, _ = _real_noise_revalidation_fixture(
+                root
+            )
+            payload = band.to_dict()
+            payload["sample_anchors"][1]["evidence_dir"] = "noise/run-09"
+            with self.assertRaisesRegex(NoiseBandError, "out of order"):
+                _revalidate_noise_band_for_decision(
+                    campaign, NoiseBand.from_dict(payload), current_protocol
+                )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            campaign, current_protocol, band, samples = (
+                _real_noise_revalidation_fixture(root)
+            )
+            moved = root / "noise/real-run-01"
+            samples[1].run_dir.rename(moved)
+            samples[1].run_dir.symlink_to(moved, target_is_directory=True)
+            with self.assertRaisesRegex(NoiseBandError, "symlink"):
+                _revalidate_noise_band_for_decision(
+                    campaign, NoiseBand.from_dict(band.to_dict()), current_protocol
+                )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            campaign, current_protocol, band, samples = (
+                _real_noise_revalidation_fixture(root)
+            )
+            changed = json.loads(json.dumps(samples[0].protocol))
+            changed["purpose"] = "not-noise-calibration"
+            for field in (
+                "calibration_binding_digest",
+                "comparison_apparatus_digest",
+                "protocol_digest",
+            ):
+                changed.pop(field)
+            changed = finalize_protocol_snapshot(changed)
+            (root / "noise/protocol.snapshot.json").write_text(
+                json.dumps(changed) + "\n", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(NoiseBandError, "wrong purpose"):
+                _revalidate_noise_band_for_decision(
+                    campaign, NoiseBand.from_dict(band.to_dict()), current_protocol
+                )
+
+    def test_gate_rejects_real_noise_band_without_fresh_revalidation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            campaign, current_protocol, band, samples = (
+                _real_noise_revalidation_fixture(root)
+            )
+            reloaded = NoiseBand.from_dict(band.to_dict())
+            report = run_gate(
+                repo_root=root,
+                worktree=root,
+                base_sha="a" * 40,
+                candidate_sha="c" * 40,
+                iteration=1,
+                eval_root=root / "gate",
+                baseline_dev=samples[0].run,
+                manifest={},
+                manifest_report=None,
+                adapter_config={},
+                suites={},
+                thresholds={},
+                noise_band=reloaded,
+                run_identity=current_protocol["calibration_binding_digest"],
+                protocol_snapshot=current_protocol,
+                task_sources={},
+                task_records={},
+                regression_baseline=samples[0].run,
+                admissions_path=campaign.store.admissions_path,
+                quarantine_path=campaign.store.quarantine_path,
+            )
+            self.assertEqual(report.verdict.decision, "invalid")
+            self.assertIn(
+                "lacks fresh AR-003 sample revalidation",
+                report.rungs[0].detail["reason"],
+            )
+
+    def test_gate_rejects_unadmitted_benchmark_baseline_before_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = _Bundle(root)
+            unadmitted = EvalRun(
+                output_dir=root,
+                suite_name="benchmark-baseline",
+                summary={"run_valid": True},
+                statuses={"task-a": "passed"},
+                rewards={"task-a": 1.0},
+                live_receipt=expected_live_run_receipt(
+                    bundle.protocol,
+                    run_digest=bundle.context["run_digest"],
+                ),
+            )
+            report = run_gate(
+                repo_root=root,
+                worktree=root,
+                base_sha="base",
+                candidate_sha="candidate",
+                iteration=1,
+                eval_root=root,
+                baseline_dev=unadmitted,
+                manifest={},
+                manifest_report=SimpleNamespace(ok=False, errors=[], warnings=[]),
+                adapter_config={},
+                suites={},
+                thresholds={},
+                noise_band=None,
+                run_identity="identity",
+                protocol_snapshot=bundle.protocol,
+                task_sources={},
+                task_records={},
+                regression_baseline=unadmitted,
+                admissions_path=bundle.admissions,
+                quarantine_path=bundle.quarantine,
+            )
+            self.assertEqual(report.rungs[-1].rung, "E0")
+            self.assertEqual(report.rungs[-1].status, "invalid")
+            self.assertIn("lacks AR-003 admission", report.rungs[-1].detail["error"])
 
     def test_all_persisted_run_documents_use_strict_standard_json(self) -> None:
         documents = (
@@ -631,6 +1247,7 @@ class EvidenceEligibilityTest(unittest.TestCase):
                     ),
                     encoding="utf-8",
                 )
+                bundle.refreeze_admissions()
                 eligibility = bundle.evaluate()
                 self.assertEqual(eligibility.integrity_status, "invalid")
                 self.assertIn("duplicate object key", " ".join(eligibility.integrity_errors))
@@ -653,6 +1270,7 @@ class EvidenceEligibilityTest(unittest.TestCase):
                     ),
                     encoding="utf-8",
                 )
+                bundle.refreeze_admissions()
                 eligibility = bundle.evaluate()
                 self.assertEqual(eligibility.integrity_status, "invalid")
                 self.assertRegex(
@@ -665,6 +1283,7 @@ class EvidenceEligibilityTest(unittest.TestCase):
                 bundle = _Bundle(Path(tmp))
                 record = bundle.admissions.read_text(encoding="utf-8").rstrip("\n")
                 bundle.admissions.write_text(record + delimiter, encoding="utf-8")
+                bundle.refreeze_admissions()
                 eligibility = bundle.evaluate()
                 self.assertEqual(eligibility.integrity_status, "valid")
                 self.assertTrue(eligibility.acceptance_eligible)
@@ -685,8 +1304,39 @@ class EvidenceEligibilityTest(unittest.TestCase):
                 bundle = _Bundle(Path(tmp))
                 record = bundle.admissions.read_text(encoding="utf-8").rstrip("\n")
                 bundle.admissions.write_text(mutate(record), encoding="utf-8")
+                bundle.refreeze_admissions()
                 eligibility = bundle.evaluate()
                 self.assertEqual(eligibility.integrity_status, "invalid")
+
+    def test_post_freeze_admissions_drift_is_integrity_invalid(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle = _Bundle(Path(tmp))
+            bundle.admissions.write_text(
+                bundle.admissions.read_text(encoding="utf-8") + "\n",
+                encoding="utf-8",
+            )
+            eligibility = bundle.evaluate()
+            self.assertEqual(eligibility.integrity_status, "invalid")
+            self.assertIn("admissions drifted", " ".join(eligibility.integrity_errors))
+
+    def test_post_freeze_trusted_code_drift_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle = _Bundle(Path(tmp))
+            drifted = json.loads(
+                json.dumps(bundle.protocol["evaluator"]["components"])
+            )
+            drifted[0]["code_digest"] = "0" * 64
+            with (
+                mock.patch(
+                    "opti_loop.protocol._trusted_code_components",
+                    return_value=drifted,
+                ),
+                self.assertRaisesRegex(ProtocolError, "code drifted"),
+            ):
+                verify_runtime_bindings(
+                    bundle.protocol,
+                    admissions_path=bundle.admissions,
+                )
 
     def test_exact_scheduled_task_manifest_is_required(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -720,10 +1370,7 @@ class EvidenceEligibilityTest(unittest.TestCase):
             eligibility = assess(
                 run=bundle.run,
                 run_dir=bundle.run_dir,
-                adapter_config={
-                    "verifier_id": "verifier-v1",
-                    "verifier_checksum": "checksum-v1",
-                },
+                expected_receipt=bundle.run.live_receipt,
                 task_records={"task-a": bundle.task_record, "task-b": task_b},
                 admissions_path=bundle.admissions,
                 quarantine_path=bundle.quarantine,
@@ -956,6 +1603,15 @@ class EvidenceEligibilityTest(unittest.TestCase):
                 statuses={"task-a": "passed"},
                 rewards={"task-a": 1.0},
             )
+            diagnostic.run_context = make_run_context(
+                bundle.protocol,
+                bundle.protocol["accepted_build"],
+                arm="baseline",
+                suite_role="dev",
+                task_ids=["task-a"],
+                repeat_index=0,
+                seed=0,
+            )
             runs = iter([diagnostic, diagnostic, bundle.run])
             comparison = SimpleNamespace(eligible=True, to_dict=lambda: {})
             with (
@@ -979,8 +1635,33 @@ class EvidenceEligibilityTest(unittest.TestCase):
                     "opti_loop.gates.run_suite", side_effect=lambda **_: next(runs)
                 ),
                 mock.patch(
+                    "opti_loop.gates.build_identity",
+                    return_value=bundle.candidate_build,
+                ),
+                mock.patch(
+                    "opti_loop.gates.make_run_context",
+                    return_value=bundle.context,
+                ),
+                mock.patch(
+                    "opti_loop.gates.verify_runtime_bindings",
+                ) as verify_runtime,
+                mock.patch(
                     "opti_loop.gates.compare_runs", return_value=comparison
                 ) as compare,
+                mock.patch.object(
+                    EvalRun,
+                    "benchmark_admitted",
+                    new_callable=mock.PropertyMock,
+                    return_value=True,
+                ),
+                mock.patch(
+                    "opti_loop.gates.assess",
+                    side_effect=[
+                        _admitted_gate_result(),
+                        _admitted_gate_result(),
+                        bundle.evaluate(),
+                    ],
+                ),
             ):
                 report = run_gate(
                     repo_root=root,
@@ -1012,17 +1693,134 @@ class EvidenceEligibilityTest(unittest.TestCase):
                     thresholds={"smoke_min_pass_rate": 0.5},
                     noise_band=None,
                     run_identity="identity",
+                    protocol_snapshot=bundle.protocol,
                     task_sources={"task-a": "test-source"},
                     task_records={"task-a": bundle.task_record},
-                    regression_last_results={},
+                    regression_baseline=diagnostic,
                     admissions_path=bundle.admissions,
                     quarantine_path=bundle.quarantine,
                 )
-            self.assertTrue(report.eligibility["acceptance_eligible"])
+            self.assertTrue(
+                report.eligibility["acceptance_eligible"],
+                report.to_dict(),
+            )
             self.assertEqual(compare.call_args.kwargs["quarantined"], set())
             self.assertEqual(
                 report.rungs[-1].detail["reason"], "noise band unmeasured"
             )
+            self.assertEqual(verify_runtime.call_count, 5)
+
+    def test_gate_stops_when_runtime_binding_drifts_between_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = _Bundle(root)
+            diagnostic = EvalRun(
+                output_dir=root,
+                suite_name="diagnostic",
+                summary={
+                    "run_valid": True,
+                    "acceptance_decision_eligible": False,
+                    "strict_success_rate": 1.0,
+                },
+                statuses={"task-a": "passed"},
+                rewards={"task-a": 1.0},
+                run_context=make_run_context(
+                    bundle.protocol,
+                    bundle.protocol["accepted_build"],
+                    arm="baseline",
+                    suite_role="dev",
+                    task_ids=["task-a"],
+                    repeat_index=0,
+                    seed=0,
+                ),
+            )
+            with (
+                mock.patch(
+                    "opti_loop.gates.fileguard.check_candidate",
+                    return_value=SimpleNamespace(
+                        ok=True,
+                        changed=[],
+                        to_dict=lambda: {},
+                    ),
+                ),
+                mock.patch(
+                    "opti_loop.gates.lint.scan_tree",
+                    return_value=SimpleNamespace(
+                        ok=True,
+                        findings=[],
+                        scanned_files=1,
+                    ),
+                ),
+                mock.patch(
+                    "opti_loop.gates.registration.check_change_registered",
+                    return_value=SimpleNamespace(ok=True, errors=[], warnings=[]),
+                ),
+                mock.patch(
+                    "opti_loop.gates.build_identity",
+                    return_value=bundle.candidate_build,
+                ),
+                mock.patch(
+                    "opti_loop.gates.run_suite",
+                    return_value=diagnostic,
+                ) as run_suite_mock,
+                mock.patch(
+                    "opti_loop.gates.verify_runtime_bindings",
+                    side_effect=[None, None, ProtocolError("trusted code changed")],
+                ),
+                mock.patch.object(
+                    EvalRun,
+                    "benchmark_admitted",
+                    new_callable=mock.PropertyMock,
+                    return_value=True,
+                ),
+                mock.patch(
+                    "opti_loop.gates.assess",
+                    return_value=_admitted_gate_result(),
+                ),
+            ):
+                report = run_gate(
+                    repo_root=root,
+                    worktree=root,
+                    base_sha="base",
+                    candidate_sha="candidate",
+                    iteration=1,
+                    eval_root=root,
+                    baseline_dev=diagnostic,
+                    manifest={
+                        "target_component": "policy",
+                        "predicted_improvements": [
+                            {"failure_class": "x", "tasks": ["not-in-catalog"]}
+                        ],
+                        "regression_risks": [],
+                    },
+                    manifest_report=SimpleNamespace(
+                        ok=True,
+                        errors=[],
+                        warnings=[],
+                    ),
+                    adapter_config={
+                        "verifier_id": "verifier-v1",
+                        "verifier_checksum": "checksum-v1",
+                    },
+                    suites={
+                        "smoke": "smoke",
+                        "dev": "dev",
+                        "regression": "regression",
+                    },
+                    thresholds={"smoke_min_pass_rate": 0.5},
+                    noise_band=None,
+                    run_identity="identity",
+                    protocol_snapshot=bundle.protocol,
+                    task_sources={"task-a": "test-source"},
+                    task_records={"task-a": bundle.task_record},
+                    regression_baseline=diagnostic,
+                    admissions_path=bundle.admissions,
+                    quarantine_path=bundle.quarantine,
+                )
+            self.assertEqual(run_suite_mock.call_count, 1)
+            self.assertEqual(report.rungs[-1].rung, "E4")
+            self.assertEqual(report.rungs[-1].status, "invalid")
+            self.assertIn("trusted code changed", report.rungs[-1].detail["error"])
 
     def test_same_run_pending_quarantine_blocks_clean_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1403,6 +2201,15 @@ class EvidenceEligibilityTest(unittest.TestCase):
                 statuses={"task-a": "passed"},
                 rewards={"task-a": 1.0},
             )
+            diagnostic.run_context = make_run_context(
+                bundle.protocol,
+                bundle.protocol["accepted_build"],
+                arm="baseline",
+                suite_role="dev",
+                task_ids=["task-a"],
+                repeat_index=0,
+                seed=0,
+            )
             runs = iter([diagnostic, diagnostic, bundle.run])
             guard = SimpleNamespace(ok=True, changed=[], to_dict=lambda: {})
             lint_report = SimpleNamespace(ok=True, findings=[], scanned_files=1)
@@ -1422,6 +2229,28 @@ class EvidenceEligibilityTest(unittest.TestCase):
                     return_value=registration,
                 ),
                 mock.patch("opti_loop.gates.run_suite", side_effect=lambda **_: next(runs)),
+                mock.patch(
+                    "opti_loop.gates.build_identity",
+                    return_value=bundle.candidate_build,
+                ),
+                mock.patch(
+                    "opti_loop.gates.make_run_context",
+                    return_value=bundle.context,
+                ),
+                mock.patch.object(
+                    EvalRun,
+                    "benchmark_admitted",
+                    new_callable=mock.PropertyMock,
+                    return_value=True,
+                ),
+                mock.patch(
+                    "opti_loop.gates.assess",
+                    side_effect=[
+                        _admitted_gate_result(),
+                        _admitted_gate_result(),
+                        bundle.evaluate(),
+                    ],
+                ),
             ):
                 report = run_gate(
                     repo_root=root,
@@ -1441,9 +2270,10 @@ class EvidenceEligibilityTest(unittest.TestCase):
                     thresholds={"smoke_min_pass_rate": 0.5},
                     noise_band=None,
                     run_identity="identity",
+                    protocol_snapshot=bundle.protocol,
                     task_sources={"task-a": "test-source"},
                     task_records={"task-a": {"state_change_expected": False}},
-                    regression_last_results={},
+                    regression_baseline=diagnostic,
                     admissions_path=bundle.admissions,
                     quarantine_path=bundle.quarantine,
                 )

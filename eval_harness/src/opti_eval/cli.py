@@ -12,6 +12,7 @@ from .adapters.registry import RegistryAdapter
 from .catalog import load_catalog, load_suite, select_tasks
 from .doctor import inspect_registry
 from .errors import OptiEvalError
+from .identity import simulated_run_identity
 from .paths import find_repo_root
 from .runner import run_evaluation
 from .summary import load_run_summary
@@ -152,7 +153,12 @@ def main(argv: list[str] | None = None) -> int:
             output = Path(args.output)
             if not output.is_absolute():
                 output = repo_root / output
-            run_record = run_evaluation(
+            protocol, context = simulated_run_identity(
+                suite=suite,
+                tasks=tasks,
+                adapter=adapter.describe(),
+            )
+            execution = run_evaluation(
                 repo_root=repo_root,
                 suite=suite,
                 tasks=tasks,
@@ -160,7 +166,10 @@ def main(argv: list[str] | None = None) -> int:
                 output_dir=output.resolve(),
                 max_workers=args.max_workers,
                 overwrite=args.overwrite,
+                protocol_snapshot=protocol,
+                run_context=context,
             )
+            run_record = execution.record
             _json_print(run_record["summary"])
             return 0 if run_record["summary"]["run_valid"] else 2
 

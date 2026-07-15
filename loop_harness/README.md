@@ -26,7 +26,7 @@ decision.**
 | Piece | Taken from | Adaptation here |
 |---|---|---|
 | Loop skeleton driven by a runbook (`PROGRAM.md`), workspace files, learnings log | neosigmaai/auto-harness | campaign state in an owner-only trusted store OUTSIDE the repo (v2); optimizer works in an isolated worktree |
-| Git file guard | auto-harness `gating.py` | v2: authoritative over the `base..candidate` **commit diff** (not the mutable working tree), allowlist `harness/components/`, path-safety, no disable switch |
+| Git file guard | auto-harness `gating.py` | v2: authoritative over the `base..candidate` **commit diff** (not the mutable working tree), frozen campaign harness-build allowlist, path-safety, no disable switch |
 | Regression suite memory + promotion of newly-fixed tasks | auto-harness | promotion produces **candidates** only; auto-promotion stays off pending ADR-0009 |
 | Sequential cheap-to-expensive gate, exit-code contract | auto-harness | expanded to the E0–E5 ladder of ADR-0005 |
 | Change manifest (evidence → root cause → fix → predicted fixes/risks → why this component) | agentic-harness-engineering | one canonical `schemas/experiment.schema.json` requires `target_component` and `cluster_ref`; conductor alone appends `attribution` or writes the discriminated `rejected_submission` record for invalid input |
@@ -57,8 +57,9 @@ separable, and `simulated:accepted` mutated real state. v2 closes these:
   record + accept/reset in a single step; no forgeable gate report to plant.
 - **Typed verdict** (`verdict.py`) — only `(accepted, benchmark)` advances
   state; every `simulated` verdict is inert for promotion, drift, and ranking.
-- **Benchmark eligibility** (`eligibility.py`) — every terminal task in an
-  otherwise reportable run must have an admitted, checksum-matched verifier, a
+- **Benchmark admission** (`eligibility.py`) — raw evaluator summaries always
+  remain non-reportable and decision-ineligible. Every terminal task in a
+  benchmark run must have an admitted, checksum-matched verifier, a
   strict runner/task/result-linked trace and hashed task-local artifact bundle,
   an exact runner-owned ordered task manifest, pinned source/verifier identity,
   consecutive trace sequence, ordered wall/monotonic time and every supplied
@@ -70,7 +71,9 @@ separable, and `simulated:accepted` mutated real state. v2 closes these:
   malformed quarantine storage is integrity-invalid. A defect/undecidable
   quarantine resolution remains blocking for the
   exact old run; favorable confirmation alone clears it. Fixture/command
-  rehearsals remain simulated.
+  rehearsals remain simulated. A clean review issues an evidence-bound AR-003
+  receipt; both comparison arms, every real noise sample, and accepted-state
+  replay require exact receipts.
 
 ## Honest limitations (current)
 
@@ -83,7 +86,7 @@ separable, and `simulated:accepted` mutated real state. v2 closes these:
 4. **Thresholds are placeholders** (`min_prediction_precision`, smoke floor,
    noise band) — TBD-from-measurement once real bridges calibrate.
 5. **Deployment isolation is a requirement, not code**: in production the
-   optimizer must be mounted with only `<worktree>/harness/components`
+   optimizer must be mounted with only the frozen campaign candidate allowlist
    writable. The store-outside-repo + commit-diff design enforces the boundary
    *given* that confinement; a shared filesystem with an unconfined optimizer
    is out of the threat model this code can close alone.

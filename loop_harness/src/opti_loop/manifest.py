@@ -234,6 +234,7 @@ def _validate_evaluation_plan(report: ManifestReport, value: object) -> None:
 def load_and_validate(
     manifest_path: Path,
     *,
+    allowed_prefixes: tuple[str, ...],
     changed_files: list[str] | None = None,
     divergent: bool = False,
 ) -> ManifestReport:
@@ -313,6 +314,7 @@ def load_and_validate(
         treatment.get("change_scope"),
         "treatment.change_scope",
         min_items=1,
+        unique=True,
     ) if "change_scope" in treatment else []
     if "activation_evidence" in treatment:
         _validate_string_list(
@@ -322,11 +324,10 @@ def load_and_validate(
             nonempty=False,
         )
 
-    # One component per change (ADR-0015 §3.D): every changed path must sit
-    # inside the declared component's directory AND be path-safe (F03: reject
-    # absolute paths, `..` traversal, NUL, backslash separators before any
-    # consumer resolves or deletes them).
-    expected_prefix = f"{COMPONENT_ROOT}/{component}/"
+    # The frozen candidate allowlist is the sole path authority (ADR-0018).
+    # target_component remains attribution metadata; it cannot narrow or
+    # broaden the treatment.  change_scope must be path-safe and exactly match
+    # the complete base..candidate commit diff.
     for path in scope:
         if not isinstance(path, str) or not path:
             report.errors.append(f"change_scope path must be a non-empty string: {path!r}")
@@ -335,22 +336,17 @@ def load_and_validate(
         if not path_is_safe(path_str):
             report.errors.append(f"unsafe change_scope path: {path_str!r}")
             continue
-        if not is_allowed(path_str):
+        if not is_allowed(path_str, allowed_prefixes):
             report.errors.append(f"change_scope path {path_str!r} is outside the optimizer surface")
-            continue
-        if not path_str.startswith(expected_prefix):
-            report.errors.append(
-                f"change_scope path {path_str!r} is outside {expected_prefix}"
-            )
     if changed_files is not None:
         scope_set = set(scope)
-        undeclared = [
-            path
-            for path in changed_files
-            if path.startswith(COMPONENT_ROOT + "/") and path not in scope_set
-        ]
+        changed_set = set(changed_files)
+        undeclared = sorted(changed_set - scope_set)
         for path in undeclared:
             report.errors.append(f"changed file not declared in change_scope: {path}")
+        unchanged = sorted(scope_set - changed_set)
+        for path in unchanged:
+            report.errors.append(f"change_scope declares unchanged file: {path}")
 
     # Exploration enforcement (F16): a divergent iteration must NOT be a local
     # retry on the top cluster. It must carry a reserved divergent cluster_ref

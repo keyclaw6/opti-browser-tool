@@ -22,9 +22,31 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
+from opti_eval.adapters.fixture import FixtureAdapter
+from opti_eval.identity import (
+    digest_json,
+    finalize_protocol_snapshot,
+    normalize_adapter_identity,
+    simulated_protocol,
+)
 from opti_loop.campaign import init_campaign, load_campaign
-from opti_loop.conductor import run_iteration, start_iteration, measure_noise
+from opti_loop.conductor import (
+    _load_accepted_run,
+    compare_campaigns,
+    measure_noise,
+    run_iteration,
+    start_iteration,
+)
+from opti_loop import gitutil
+from opti_loop.protocol import (
+    ProtocolError,
+    build_protocol_snapshot,
+    freeze_protocol,
+    load_frozen_protocol,
+)
 
 REPO_ROOT = Path(os.environ["OPTI_BROWSER_REPO_ROOT"])
 ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
@@ -109,6 +131,17 @@ class TransactionalLoopTest(unittest.TestCase):
             for tid in sorted(ids):
                 fh.write(json.dumps({"verifier_id": "test-verifier", "task_id": tid,
                                      "verifier_checksum": self.checksum, "admitted": True}) + "\n")
+        verifier = campaign.config["identity"]["verifier_bundle"]
+        verifier.update(
+            id="test-verifier",
+            checksum=self.checksum,
+            bundle_digest=hashlib.sha256(self.bridge.read_bytes()).hexdigest(),
+            admissions_digest=hashlib.sha256(
+                b"opti.admissions.v1\0"
+                + campaign.store.admissions_path.read_bytes()
+            ).hexdigest(),
+        )
+        campaign.save_config()
 
     def _commit_quality(self, worktree: Path, value: str) -> None:
         (worktree / QUALITY_REL).write_text(value)
@@ -135,6 +168,19 @@ class TransactionalLoopTest(unittest.TestCase):
                      "suites": {"dev": "smoke", "smoke": "smoke", "regression": "regression"},
                      "thresholds": {"smoke_min_pass_rate": 0.1, **thresholds},
                      "exploration": {"divergence_quota": 0, "plateau_force_after": 0, "pivot_after_failures": 2}}
+        verifier_id = adapter.get("verifier_id")
+        verifier_checksum = adapter.get("verifier_checksum")
+        if verifier_id is not None or verifier_checksum is not None:
+            overrides["identity"] = {
+                "verifier_bundle": {
+                    "id": verifier_id,
+                    "checksum": verifier_checksum,
+                    "bundle_digest": hashlib.sha256(self.bridge.read_bytes()).hexdigest(),
+                    "admissions_digest": hashlib.sha256(
+                        f"{verifier_id}:{verifier_checksum}".encode()
+                    ).hexdigest(),
+                }
+            }
         return init_campaign(self.repo, cid, store_root=self.store, overrides=overrides)
 
     def _assert_rejected_transaction(
@@ -192,6 +238,20 @@ class TransactionalLoopTest(unittest.TestCase):
         measure_noise(campaign, runs=2)
 
         started = start_iteration(campaign)
+        self.assertIn(
+            "edit only the frozen candidate surface(s) harness/components/",
+            started["instructions"],
+        )
+        packet_path = Path(started["packet"])
+        packet = packet_path.read_text()
+        self.assertIn("frozen candidate allowlist: `harness/components/`", packet)
+        self.assertIn("`target_component` is attribution only", packet)
+        self.assertEqual(
+            json.loads((packet_path.parent / "packet.json").read_text())[
+                "candidate_allowlist"
+            ],
+            ["harness/components/"],
+        )
         wt = Path(started["worktree"])
         self._commit_quality(wt, "0.70\n")
         self._write_manifest(wt, predicted=self.flipping[:2])
@@ -378,6 +438,339 @@ class TransactionalLoopTest(unittest.TestCase):
         self.assertIn("raise policy quality", appended)
         self.assertIn("stub/real_v1/failed", appended)
         self.assertIn("`policy`", appended)
+
+    # ── ADR-0018 D1: one frozen protocol and closed per-run identities ──
+    def test_protocol_digest_tracks_content_and_exact_runtime_identities(self) -> None:
+        campaign = self._new_campaign("identity", {"kind": "fixture", "seed": 0})
+        gitutil.worktree_add(
+            campaign.repo_root,
+            campaign.worktree_path,
+            campaign.state["accepted_base_sha"],
+        )
+        worktree = campaign.worktree_path
+        try:
+            original = build_protocol_snapshot(campaign, worktree, iteration=1)
+            digests = {original["protocol_digest"]}
+
+            catalog = worktree / "evals/catalog/tasks.jsonl"
+            rows = catalog.read_text(encoding="utf-8").splitlines()
+            first = json.loads(rows[0])
+            first["goal"] = first["goal"] + " content mutation"
+            rows[0] = json.dumps(first, sort_keys=True)
+            catalog.write_text("\n".join(rows) + "\n", encoding="utf-8")
+            digests.add(
+                build_protocol_snapshot(campaign, worktree, iteration=1)["protocol_digest"]
+            )
+            _git(worktree, "checkout", "--", "evals/catalog/tasks.jsonl")
+
+            campaign.config["identity"]["executor"]["revision"] = "simulated:v2"
+            digests.add(
+                build_protocol_snapshot(campaign, worktree, iteration=1)["protocol_digest"]
+            )
+            campaign.config["identity"]["executor"]["revision"] = "simulated:v1"
+
+            campaign.config["identity"]["verifier_bundle"]["bundle_digest"] = "1" * 64
+            digests.add(
+                build_protocol_snapshot(campaign, worktree, iteration=1)["protocol_digest"]
+            )
+            campaign.config["identity"]["verifier_bundle"]["bundle_digest"] = original[
+                "verifier_bundle"
+            ]["bundle_digest"]
+
+            source = original["matched_blocks"][0]["source"]
+            campaign.config["identity"]["source_runtimes"][source]["reset"]["digest"] = "2" * 64
+            digests.add(
+                build_protocol_snapshot(campaign, worktree, iteration=1)["protocol_digest"]
+            )
+            campaign.config["identity"]["source_runtimes"][source]["reset"]["digest"] = original[
+                "source_runtimes"
+            ][source]["reset"]["digest"]
+            campaign.config["identity"]["source_runtimes"][source]["browser"]["digest"] = "3" * 64
+            digests.add(
+                build_protocol_snapshot(campaign, worktree, iteration=1)["protocol_digest"]
+            )
+
+            lane = worktree / "harness/lanes/structured.lane.json"
+            lane.write_text(lane.read_text() + "\n", encoding="utf-8")
+            digests.add(
+                build_protocol_snapshot(campaign, worktree, iteration=1)["protocol_digest"]
+            )
+            self.assertEqual(len(digests), 7)
+        finally:
+            gitutil.worktree_remove(campaign.repo_root, worktree)
+
+    def test_frozen_protocol_is_no_overwrite_reloadable_and_tamper_evident(self) -> None:
+        campaign = self._new_campaign("freeze", {"kind": "fixture", "seed": 0})
+        gitutil.worktree_add(
+            campaign.repo_root,
+            campaign.worktree_path,
+            campaign.state["accepted_base_sha"],
+        )
+        try:
+            snapshot = build_protocol_snapshot(
+                campaign, campaign.worktree_path, iteration=1
+            )
+            iteration_dir = campaign.iteration_dir(1)
+            path = freeze_protocol(iteration_dir, snapshot)
+            self.assertEqual(load_frozen_protocol(iteration_dir), snapshot)
+            with self.assertRaisesRegex(ProtocolError, "will not be overwritten"):
+                freeze_protocol(iteration_dir, snapshot)
+            tampered = json.loads(path.read_text())
+            tampered["executor"]["revision"] = "simulated:tampered"
+            path.write_text(json.dumps(tampered) + "\n")
+            with self.assertRaisesRegex(ProtocolError, "binding_digest|protocol_digest"):
+                load_frozen_protocol(iteration_dir)
+        finally:
+            gitutil.worktree_remove(campaign.repo_root, campaign.worktree_path)
+
+    def test_start_freezes_before_baseline_and_later_config_mutation_is_inert(self) -> None:
+        campaign = self._new_campaign("frozen", {"kind": "fixture", "seed": 0})
+        started = start_iteration(campaign)
+        iteration_dir = campaign.iteration_dir(started["iteration"])
+        protocol_path = iteration_dir / "protocol.snapshot.json"
+        frozen_bytes = protocol_path.read_bytes()
+        protocol = load_frozen_protocol(iteration_dir)
+        baseline_record = json.loads(
+            (iteration_dir / "eval/dev_baseline/run.json").read_text()
+        )
+        self.assertEqual(
+            baseline_record["run_context"]["protocol_digest"],
+            protocol["protocol_digest"],
+        )
+
+        campaign.config["adapter"] = {"kind": "unsupported-after-start"}
+        campaign.config["suites"] = {
+            "dev": "missing-after-start",
+            "smoke": "missing-after-start",
+            "regression": "missing-after-start",
+        }
+        campaign.config["identity"]["executor"]["revision"] = "simulated:mutated"
+        campaign.save_config()
+        result = run_iteration(campaign)
+        self.assertEqual(result["decision"], "rejected")
+        self.assertEqual(protocol_path.read_bytes(), frozen_bytes)
+        ledger = json.loads(campaign.ledger_path.read_text().splitlines()[-1])
+        self.assertEqual(ledger["protocol_digest"], protocol["protocol_digest"])
+
+    def test_start_preflight_preserves_existing_iteration_and_state(self) -> None:
+        campaign = self._new_campaign("preflight", {"kind": "fixture", "seed": 0})
+        iteration_dir = campaign.iteration_dir(1)
+        iteration_dir.mkdir(parents=True)
+        sentinel = iteration_dir / "owner-artifact.txt"
+        sentinel.write_text("preserve\n", encoding="utf-8")
+        state_before = json.loads(json.dumps(campaign.state))
+
+        with self.assertRaisesRegex(RuntimeError, "next iteration path already exists"):
+            start_iteration(campaign)
+
+        self.assertEqual(campaign.state, state_before)
+        self.assertEqual(sentinel.read_text(encoding="utf-8"), "preserve\n")
+        self.assertFalse(campaign.worktree_path.exists())
+
+    def test_start_adapter_identity_failure_cleans_only_new_state(self) -> None:
+        campaign = self._new_campaign("adapter-drift", {"kind": "fixture", "seed": 0})
+        gitutil.worktree_add(
+            campaign.repo_root,
+            campaign.worktree_path,
+            campaign.state["accepted_base_sha"],
+        )
+        snapshot = build_protocol_snapshot(
+            campaign,
+            campaign.worktree_path,
+            iteration=1,
+        )
+        gitutil.worktree_remove(campaign.repo_root, campaign.worktree_path)
+        mismatched = FixtureAdapter(pass_rate=0.55, seed=99).describe()
+        snapshot["adapter"] = normalize_adapter_identity(mismatched)
+        for name in (
+            "calibration_binding_digest",
+            "comparison_apparatus_digest",
+            "protocol_digest",
+        ):
+            snapshot.pop(name)
+        snapshot = finalize_protocol_snapshot(snapshot)
+        state_before = json.loads(json.dumps(campaign.state))
+
+        with (
+            mock.patch(
+                "opti_loop.conductor.build_protocol_snapshot",
+                return_value=snapshot,
+            ),
+            self.assertRaisesRegex(ValueError, "adapter identity does not match"),
+        ):
+            start_iteration(campaign)
+
+        self.assertEqual(campaign.state, state_before)
+        self.assertFalse(campaign.worktree_path.exists())
+        self.assertFalse(campaign.iteration_dir(1).exists())
+
+    def test_comparison_uses_apparatus_not_campaign_run_or_build_identity(self) -> None:
+        left = self._new_campaign("compare-left", {"kind": "fixture", "seed": 0})
+        right = self._new_campaign("compare-right", {"kind": "fixture", "seed": 0})
+
+        def protocol(label: str, campaign_id: str, iteration: int) -> dict:
+            adapter = FixtureAdapter(pass_rate=1.0, seed=0)
+            snapshot = simulated_protocol(
+                suite={"id": "comparison-suite", "kind": "test"},
+                tasks=[
+                    {
+                        "id": "comparison-task",
+                        "source": "test-source",
+                        "goal": "test",
+                    }
+                ],
+                adapter=adapter.describe(),
+            )
+            snapshot["campaign_id"] = campaign_id
+            snapshot["iteration"] = iteration
+            snapshot["accepted_build"].update(
+                commit_sha=f"simulated:{label}:commit",
+                tree_sha=f"simulated:{label}:tree",
+                materialized_digest=digest_json(
+                    label,
+                    domain="test.accepted-build.v1",
+                ),
+            )
+            for name in (
+                "calibration_binding_digest",
+                "comparison_apparatus_digest",
+                "protocol_digest",
+            ):
+                snapshot.pop(name)
+            return finalize_protocol_snapshot(snapshot)
+
+        left_protocol = protocol("left", left.campaign_id, 2)
+        right_protocol = protocol("right", right.campaign_id, 7)
+        self.assertNotEqual(left_protocol["protocol_digest"], right_protocol["protocol_digest"])
+        self.assertEqual(
+            left_protocol["comparison_apparatus_digest"],
+            right_protocol["comparison_apparatus_digest"],
+        )
+        accepted = SimpleNamespace(
+            protocol_snapshot=left_protocol,
+            summary={"strict_success_rate": 1.0},
+        )
+        with mock.patch(
+            "opti_loop.conductor._load_accepted_run",
+            side_effect=[accepted, accepted],
+        ):
+            report = compare_campaigns(
+                self.repo,
+                [left.campaign_id, right.campaign_id],
+                store_root=self.store,
+            )
+        self.assertTrue(report["comparable"], report)
+
+    def test_comparison_fails_closed_for_missing_or_different_identity(self) -> None:
+        left = self._new_campaign("compare-base", {"kind": "fixture", "seed": 0})
+        different = self._new_campaign(
+            "compare-different",
+            {"kind": "fixture", "seed": 0},
+        )
+        missing = self._new_campaign("compare-missing", {"kind": "fixture", "seed": 0})
+        base_run = SimpleNamespace(
+            protocol_snapshot={
+                "comparison_apparatus_digest": "a" * 64,
+                "executor": {"model": "model-a"},
+                "execution": {"suites": {"dev": "suite-a"}},
+            },
+            summary={"strict_success_rate": 0.75},
+        )
+        different_run = SimpleNamespace(
+            protocol_snapshot={
+                "comparison_apparatus_digest": "b" * 64,
+                "executor": {"model": "model-a"},
+                "execution": {"suites": {"dev": "suite-a"}},
+            },
+            summary={"strict_success_rate": 0.80},
+        )
+        with mock.patch(
+            "opti_loop.conductor._load_accepted_run",
+            side_effect=[base_run, different_run],
+        ):
+            report = compare_campaigns(
+                self.repo,
+                [left.campaign_id, different.campaign_id],
+                store_root=self.store,
+            )
+        self.assertFalse(report["comparable"])
+        self.assertIn("differ", report["non_comparable_reason"])
+
+        with mock.patch(
+            "opti_loop.conductor._load_accepted_run",
+            side_effect=[base_run, None],
+        ):
+            missing_report = compare_campaigns(
+                self.repo,
+                [left.campaign_id, missing.campaign_id],
+                store_root=self.store,
+            )
+        self.assertFalse(missing_report["comparable"])
+        self.assertIn("missing accepted", missing_report["non_comparable_reason"])
+
+
+    def test_accepted_loader_rejects_simulated_anchor(self) -> None:
+        campaign = self._new_campaign("simulated-anchor", {"kind": "fixture", "seed": 0})
+        campaign.state.update(
+            last_accepted_treatment_dir=str(campaign.store.campaign_dir),
+            last_accepted_admission_receipt=None,
+        )
+        with self.assertRaisesRegex(RuntimeError, "missing.*AR-003 admission"):
+            _load_accepted_run(campaign)
+
+    def test_stale_noise_binding_changes_with_executor_identity(self) -> None:
+        campaign = self._new_campaign("stale-noise", {"kind": "fixture", "seed": 0})
+        band = measure_noise(campaign, runs=2)
+        noise_protocol = load_frozen_protocol(campaign.store.campaign_dir / "noise")
+        self.assertEqual(band.run_identity, noise_protocol["calibration_binding_digest"])
+
+        campaign.config["identity"]["executor"]["revision"] = "simulated:v2"
+        started = start_iteration(campaign)
+        iteration_protocol = load_frozen_protocol(
+            campaign.iteration_dir(started["iteration"])
+        )
+        self.assertNotEqual(
+            band.run_identity, iteration_protocol["calibration_binding_digest"]
+        )
+        run_iteration(campaign)
+
+    def test_digest_only_real_noise_band_cannot_reach_a_decision(self) -> None:
+        campaign = self._new_campaign("digest-only-noise", {"kind": "fixture", "seed": 0})
+        base_before = campaign.state["accepted_base_sha"]
+        band = measure_noise(campaign, runs=2).to_dict()
+        band.pop("sample_anchors")
+        band["synthetic"] = False
+        band["admission_receipt_digests"] = ["a" * 64, "b" * 64]
+        campaign.config["noise_band"] = band
+        campaign.save_config()
+
+        started = start_iteration(campaign)
+        worktree = Path(started["worktree"])
+        self._commit_quality(worktree, "0.70\n")
+        self._write_manifest(worktree, predicted=self.flipping[:2])
+        result = run_iteration(campaign)
+
+        self.assertEqual(result["decision"], "invalid")
+        self.assertFalse(result["advanced_accepted_state"])
+        self.assertEqual(campaign.state["accepted_base_sha"], base_before)
+        report = json.loads(
+            (campaign.iteration_dir(result["iteration"]) / "gate-report.json").read_text()
+        )
+        self.assertIn(
+            "noise-band fields are not closed",
+            report["rungs"][0]["detail"]["reason"],
+        )
+
+    def test_benchmark_preflight_rejects_simulated_identity_before_baseline(self) -> None:
+        campaign = self._new_campaign("production", {"kind": "fixture", "seed": 0})
+        campaign.config["identity"]["evidence_mode"] = "benchmark"
+        with self.assertRaisesRegex(
+            ProtocolError, "benchmark verifier admissions file is missing"
+        ):
+            start_iteration(campaign)
+        self.assertEqual(campaign.current_iteration, 0)
+        self.assertFalse(campaign.worktree_path.exists())
+        self.assertFalse((campaign.iteration_dir(1) / "eval/dev_baseline").exists())
 
 
 if __name__ == "__main__":

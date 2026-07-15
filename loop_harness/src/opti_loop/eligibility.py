@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from opti_eval.identity import LiveRunReceipt, digest_json
 from opti_eval.models import (
     canonical_json,
     split_lf_jsonl_records,
@@ -22,7 +23,8 @@ from opti_eval.models import (
 )
 from opti_eval.summary import validate_run_directory
 
-from .evaluate import EvalRun
+from .evaluate import AdmissionReceipt, EvalRun
+from .protocol import ProtocolError, verify_runtime_bindings
 
 
 @dataclass(slots=True)
@@ -35,6 +37,7 @@ class Eligibility:
     newly_quarantined: list[str] = field(default_factory=list)
     quarantined_tasks: list[str] = field(default_factory=list)
     t1_flag_count: int = 0
+    admission_receipt: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -46,7 +49,46 @@ class Eligibility:
             "newly_quarantined": self.newly_quarantined,
             "quarantined_tasks": self.quarantined_tasks,
             "t1_flag_count": self.t1_flag_count,
+            "admission_receipt": self.admission_receipt,
         }
+
+
+def _issue_admission_receipt(
+    *,
+    run: EvalRun,
+    checked: Any,
+    expected_receipt: LiveRunReceipt,
+    task_records: dict[str, dict[str, Any]],
+    admissions: dict[tuple[str, str], dict[str, Any]],
+    verifier_id: str,
+    dispositions: dict[str, list[dict[str, Any]]],
+    t1_flag_count: int,
+) -> AdmissionReceipt:
+    task_bundle_digest = digest_json(
+        [
+            {
+                "task": task_records[task_id],
+                "result": checked.results_by_task[task_id],
+                "verifier_admission": admissions[(verifier_id, task_id)],
+                "t1_dispositions": dispositions[task_id],
+            }
+            for task_id in checked.task_ids
+        ],
+        domain="opti.ar003-task-bundles.v1",
+    )
+    payload: dict[str, Any] = {
+        "schema_version": "0.1.0",
+        "protocol_digest": expected_receipt.protocol_digest,
+        "run_digest": expected_receipt.run_digest,
+        "adapter_digest": expected_receipt.adapter_digest,
+        "run_id": run.run_id,
+        "task_bundle_digest": task_bundle_digest,
+        "t1_flag_count": t1_flag_count,
+    }
+    return AdmissionReceipt(
+        **payload,
+        receipt_digest=digest_json(payload, domain="opti.ar003-admission-receipt.v1"),
+    )
 
 
 def _invalid(*errors: str, flag_count: int = 0) -> Eligibility:
@@ -119,16 +161,19 @@ def assess(
     *,
     run: EvalRun,
     run_dir: Path,
-    adapter_config: dict[str, Any],
+    expected_receipt: LiveRunReceipt,
     task_records: dict[str, dict[str, Any]],
     admissions_path: Path,
     quarantine_path: Path,
 ) -> Eligibility:
+    # A previous in-memory admission never survives revalidation.  Only the
+    # clean terminal path below may attach a fresh receipt.
+    run.admission_receipt = None
     # Fixture, command, registry, and replay-only runs stay useful as simulated
     # diagnostics and are not required to fabricate browser evidence.  A
     # trusted reportable adapter, however, must fail closed on persisted-run
     # corruption even if replay already removed its optimistic summary flags.
-    if not run.adapter_reportable:
+    if expected_receipt.evidence_mode != "benchmark":
         return Eligibility(
             evidence_class="simulated",
             acceptance_eligible=False,
@@ -138,7 +183,17 @@ def assess(
             ],
         )
 
-    checked = validate_run_directory(run_dir)
+    if run.live_receipt != expected_receipt:
+        return _invalid("EvalRun live receipt does not match the caller-held expectation")
+    try:
+        verify_runtime_bindings(
+            run.protocol_snapshot,
+            admissions_path=admissions_path,
+        )
+    except ProtocolError as exc:
+        return _invalid(f"trusted evaluation apparatus drifted: {exc}")
+
+    checked = validate_run_directory(run_dir, expected_receipt=expected_receipt)
     if not checked.ok:
         return _invalid(*checked.errors)
 
@@ -164,12 +219,12 @@ def assess(
         if not same:
             return _invalid(f"task {task_id}: EvalRun result does not match results.jsonl")
 
-    if not run.acceptance_decision_eligible:
+    if not run.run_valid:
         return Eligibility(
             evidence_class="simulated",
             acceptance_eligible=False,
             integrity_status="not_applicable",
-            reasons=["reportable adapter run contains non-terminal or invalid outcomes"],
+            reasons=["benchmark run contains non-terminal or invalid outcomes"],
         )
 
     if not run.run_id:
@@ -178,24 +233,38 @@ def assess(
         return _invalid("reportable run has no terminal task results")
     if set(run.results) != set(run.statuses):
         return _invalid("aggregate result rows do not match the reportable task set")
+    unmarked = [
+        task_id
+        for task_id in checked.task_ids
+        if not (
+            isinstance(checked.results_by_task[task_id].get("metadata"), dict)
+            and checked.results_by_task[task_id]["metadata"].get(
+                "benchmark_reportable"
+            )
+            is True
+        )
+    ]
+    if unmarked:
+        return _invalid(
+            "benchmark result marker is missing for task(s): "
+            + ", ".join(unmarked[:8])
+        )
 
+    verifier = run.protocol_snapshot.get("verifier_bundle", {})
     try:
         verifier_id = validate_nonempty_string(
-            adapter_config.get("verifier_id"), field_name="adapter verifier_id"
+            verifier.get("id"), field_name="frozen verifier id"
         )
         verifier_checksum = validate_nonempty_string(
-            adapter_config.get("verifier_checksum"),
-            field_name="adapter verifier_checksum",
+            verifier.get("checksum"), field_name="frozen verifier checksum"
         )
-    except ValueError:
-        return _invalid(
-            "adapter declares no pinned verifier_id/verifier_checksum; benchmark admission is unavailable"
-        )
+    except ValueError as exc:
+        return _invalid(str(exc))
     if checked.run_record.get("verifier") != {
         "id": verifier_id,
         "checksum": verifier_checksum,
     }:
-        return _invalid("run.json verifier binding does not match adapter config")
+        return _invalid("run.json verifier binding does not match frozen protocol")
 
     expected_sources: dict[str, str] = {}
     for task_id in checked.task_ids:
@@ -392,9 +461,33 @@ def assess(
             quarantined_tasks=sorted(quarantined),
             t1_flag_count=total_flags,
         )
+    dispositions: dict[str, list[dict[str, Any]]] = {}
+    try:
+        for task_id in checked.task_ids:
+            run_ref = f"{run.run_id}/{task_id}/{run.results[task_id]['trace_path']}"
+            dispositions[task_id] = queue.exact_run_dispositions(
+                task_id=task_id, run_ref=run_ref
+            )
+    except Exception as exc:
+        return _invalid(
+            f"quarantine disposition receipt failed: {type(exc).__name__}: {exc}",
+            flag_count=total_flags,
+        )
+    admission_receipt = _issue_admission_receipt(
+        run=run,
+        checked=checked,
+        expected_receipt=expected_receipt,
+        task_records=task_records,
+        admissions=admissions,
+        verifier_id=verifier_id,
+        dispositions=dispositions,
+        t1_flag_count=total_flags,
+    ).to_dict()
+    run.admission_receipt = admission_receipt
     return Eligibility(
         evidence_class="benchmark",
         acceptance_eligible=True,
         integrity_status="valid",
         t1_flag_count=total_flags,
+        admission_receipt=admission_receipt,
     )

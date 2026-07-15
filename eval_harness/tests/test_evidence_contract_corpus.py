@@ -20,6 +20,7 @@ from evidence_contract_corpus import (  # noqa: E402
 from opti_eval.adapters.fixture import FixtureAdapter  # noqa: E402
 from opti_eval.catalog import load_catalog, load_suite  # noqa: E402
 from opti_eval.errors import ValidationError  # noqa: E402
+from opti_eval.identity import simulated_run_identity  # noqa: E402
 from opti_eval.models import (  # noqa: E402
     TaskResult,
     canonical_json,
@@ -33,6 +34,20 @@ def _write_replay(run_dir: Path, result: dict) -> None:
     task_id = result.get("task_id")
     source = result.get("source", "test-source")
     run_dir.mkdir()
+    protocol = None
+    context = None
+    try:
+        validate_persisted_result(result)
+        protocol, context = simulated_run_identity(
+            suite={"id": "test", "kind": "test"},
+            tasks=[{"id": task_id, "source": source}],
+            adapter={"name": "test", "benchmark_reportable": False},
+            run_id="run-1",
+        )
+        result = copy.deepcopy(result)
+        result["metadata"]["run_context_digest"] = context["run_digest"]
+    except ValueError:
+        pass
     task_dir = run_dir / "tasks" / "task-a"
     task_dir.mkdir(parents=True)
     (task_dir / "task.json").write_text(
@@ -45,20 +60,48 @@ def _write_replay(run_dir: Path, result: dict) -> None:
         json.dumps(result) + "\n", encoding="utf-8"
     )
     (run_dir / "summary.json").write_text(
-        json.dumps({"run_id": "run-1", "task_count": 1}) + "\n",
+        json.dumps(
+            {
+                "run_id": "run-1",
+                "task_count": 1,
+                **(
+                    {
+                        "protocol_digest": protocol["protocol_digest"],
+                        "run_context_digest": context["run_digest"],
+                        "adapter_digest": protocol["adapter"]["digest"],
+                    }
+                    if protocol is not None and context is not None
+                    else {}
+                ),
+            }
+        )
+        + "\n",
         encoding="utf-8",
     )
     (run_dir / "run.json").write_text(
         json.dumps(
             {
-                "schema_version": "0.1.0",
+                "schema_version": "0.2.0" if protocol is not None else "0.1.0",
                 "run_id": "run-1",
                 "status": "completed",
                 "suite": {"id": "test", "kind": "test", "task_count_requested": 1},
                 "task_count": 1,
                 "task_ids": [task_id],
                 "task_manifest": [{"task_id": task_id, "source": source}],
-                "adapter": {"name": "test", "benchmark_reportable": False},
+                "adapter": (
+                    protocol["adapter"]
+                    if protocol is not None
+                    else {"name": "test", "benchmark_reportable": False}
+                ),
+                **(
+                    {
+                        "protocol": protocol,
+                        "run_context": context,
+                        "run_context_digest": context["run_digest"],
+                    }
+                    if protocol is not None and context is not None
+                    else {}
+                ),
             }
         )
         + "\n",
@@ -295,6 +338,13 @@ class EvidenceContractCorpusTest(unittest.TestCase):
         for task_id in ("../../escaped", "/absolute", " task-a", "task/a"):
             with self.subTest(task_id=task_id), tempfile.TemporaryDirectory() as tmp:
                 output = Path(tmp) / "run"
+                adapter = FixtureAdapter()
+                valid_task = {"id": "task-a", "source": "test-source"}
+                protocol, context = simulated_run_identity(
+                    suite={"id": "test", "kind": "test"},
+                    tasks=[valid_task],
+                    adapter=adapter.describe(),
+                )
                 with self.assertRaises(ValueError):
                     run_evaluation(
                         repo_root=ROOT,
@@ -302,6 +352,8 @@ class EvidenceContractCorpusTest(unittest.TestCase):
                         tasks=[{"id": task_id, "source": "test-source"}],
                         adapter=FixtureAdapter(),
                         output_dir=output,
+                        protocol_snapshot=protocol,
+                        run_context=context,
                     )
                 self.assertFalse(output.exists())
 

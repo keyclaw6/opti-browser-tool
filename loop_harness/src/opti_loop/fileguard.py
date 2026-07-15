@@ -18,9 +18,6 @@ from pathlib import Path
 
 from . import gitutil
 
-# The only surface the optimizer may modify (ADR-0015 §5, PROGRAM.md §2).
-ALLOWED_PREFIXES: tuple[str, ...] = ("harness/components/",)
-
 # Untracked files the conductor tolerates in the worktree at gate time: the
 # optimizer drops its manifest here; the conductor ingests it as untrusted input.
 TOLERATED_UNTRACKED: frozenset[str] = frozenset({"manifest.json"})
@@ -30,7 +27,7 @@ class GuardError(RuntimeError):
     """Raised when the guard itself cannot run (git missing / not a repo)."""
 
 
-def is_allowed(path: str, allowed_prefixes: tuple[str, ...] = ALLOWED_PREFIXES) -> bool:
+def is_allowed(path: str, allowed_prefixes: tuple[str, ...]) -> bool:
     return any(path.startswith(prefix) for prefix in allowed_prefixes)
 
 
@@ -41,7 +38,7 @@ def path_is_safe(path: str) -> bool:
     if path.startswith("/"):
         return False
     parts = path.split("/")
-    if ".." in parts or "" in parts[:-1]:
+    if any(part in {"", ".", ".."} for part in parts):
         return False
     return True
 
@@ -83,7 +80,7 @@ def check_candidate(
     worktree: Path,
     base_sha: str,
     candidate_sha: str,
-    allowed_prefixes: tuple[str, ...] = ALLOWED_PREFIXES,
+    allowed_prefixes: tuple[str, ...],
 ) -> GuardReport:
     """Authoritative guard over commit objects + worktree cleanliness.
 

@@ -7,14 +7,23 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from opti_eval.adapters.base import AdapterExecutionContext
 from opti_eval.adapters.command import CommandAdapter
 from opti_eval.adapters.registry import RegistryAdapter
 from opti_eval.catalog import select_tasks
+from opti_eval.identity import simulated_run_identity
 from opti_eval.runner import run_evaluation
 from opti_eval.summary import summarize_results
 
 
 class CommandAdapterTest(unittest.TestCase):
+    @staticmethod
+    def _execution_context() -> AdapterExecutionContext:
+        return AdapterExecutionContext(
+            run_id="test-run",
+            run_context_digest="0" * 64,
+        )
+
     @staticmethod
     def _payload_adapter(tmp: Path, payload: dict) -> CommandAdapter:
         bridge = tmp / "bridge.py"
@@ -34,7 +43,7 @@ class CommandAdapterTest(unittest.TestCase):
             return self._payload_adapter(Path(tmp), payload).run(
                 {"id": "task-a", "source": "test-source"},
                 task_dir,
-                run_id="test-run",
+                execution_context=self._execution_context(),
             )
 
     @staticmethod
@@ -56,7 +65,7 @@ class CommandAdapterTest(unittest.TestCase):
             return self._raw_adapter(Path(tmp), raw).run(
                 {"id": "task-a", "source": "test-source"},
                 task_dir,
-                run_id="test-run",
+                execution_context=self._execution_context(),
             )
 
     def test_missing_task_id_is_invalid(self) -> None:
@@ -151,9 +160,7 @@ class CommandAdapterTest(unittest.TestCase):
         self.assertEqual(result.status, "passed")
         self.assertEqual(result.reward, 1.0)
         self.assertIs(result.metadata["benchmark_reportable"], False)
-        summary = summarize_results(
-            [result.to_dict(run_id="test-run")], adapter_reportable=True
-        )
+        summary = summarize_results([result.to_dict(run_id="test-run")])
         self.assertTrue(summary["run_valid"])
         self.assertFalse(summary["benchmark_reportable"])
         self.assertFalse(summary["acceptance_decision_eligible"])
@@ -178,7 +185,6 @@ class CommandAdapterTest(unittest.TestCase):
     def test_summary_requires_explicit_trusted_result_marker(self) -> None:
         summary = summarize_results(
             [{"task_id": "task-a", "source": "test-source", "status": "passed"}],
-            adapter_reportable=True,
         )
         self.assertFalse(summary["benchmark_reportable"])
         self.assertFalse(summary["acceptance_decision_eligible"])
@@ -195,13 +201,21 @@ class CommandAdapterTest(unittest.TestCase):
         command = f"python {bridge} --task-json {{task_json}} --result-json {{result_json}} --pass-rate 1.0"
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "command-run"
+            adapter = CommandAdapter(command, timeout_seconds=30)
+            protocol, context = simulated_run_identity(
+                suite=suite,
+                tasks=tasks,
+                adapter=adapter.describe(),
+            )
             record = run_evaluation(
                 repo_root=root,
                 suite=suite,
                 tasks=tasks,
-                adapter=CommandAdapter(command, timeout_seconds=30),
+                adapter=adapter,
                 output_dir=out,
-            )
+                protocol_snapshot=protocol,
+                run_context=context,
+            ).record
             self.assertTrue(record["summary"]["run_valid"])
             self.assertFalse(record["summary"]["benchmark_reportable"])
             self.assertEqual(record["summary"]["non_reportable_result_count"], 1)

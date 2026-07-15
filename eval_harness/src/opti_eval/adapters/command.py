@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .base import Adapter
+from .base import Adapter, AdapterExecutionContext
 from ..models import (
     TaskResult,
     artifact_ref,
@@ -38,7 +38,14 @@ class CommandAdapter(Adapter):
         self.extra_env = dict(extra_env or {})
         self.label = label or self.name
 
-    def run(self, task: dict[str, Any], task_dir: Path, *, run_id: str) -> TaskResult:
+    def run(
+        self,
+        task: dict[str, Any],
+        task_dir: Path,
+        *,
+        execution_context: AdapterExecutionContext,
+    ) -> TaskResult:
+        run_id = execution_context.run_id
         task_id = validate_task_id(task.get("id"))
         source = validate_nonempty_string(task.get("source"), field_name="source")
         task_path = task_dir / "task.json"
@@ -77,6 +84,7 @@ class CommandAdapter(Adapter):
                 "OPTI_TASK_JSON": substitutions["task_json"],
                 "OPTI_RESULT_JSON": substitutions["result_json"],
                 "OPTI_TASK_OUTPUT_DIR": substitutions["output_dir"],
+                "OPTI_RUN_CONTEXT_DIGEST": execution_context.run_context_digest,
             }
         )
         started = time.monotonic()

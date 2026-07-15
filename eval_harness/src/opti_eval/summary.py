@@ -5,6 +5,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .identity import (
+    IdentityError,
+    LiveRunReceipt,
+    digest_json,
+    validate_protocol_snapshot,
+    validate_run_context,
+)
 from .models import (
     canonical_json,
     validate_nonempty_string,
@@ -21,7 +28,8 @@ KNOWN_STATUSES = TERMINAL_VALID_STATUSES | INVALIDATING_STATUSES
 def summarize_results(
     results: list[dict[str, Any]],
     *,
-    adapter_reportable: bool,
+    live_receipt: LiveRunReceipt | None = None,
+    run_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     counts = Counter(str(result.get("status")) for result in results)
     total = len(results)
@@ -39,7 +47,14 @@ def summarize_results(
         )
     )
     results_reportable = non_reportable_result_count == 0
-    benchmark_reportable = run_valid and adapter_reportable and results_reportable
+    live_execution_identity_verified = bool(
+        live_receipt is not None
+        and live_receipt.evidence_mode == "benchmark"
+        and isinstance(run_context, dict)
+        and run_context.get("arm") in {"baseline", "treatment"}
+        and run_context.get("run_digest") == live_receipt.run_digest
+        and run_context.get("protocol_digest") == live_receipt.protocol_digest
+    )
 
     source_counts: dict[str, Counter[str]] = defaultdict(Counter)
     for result in results:
@@ -68,19 +83,24 @@ def summarize_results(
         "invalidating_outcome_count": invalid_count,
         "non_reportable_result_count": non_reportable_result_count,
         "run_valid": run_valid,
-        "benchmark_reportable": benchmark_reportable,
-        "acceptance_decision_eligible": benchmark_reportable,
+        # Raw runner output is never benchmark-reportable or decision-eligible.
+        # AR-003 admission owns those decisions after it verifies the persisted
+        # result/trace/artifact bundle, verifier admission, T1, and quarantine.
+        "benchmark_reportable": False,
+        "acceptance_decision_eligible": False,
+        "live_execution_identity_verified": live_execution_identity_verified,
+        "result_reportability_markers_complete": results_reportable,
         "by_source": by_source,
         "interpretation": (
             "Fixture/plumbing result; never report as benchmark performance."
-            if not adapter_reportable
+            if not live_execution_identity_verified
             else (
                 "One or more results lack an explicit trusted reportability marker."
                 if not results_reportable
                 else (
-                    "Eligible for benchmark comparison."
-                    if benchmark_reportable
-                    else "Not eligible for benchmark comparison because one or more tasks were invalid, errored, or skipped."
+                    "Preliminary live execution identity verified, but invalidating outcomes prevent AR-003 admission."
+                    if not run_valid
+                    else "Preliminary live execution identity verified; AR-003 evidence admission is still required."
                 )
             )
         ),
@@ -93,7 +113,7 @@ def _invalid_replay_summary(
     errors: list[str],
     task_count: int,
 ) -> dict[str, Any]:
-    summary = summarize_results([], adapter_reportable=False)
+    summary = summarize_results([])
     summary.update(
         {
             "task_count": task_count,
@@ -121,6 +141,8 @@ class RunDirectoryValidation:
     results: list[dict[str, Any]] = field(default_factory=list)
     results_by_task: dict[str, dict[str, Any]] = field(default_factory=dict)
     tasks_by_id: dict[str, dict[str, Any]] = field(default_factory=dict)
+    protocol_snapshot: dict[str, Any] = field(default_factory=dict)
+    run_context: dict[str, Any] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
 
     @property
@@ -143,7 +165,11 @@ def _read_object(path: Path, *, label: str, errors: list[str]) -> dict[str, Any]
     return value
 
 
-def validate_run_directory(run_dir: Path) -> RunDirectoryValidation:
+def validate_run_directory(
+    run_dir: Path,
+    *,
+    expected_receipt: LiveRunReceipt | None = None,
+) -> RunDirectoryValidation:
     """Validate one exact runner-owned persisted task manifest.
 
     This dependency-free boundary is shared by replay and benchmark
@@ -164,6 +190,8 @@ def validate_run_directory(run_dir: Path) -> RunDirectoryValidation:
 
     run_record = _read_object(run_dir / "run.json", label="run.json", errors=errors)
     checked.run_record = run_record
+    if run_record.get("schema_version") != "0.2.0":
+        errors.append("run.json has unsupported or legacy schema_version")
     try:
         run_id = validate_nonempty_string(
             run_record.get("run_id"), field_name="run.json run_id"
@@ -173,6 +201,54 @@ def validate_run_directory(run_dir: Path) -> RunDirectoryValidation:
         run_id = "<invalid-run-id>"
     if run_record.get("status") != "completed":
         errors.append("run.json status must be 'completed'")
+
+    raw_protocol = run_record.get("protocol")
+    raw_context = run_record.get("run_context")
+    try:
+        protocol = validate_protocol_snapshot(raw_protocol)
+    except (IdentityError, ValueError) as exc:
+        errors.append(f"run.json protocol is invalid: {exc}")
+        protocol = {}
+    else:
+        checked.protocol_snapshot = protocol
+    try:
+        context = validate_run_context(
+            raw_context,
+            protocol_snapshot=protocol,
+        )
+    except (IdentityError, ValueError) as exc:
+        errors.append(f"run.json run_context is invalid: {exc}")
+        context = {}
+    else:
+        checked.run_context = context
+    if context:
+        if context.get("run_id") != run_id:
+            errors.append("run.json run_context run_id does not match run_id")
+        if run_record.get("run_context_digest") != context.get("run_digest"):
+            errors.append("run.json run_context_digest does not match run_context")
+    adapter_identity = run_record.get("adapter")
+    if protocol:
+        try:
+            if canonical_json(adapter_identity) != canonical_json(protocol["adapter"]):
+                errors.append("run.json adapter identity does not match the frozen protocol")
+        except ValueError as exc:
+            errors.append(f"run.json adapter identity is invalid: {exc}")
+    if expected_receipt is not None:
+        if not protocol or protocol.get("protocol_digest") != expected_receipt.protocol_digest:
+            errors.append("run.json protocol does not match the live expected receipt")
+        if not context or context.get("run_digest") != expected_receipt.run_digest:
+            errors.append("run.json run_context does not match the live expected receipt")
+        if (
+            not protocol
+            or protocol.get("adapter", {}).get("digest")
+            != expected_receipt.adapter_digest
+        ):
+            errors.append("run.json adapter does not match the live expected receipt")
+        if (
+            not context
+            or context.get("evidence_mode") != expected_receipt.evidence_mode
+        ):
+            errors.append("run.json evidence_mode does not match the live expected receipt")
 
     raw_task_ids = run_record.get("task_ids")
     if not isinstance(raw_task_ids, list):
@@ -202,6 +278,7 @@ def validate_run_directory(run_dir: Path) -> RunDirectoryValidation:
     if not raw_task_ids:
         errors.append("run.json must schedule at least one task")
     suite = run_record.get("suite")
+    frozen_tasks_by_id: dict[str, dict[str, Any]] = {}
     if not isinstance(suite, dict):
         errors.append("run.json suite must be an object")
     else:
@@ -210,6 +287,23 @@ def validate_run_directory(run_dir: Path) -> RunDirectoryValidation:
             errors.append("run.json suite task_count_requested must be an integer")
         elif requested_count != len(raw_task_ids):
             errors.append("run.json suite task_count_requested does not match task_ids")
+        if protocol and context:
+            matching_suites = [
+                row
+                for row in protocol["suites"]
+                if row["id"] == suite.get("id")
+                and row["role"] == context["suite_role"]
+            ]
+            if len(matching_suites) != 1:
+                errors.append(
+                    "run.json suite identity is not uniquely bound by the frozen protocol"
+                )
+            else:
+                frozen_tasks_by_id = {
+                    row["id"]: row for row in matching_suites[0]["tasks"]
+                }
+            if raw_task_ids != context["task_ids"]:
+                errors.append("run.json task_ids do not match the frozen run context")
 
     raw_manifest = run_record.get("task_manifest")
     if not isinstance(raw_manifest, list):
@@ -266,6 +360,13 @@ def validate_run_directory(run_dir: Path) -> RunDirectoryValidation:
     checked.summary_record = summary
     if summary.get("run_id") != run_id:
         errors.append("summary.json run_id does not match run.json")
+    if context:
+        if summary.get("run_context_digest") != context.get("run_digest"):
+            errors.append("summary.json run_context_digest does not match run.json")
+        if summary.get("protocol_digest") != context.get("protocol_digest"):
+            errors.append("summary.json protocol_digest does not match run.json")
+        if summary.get("adapter_digest") != protocol.get("adapter", {}).get("digest"):
+            errors.append("summary.json adapter_digest does not match run.json")
     summary_task_count = summary.get("task_count")
     if isinstance(summary_task_count, bool) or not isinstance(summary_task_count, int):
         errors.append("summary.json task_count must be an integer")
@@ -301,6 +402,14 @@ def validate_run_directory(run_dir: Path) -> RunDirectoryValidation:
         except ValueError as exc:
             errors.append(f"results.jsonl row {index + 1}: {exc}")
             continue
+        metadata = validated.get("metadata")
+        if context and (
+            not isinstance(metadata, dict)
+            or metadata.get("run_context_digest") != context.get("run_digest")
+        ):
+            errors.append(
+                f"results.jsonl row {index + 1}: run_context_digest does not match run.json"
+            )
         aggregate_ids.append(validated["task_id"])
         if validated["task_id"] in checked.results_by_task:
             errors.append(
@@ -369,6 +478,13 @@ def validate_run_directory(run_dir: Path) -> RunDirectoryValidation:
             errors.append(f"task {task_id} task.json id does not match the schedule")
         if task.get("source") != source:
             errors.append(f"task {task_id} task.json source does not match the schedule")
+        frozen_task = frozen_tasks_by_id.get(task_id)
+        if frozen_task is None:
+            errors.append(f"task {task_id} is outside the frozen protocol suite")
+        elif digest_json(task, domain="opti.task-record.v1") != frozen_task.get(
+            "record_digest"
+        ):
+            errors.append(f"task {task_id} task.json differs from the frozen protocol")
         verification = task.get("verification")
         if run_verifier_id is not None and run_verifier_checksum is not None:
             if not isinstance(verification, dict):
@@ -416,7 +532,7 @@ def validate_run_directory(run_dir: Path) -> RunDirectoryValidation:
 def load_run_artifacts(
     run_dir: Path,
     *,
-    adapter_reportable: bool = False,
+    expected_receipt: LiveRunReceipt | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Rebuild persisted run artifacts through one fail-closed replay path.
 
@@ -424,7 +540,7 @@ def load_run_artifacts(
     separate shared bundle validator is the authority for trace/artifact
     integrity; ordinary replay deliberately remains non-reportable.
     """
-    checked = validate_run_directory(run_dir)
+    checked = validate_run_directory(run_dir, expected_receipt=expected_receipt)
     persisted = checked.summary_record
     if checked.errors:
         return (
@@ -437,10 +553,15 @@ def load_run_artifacts(
         )
 
     rebuilt = summarize_results(
-        checked.results, adapter_reportable=adapter_reportable
+        checked.results,
+        live_receipt=expected_receipt,
+        run_context=checked.run_context,
     )
 
     rebuilt["run_id"] = checked.run_record["run_id"]
+    rebuilt["protocol_digest"] = checked.run_context["protocol_digest"]
+    rebuilt["run_context_digest"] = checked.run_context["run_digest"]
+    rebuilt["adapter_digest"] = checked.protocol_snapshot["adapter"]["digest"]
     if "suite_id" in persisted:
         rebuilt["suite_id"] = persisted["suite_id"]
     return rebuilt, checked.results

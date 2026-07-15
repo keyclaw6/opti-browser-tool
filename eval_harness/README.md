@@ -50,6 +50,10 @@ opti-eval run \
 ```
 
 Fixture scores are synthetic plumbing checks and are marked `benchmark_reportable=false`.
+Raw runner summaries always persist `benchmark_reportable=false` and
+`acceptance_decision_eligible=false`, including for a correctly identified live
+adapter. They expose preliminary identity/result-marker checks only; the loop's
+independent AR-003 evidence admission is the sole benchmark decision authority.
 
 ## External bridge contract
 

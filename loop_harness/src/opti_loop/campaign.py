@@ -3,9 +3,9 @@
 After the review (F02, F15): a campaign's config, state, ledger, learnings,
 cluster register, noise band, quarantine, and corpus live under the
 ``TrustedStore`` root OUTSIDE ``repo_root``, so an optimizer confined to the
-repo worktree cannot forge them. The optimizer's only writable surface is the
-candidate worktree's ``harness/components/**`` plus an untrusted
-``manifest.json`` the conductor ingests and validates.
+repo worktree cannot forge them. The optimizer may write only the frozen
+campaign candidate allowlist plus an untrusted ``manifest.json`` the conductor
+ingests and validates.
 
 One campaign = one line of harness evolution, anchored by an ``accepted_base_sha``
 that advances only on a genuine benchmark acceptance.
@@ -17,17 +17,43 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from opti_eval.identity import simulated_identity_defaults
+
 from . import gitutil
 from .store import TrustedStore, atomic_write_json, atomic_write_text, resolve_store_root
+
+
+_SIMULATED_SOURCES = (
+    "real_v1",
+    "visualwebarena",
+    "warc_bench",
+    "webarena_verified",
+    "workarena_l2",
+)
+_SIMULATED_DEFAULTS = simulated_identity_defaults(list(_SIMULATED_SOURCES))
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "schema_version": "0.2-draft",
     "campaign_id": None,
     "suites": {"dev": "smoke", "smoke": "smoke", "regression": "regression"},
     "adapter": {"kind": "fixture", "pass_rate": 0.55, "seed": 0},
+    "candidate_allowlist": ["harness/components/**"],
+    "identity": {
+        "evidence_mode": "simulated",
+        "source_runtimes": _SIMULATED_DEFAULTS["source_runtimes"],
+        "executor": _SIMULATED_DEFAULTS["executor"],
+        "verifier_bundle": _SIMULATED_DEFAULTS["verifier_bundle"],
+        "activation_instrumentation": _SIMULATED_DEFAULTS[
+            "activation_instrumentation"
+        ],
+        "lane": {
+            "id": "structured",
+            "config_path": "harness/lanes/structured.lane.json",
+        },
+    },
     "fixed_variables": {
-        "executor_model": "MiniMax-M3 via OpenCode Go (ADR-0017; exact API identifier pinned per campaign at bring-up)",
-        "browser_backend": "none (ADR-0003 open; no browser code exists)",
+        "executor_model": "simulated:fixture",
+        "browser_backend": "simulated:none",
         "lane": "structured",
     },
     "thresholds": {
@@ -41,7 +67,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "noise_band": None,
     "exploration": {"divergence_quota": 5, "plateau_force_after": 4, "pivot_after_failures": 2},
-    "repeats": {"stable": 1, "unstable": 3},
+    "repeated_protocol": _SIMULATED_DEFAULTS["repeated_protocol"],
     # Transfer-bet falsification protocol (F17); see transfer.py.
     "transfer": {
         "checkpoint_every": 5,
@@ -127,10 +153,15 @@ def init_campaign(
         "iterations_since_divergent": 0,
         "iterations_since_accept": 0,
         "failed_attempts": {},          # "<cluster>::<component>" -> count (pivot rule)
-        "regression_last_results": {},  # frozen from the accepted-base regression run
         "pending_iteration": 0,
         "pending_divergent": False,
         "pending_base_sha": None,
+        "pending_protocol_digest": None,
+        "pending_baseline_run_digest": None,
+        "pending_regression_baseline_run_digest": None,
+        "pending_baseline_admission_receipt": None,
+        "pending_regression_baseline_admission_receipt": None,
+        "last_accepted_admission_receipt": None,
     }
     store.campaign_dir.mkdir(parents=True, exist_ok=True)
     campaign.save_config()

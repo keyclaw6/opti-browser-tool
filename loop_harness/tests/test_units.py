@@ -8,14 +8,17 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from opti_loop import fileguard, gitutil, manifest
+from opti_eval.identity import LiveRunReceipt, digest_json
+from opti_loop import fileguard, gitutil, lint, manifest, registration
 from opti_loop.attribution import attribute
 from opti_loop.compare import Comparison, NoiseBand, NoiseBandError, compare_runs, measure_noise_band
 from opti_loop.evaluate import EvalRun
+from opti_loop.protocol import ProtocolError, build_identity, normalize_candidate_allowlist
 from opti_loop.verdict import Verdict
 
 ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
        "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
+ALLOWED_PREFIXES = ("harness/components/",)
 
 
 def _git(repo: Path, *args: str) -> None:
@@ -29,6 +32,8 @@ def _seed_repo(tmp: Path) -> Path:
     (repo / "harness/components/policy/component.json").write_text(
         json.dumps({"component": "policy", "version": "0.1.0-seed",
                     "files": ["system_prompt.md"], "activation_events": ["x"], "emits": []}) + "\n")
+    (repo / "harness/runtime").mkdir(parents=True)
+    (repo / "harness/runtime/engine.py").write_text("VALUE = 1\n")
     (repo / "evals").mkdir()
     (repo / "evals/plane.txt").write_text("evaluation plane\n")
     _git(repo, "init", "-q"); _git(repo, "add", "-A"); _git(repo, "commit", "-qm", "base")
@@ -51,7 +56,13 @@ class FileGuardCommitDiffTest(unittest.TestCase):
             (wt / "harness/components/policy/system_prompt.md").write_text("improved\n")
             _git(wt, "add", "-A"); _git(wt, "commit", "-qm", "chg")
             cand = gitutil.head_sha(wt)
-            report = fileguard.check_candidate(repo=repo, worktree=wt, base_sha=base, candidate_sha=cand)
+            report = fileguard.check_candidate(
+                repo=repo,
+                worktree=wt,
+                base_sha=base,
+                candidate_sha=cand,
+                allowed_prefixes=ALLOWED_PREFIXES,
+            )
             self.assertTrue(report.ok, report.to_dict())
 
     def test_committed_forbidden_edit_is_caught(self) -> None:
@@ -63,7 +74,13 @@ class FileGuardCommitDiffTest(unittest.TestCase):
             (wt / "harness/components/policy/system_prompt.md").write_text("x\n")
             _git(wt, "add", "-A"); _git(wt, "commit", "-qm", "sneaky")
             cand = gitutil.head_sha(wt)
-            report = fileguard.check_candidate(repo=repo, worktree=wt, base_sha=base, candidate_sha=cand)
+            report = fileguard.check_candidate(
+                repo=repo,
+                worktree=wt,
+                base_sha=base,
+                candidate_sha=cand,
+                allowed_prefixes=ALLOWED_PREFIXES,
+            )
             self.assertFalse(report.ok)
             self.assertIn("evals/plane.txt", " ".join(report.violations))
 
@@ -71,7 +88,13 @@ class FileGuardCommitDiffTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as t:
             repo, base, wt = self._candidate(Path(t))
             (wt / "harness/components/policy/system_prompt.md").write_text("uncommitted\n")
-            report = fileguard.check_candidate(repo=repo, worktree=wt, base_sha=base, candidate_sha=base)
+            report = fileguard.check_candidate(
+                repo=repo,
+                worktree=wt,
+                base_sha=base,
+                candidate_sha=base,
+                allowed_prefixes=ALLOWED_PREFIXES,
+            )
             self.assertFalse(report.ok)
             self.assertTrue(report.dirty_worktree)
 
@@ -79,17 +102,106 @@ class FileGuardCommitDiffTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as t:
             repo, base, wt = self._candidate(Path(t))
             (wt / "manifest.json").write_text("{}")
-            report = fileguard.check_candidate(repo=repo, worktree=wt, base_sha=base, candidate_sha=base)
+            report = fileguard.check_candidate(
+                repo=repo,
+                worktree=wt,
+                base_sha=base,
+                candidate_sha=base,
+                allowed_prefixes=ALLOWED_PREFIXES,
+            )
             self.assertTrue(report.ok, report.to_dict())
+
+    def test_runtime_allowlist_is_authoritative(self) -> None:
+        with tempfile.TemporaryDirectory() as t:
+            repo, base, wt = self._candidate(Path(t))
+            (wt / "harness/runtime/engine.py").write_text("VALUE = 2\n")
+            _git(wt, "add", "-A"); _git(wt, "commit", "-qm", "runtime")
+            report = fileguard.check_candidate(
+                repo=repo,
+                worktree=wt,
+                base_sha=base,
+                candidate_sha=gitutil.head_sha(wt),
+                allowed_prefixes=("harness/runtime/",),
+            )
+            self.assertTrue(report.ok, report.to_dict())
+
+    def test_build_identity_hashes_every_allowed_root(self) -> None:
+        with tempfile.TemporaryDirectory() as t:
+            repo = _seed_repo(Path(t))
+            head = gitutil.head_sha(repo)
+            identity = build_identity(
+                repo,
+                commit_sha=head,
+                role="accepted",
+                candidate_allowlist=["harness/components/", "harness/runtime/"],
+            )
+            (repo / "harness/runtime/engine.py").write_text("VALUE = 9\n")
+            changed = build_identity(
+                repo,
+                commit_sha=head,
+                role="accepted",
+                candidate_allowlist=["harness/components/", "harness/runtime/"],
+            )
+            self.assertNotEqual(
+                identity["materialized_digest"], changed["materialized_digest"]
+            )
 
 
 class PathSafetyTest(unittest.TestCase):
     def test_rejects_traversal_absolute_and_nul(self) -> None:
+        self.assertFalse(fileguard.path_is_safe(""))
+        self.assertFalse(fileguard.path_is_safe("."))
+        self.assertFalse(fileguard.path_is_safe("harness/./components/policy"))
+        self.assertFalse(fileguard.path_is_safe("harness//components/policy"))
         self.assertFalse(fileguard.path_is_safe("harness/components/policy/../../../evals/x"))
         self.assertFalse(fileguard.path_is_safe("/etc/passwd"))
         self.assertFalse(fileguard.path_is_safe("a\x00b"))
         self.assertFalse(fileguard.path_is_safe("a\\b"))
         self.assertTrue(fileguard.path_is_safe("harness/components/policy/system_prompt.md"))
+
+    def test_candidate_allowlist_has_one_normalized_nonoverlapping_authority(self) -> None:
+        self.assertEqual(
+            normalize_candidate_allowlist(
+                ["harness/components/**", "harness/runtime/"],
+            ),
+            ["harness/components/", "harness/runtime/"],
+        )
+        with self.assertRaisesRegex(ProtocolError, "overlap"):
+            normalize_candidate_allowlist(
+                ["harness/**", "harness/components/**"],
+            )
+        for forbidden in (
+            "evals/**",
+            "eval_harness/**",
+            "loop_harness/**",
+            "judge_harness/**",
+            "schemas/**",
+            "harness/activation/**",
+            "harness/admission/**",
+            "harness/contracts/**",
+            "harness/decision/**",
+            "harness/evaluator/**",
+            "harness/evidence/**",
+            "harness/executor/**",
+            "harness/gates/**",
+            "harness/infra/**",
+            "harness/lanes/**",
+            "harness/model/**",
+            "harness/oracle/**",
+            "harness/protocol/**",
+            "harness/reset/**",
+            "harness/safety/**",
+            "harness/schemas/**",
+            "harness/secrets/**",
+            "harness/setup/**",
+            "harness/store/**",
+            "harness/tasks/**",
+            "harness/tracer/**",
+            "harness/verifier/**",
+        ):
+            with self.subTest(forbidden=forbidden):
+                with self.assertRaises(ProtocolError):
+                    normalize_candidate_allowlist([forbidden])
 
 
 def _valid_manifest(**over) -> dict:
@@ -113,7 +225,12 @@ class ManifestTest(unittest.TestCase):
     def _check(self, m, **kw):
         with tempfile.TemporaryDirectory() as t:
             p = Path(t) / "m.json"; p.write_text(json.dumps(m))
-            return manifest.load_and_validate(p, **kw)
+            allowed_prefixes = kw.pop("allowed_prefixes", ALLOWED_PREFIXES)
+            return manifest.load_and_validate(
+                p,
+                allowed_prefixes=allowed_prefixes,
+                **kw,
+            )
 
     def test_valid(self) -> None:
         self.assertTrue(self._check(_valid_manifest(), changed_files=["harness/components/policy/system_prompt.md"]).ok)
@@ -129,6 +246,39 @@ class ManifestTest(unittest.TestCase):
         self.assertFalse(self._check(_valid_manifest(),
                          changed_files=["harness/components/policy/system_prompt.md",
                                         "harness/components/policy/undeclared.md"]).ok)
+
+    def test_target_component_is_attribution_not_path_authority(self) -> None:
+        changed = "harness/components/actions/action_contract.md"
+        candidate = _valid_manifest()
+        candidate["target_component"] = "policy"
+        candidate["treatment"]["change_scope"] = [changed]
+        report = self._check(candidate, changed_files=[changed])
+        self.assertTrue(report.ok, report.errors)
+
+    def test_runtime_scope_must_exactly_equal_full_diff(self) -> None:
+        runtime_path = "harness/runtime/engine.py"
+        candidate = _valid_manifest()
+        candidate["treatment"]["change_scope"] = [runtime_path]
+        allowed = ("harness/components/", "harness/runtime/")
+        self.assertTrue(
+            self._check(
+                candidate,
+                allowed_prefixes=allowed,
+                changed_files=[runtime_path],
+            ).ok
+        )
+        missing = self._check(
+            candidate,
+            allowed_prefixes=allowed,
+            changed_files=[runtime_path, "harness/components/policy/system_prompt.md"],
+        )
+        self.assertIn("changed file not declared", " ".join(missing.errors))
+        unchanged = self._check(
+            candidate,
+            allowed_prefixes=allowed,
+            changed_files=[],
+        )
+        self.assertIn("declares unchanged file", " ".join(unchanged.errors))
 
     def test_optimizer_attribution_rejected(self) -> None:
         self.assertFalse(self._check(_valid_manifest(attribution={"verdict": "keep"}), changed_files=[]).ok)
@@ -159,7 +309,49 @@ def _run(statuses, *, eligible=True) -> EvalRun:
                    statuses=dict(statuses), rewards={}, run_id="r", results=results)
 
 
+def _benchmark_run(statuses, *, token: str, admitted: bool) -> EvalRun:
+    run = _run(statuses)
+    run.run_id = f"run-{token}"
+    live = LiveRunReceipt(
+        protocol_digest="1" * 64,
+        run_digest=token * 64,
+        adapter_digest="2" * 64,
+        evidence_mode="benchmark",
+    )
+    run.live_receipt = live
+    if admitted:
+        payload = {
+            "schema_version": "0.1.0",
+            "protocol_digest": live.protocol_digest,
+            "run_digest": live.run_digest,
+            "adapter_digest": live.adapter_digest,
+            "run_id": run.run_id,
+            "task_bundle_digest": "3" * 64,
+            "t1_flag_count": 0,
+        }
+        run.admission_receipt = {
+            **payload,
+            "receipt_digest": digest_json(
+                payload, domain="opti.ar003-admission-receipt.v1"
+            ),
+        }
+    return run
+
+
 class CompareTest(unittest.TestCase):
+    def test_benchmark_pair_requires_both_matching_admission_receipts(self) -> None:
+        baseline = _benchmark_run({"a": "failed"}, token="a", admitted=False)
+        treatment = _benchmark_run({"a": "passed"}, token="b", admitted=True)
+        rejected = compare_runs(baseline, treatment)
+        self.assertFalse(rejected.eligible)
+        self.assertFalse(rejected.simulated)
+        self.assertIn("both benchmark arms", " ".join(rejected.reasons))
+
+        baseline = _benchmark_run({"a": "failed"}, token="a", admitted=True)
+        accepted = compare_runs(baseline, treatment)
+        self.assertTrue(accepted.eligible, accepted.reasons)
+        self.assertEqual(accepted.fixed, ["a"])
+
     def test_strict_rejects_invalidating(self) -> None:
         self.assertFalse(compare_runs(_run({"a": "passed", "b": "invalid"}),
                                       _run({"a": "passed", "b": "passed"}), policy="strict").eligible)
@@ -181,22 +373,142 @@ class CompareTest(unittest.TestCase):
 
 
 class NoiseBandTest(unittest.TestCase):
+    def _real_band(self, root: Path) -> NoiseBand:
+        first = _benchmark_run(
+            {"a": "passed", "b": "failed"}, token="a", admitted=True
+        )
+        second = _benchmark_run(
+            {"a": "passed", "b": "failed"}, token="b", admitted=True
+        )
+        first.output_dir = root / "noise/run-00"
+        second.output_dir = root / "noise/run-01"
+        return measure_noise_band(
+            [first, second],
+            synthetic=False,
+            run_identity="a" * 64,
+            evidence_root=root,
+        )
+
     def test_rejects_absurd_values(self) -> None:  # F07
-        for bad in ({"aggregate_margin": 99, "max_benign_flips": 1, "sample_runs": 2},
-                    {"aggregate_margin": 0.1, "max_benign_flips": 999999, "sample_runs": 2, "task_count": 20},
-                    {"aggregate_margin": 0.1, "max_benign_flips": 1, "sample_runs": 0}):
+        base = {
+            "aggregate_margin": 0.1,
+            "max_benign_flips": 1,
+            "sample_runs": 2,
+            "synthetic": True,
+            "task_count": 20,
+            "run_identity": "a" * 64,
+            "sample_anchors": [],
+        }
+        for bad in (
+            {**base, "aggregate_margin": 99},
+            {**base, "max_benign_flips": 999999},
+            {**base, "sample_runs": 0},
+        ):
             with self.assertRaises(NoiseBandError):
                 NoiseBand.from_dict(bad)
+
+    def test_persisted_evidence_class_and_admissions_are_type_strict(self) -> None:
+        base = {
+            "aggregate_margin": 0.1,
+            "max_benign_flips": 1,
+            "sample_runs": 2,
+            "synthetic": True,
+            "task_count": 2,
+            "run_identity": "a" * 64,
+            "sample_anchors": [],
+        }
+        with self.assertRaisesRegex(NoiseBandError, "synthetic marker"):
+            NoiseBand.from_dict({**base, "synthetic": 1})
+        with self.assertRaisesRegex(NoiseBandError, "must be an array"):
+            NoiseBand.from_dict(
+                {**base, "synthetic": False, "sample_anchors": "not-an-array"}
+            )
+        with self.assertRaisesRegex(NoiseBandError, "one AR-003 anchor"):
+            NoiseBand.from_dict({**base, "synthetic": False})
+        with self.assertRaisesRegex(NoiseBandError, "fields are not closed"):
+            NoiseBand.from_dict({**base, "admission_receipt_digests": []})
+
+    def test_real_band_round_trip_has_closed_full_unique_anchors(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            band = self._real_band(Path(tmp))
+            persisted = band.to_dict()
+            reloaded = NoiseBand.from_dict(persisted)
+            self.assertEqual(reloaded.to_dict(), persisted)
+            self.assertFalse(reloaded.anchors_validated)
+
+            absolute = json.loads(json.dumps(persisted))
+            absolute["sample_anchors"][0]["evidence_dir"] = "/tmp/run-00"
+            with self.assertRaisesRegex(NoiseBandError, "unsafe"):
+                NoiseBand.from_dict(absolute)
+
+            traversal = json.loads(json.dumps(persisted))
+            traversal["sample_anchors"][0]["evidence_dir"] = "noise/../run-00"
+            with self.assertRaisesRegex(NoiseBandError, "canonical"):
+                NoiseBand.from_dict(traversal)
+
+            forged = json.loads(json.dumps(persisted))
+            forged["sample_anchors"][0]["admission_receipt"][
+                "task_bundle_digest"
+            ] = "f" * 64
+            with self.assertRaisesRegex(NoiseBandError, "receipt digest"):
+                NoiseBand.from_dict(forged)
+
+            duplicate = json.loads(json.dumps(persisted))
+            duplicate["sample_anchors"][1] = duplicate["sample_anchors"][0]
+            with self.assertRaisesRegex(NoiseBandError, "must be unique"):
+                NoiseBand.from_dict(duplicate)
 
     def test_measure_requires_identical_task_set(self) -> None:
         with self.assertRaises(NoiseBandError):
             measure_noise_band([_run({"a": "passed"}), _run({"a": "passed", "b": "failed"})], synthetic=True)
 
     def test_identity_binding(self) -> None:
-        band = measure_noise_band([_run({"a": "passed", "b": "failed"}),
-                                   _run({"a": "passed", "b": "failed"})], synthetic=False, run_identity="ID1")
-        self.assertTrue(band.matches_identity("ID1"))
-        self.assertFalse(band.matches_identity("ID2"))
+        with tempfile.TemporaryDirectory() as tmp:
+            band = self._real_band(Path(tmp))
+        self.assertTrue(band.matches_identity("a" * 64))
+        self.assertFalse(band.matches_identity("b" * 64))
+
+    def test_real_noise_rejects_any_unadmitted_sample(self) -> None:
+        admitted = _benchmark_run({"a": "passed"}, token="a", admitted=True)
+        unadmitted = _benchmark_run({"a": "passed"}, token="b", admitted=False)
+        with self.assertRaisesRegex(NoiseBandError, "every benchmark noise sample"):
+            measure_noise_band(
+                [admitted, unadmitted],
+                synthetic=False,
+                run_identity="a" * 64,
+                evidence_root=Path("."),
+            )
+
+
+class CandidateBoundaryTest(unittest.TestCase):
+    def test_lint_requires_the_frozen_allowlist(self) -> None:
+        with self.assertRaises(TypeError):
+            lint.scan_tree(Path("."))
+
+    def test_lint_scans_every_frozen_allowed_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "harness/components/policy").mkdir(parents=True)
+            (root / "harness/runtime").mkdir(parents=True)
+            (root / "harness/components/policy/prompt.md").write_text("generic\n")
+            (root / "harness/runtime/engine.py").write_text("generic = True\n")
+            report = lint.scan_tree(
+                root,
+                allowed_prefixes=("harness/components/", "harness/runtime/"),
+                vocabulary={"task_ids": set(), "sources": set(), "hosts": set()},
+            )
+            self.assertTrue(report.ok, [finding.to_dict() for finding in report.findings])
+            self.assertEqual(report.scanned_files, 2)
+
+    def test_registration_uses_changed_component_not_target_label(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = _seed_repo(Path(tmp))
+            changed = "harness/components/policy/system_prompt.md"
+            report = registration.check_change_registered(
+                repo, "actions", [changed]
+            )
+            self.assertTrue(report.ok, report.errors)
+            self.assertEqual(report.checked_components, 1)
 
 
 class AttributionTest(unittest.TestCase):
@@ -234,7 +546,7 @@ class EligibilityTest(unittest.TestCase):
                 "metadata": {"benchmark_reportable": True},
             }]
             write_jsonl(tmp / "results.jsonl", results)
-            summary = summarize_results(results, adapter_reportable=True)
+            summary = summarize_results(results)
             summary.update({
                 "run_valid": True,
                 "benchmark_reportable": True,
@@ -257,7 +569,12 @@ class EligibilityTest(unittest.TestCase):
             eligibility = assess(
                 run=run,
                 run_dir=tmp,
-                adapter_config={"verifier_id": "v", "verifier_checksum": "c"},
+                expected_receipt=LiveRunReceipt(
+                    protocol_digest="0" * 64,
+                    run_digest="1" * 64,
+                    adapter_digest="2" * 64,
+                    evidence_mode="simulated",
+                ),
                 task_records={},
                 admissions_path=tmp / "adm.jsonl",
                 quarantine_path=tmp / "q.jsonl",
@@ -292,14 +609,26 @@ class EligibilityTest(unittest.TestCase):
             self.assertEqual(run.statuses, {})
             self.assertTrue(run.summary["replay_errors"])
 
-    def test_unadmitted_verifier_is_not_benchmark(self) -> None:
+    def test_unadmitted_synthetic_run_is_not_benchmark(self) -> None:
         from opti_loop.eligibility import assess
         with tempfile.TemporaryDirectory() as t:
             tmp = Path(t)
-            run = _run({"a": "passed"}, eligible=True)  # reportable
-            run.adapter_reportable = True
-            elig = assess(run=run, run_dir=tmp, adapter_config={"verifier_id": "v", "verifier_checksum": "c"},
-                          task_records={}, admissions_path=tmp / "adm.jsonl", quarantine_path=tmp / "q.jsonl")
+            receipt = LiveRunReceipt(
+                protocol_digest="0" * 64,
+                run_digest="1" * 64,
+                adapter_digest="2" * 64,
+                evidence_mode="simulated",
+            )
+            run = _run({"a": "passed"}, eligible=True)
+            run.live_receipt = receipt
+            elig = assess(
+                run=run,
+                run_dir=tmp,
+                expected_receipt=receipt,
+                task_records={},
+                admissions_path=tmp / "adm.jsonl",
+                quarantine_path=tmp / "q.jsonl",
+            )
             self.assertEqual(elig.evidence_class, "simulated")
             self.assertFalse(elig.acceptance_eligible)
 
@@ -319,11 +648,21 @@ class EligibilityTest(unittest.TestCase):
                             "payload": {"method": "DELETE", "url": "/x"}}),
             ]) + "\n")
             run = _run({"a": "passed"}, eligible=True)
-            run.adapter_reportable = True
-            elig = assess(run=run, run_dir=tmp,
-                          adapter_config={"verifier_id": "v", "verifier_checksum": "c"},
-                          task_records={"a": {"state_change_expected": False}},
-                          admissions_path=tmp / "adm.jsonl", quarantine_path=tmp / "q.jsonl")
+            receipt = LiveRunReceipt(
+                protocol_digest="0" * 64,
+                run_digest="1" * 64,
+                adapter_digest="2" * 64,
+                evidence_mode="benchmark",
+            )
+            run.live_receipt = receipt
+            elig = assess(
+                run=run,
+                run_dir=tmp,
+                expected_receipt=receipt,
+                task_records={"a": {"state_change_expected": False}},
+                admissions_path=tmp / "adm.jsonl",
+                quarantine_path=tmp / "q.jsonl",
+            )
             self.assertEqual(elig.evidence_class, "simulated")
             self.assertEqual(elig.integrity_status, "invalid")
             self.assertFalse(elig.acceptance_eligible)

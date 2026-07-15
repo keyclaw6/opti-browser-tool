@@ -7,6 +7,7 @@ from pathlib import Path
 
 from opti_eval.adapters.fixture import FixtureAdapter
 from opti_eval.catalog import select_tasks
+from opti_eval.identity import simulated_run_identity
 from opti_eval.runner import run_evaluation
 from opti_eval.summary import load_run_summary
 
@@ -18,14 +19,22 @@ class FixtureRunnerTest(unittest.TestCase):
         self.assertEqual(len(tasks), 140)
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "run"
+            adapter = FixtureAdapter(pass_rate=0.5, seed=7)
+            protocol, context = simulated_run_identity(
+                suite=suite,
+                tasks=tasks,
+                adapter=adapter.describe(),
+            )
             record = run_evaluation(
                 repo_root=root,
                 suite=suite,
                 tasks=tasks,
-                adapter=FixtureAdapter(pass_rate=0.5, seed=7),
+                adapter=adapter,
                 output_dir=out,
                 max_workers=4,
-            )
+                protocol_snapshot=protocol,
+                run_context=context,
+            ).record
             self.assertEqual(record["summary"]["task_count"], 140)
             self.assertTrue(record["summary"]["run_valid"])
             self.assertFalse(record["summary"]["benchmark_reportable"])

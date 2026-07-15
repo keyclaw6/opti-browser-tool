@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import copy
 import io
 import json
 import tempfile
@@ -8,7 +9,8 @@ import unittest
 from pathlib import Path
 
 from opti_eval.cli import main
-from opti_eval.models import validate_task_id
+from opti_eval.identity import simulated_run_identity
+from opti_eval.models import validate_persisted_result, validate_task_id
 from opti_eval.summary import load_run_summary
 from opti_eval.util import atomic_write_json
 
@@ -23,6 +25,26 @@ class SummaryReplayTest(unittest.TestCase):
     ) -> None:
         task_ids: list[object] = []
         task_manifest: list[dict[str, object]] = []
+        tasks: list[dict[str, object]] = []
+        protocol = None
+        context = None
+        try:
+            for row in rows:
+                validate_persisted_result(row)
+                tasks.append({"id": row["task_id"], "source": row["source"]})
+            protocol, context = simulated_run_identity(
+                suite={"id": "suite-1", "kind": "test"},
+                tasks=tasks,
+                adapter={"name": adapter_name, "benchmark_reportable": False},
+                run_id="run-1",
+            )
+            rows = copy.deepcopy(rows)
+            for row in rows:
+                row["metadata"]["run_context_digest"] = context["run_digest"]
+        except (TypeError, ValueError):
+            protocol = None
+            context = None
+
         tasks_root = run_dir / "tasks"
         tasks_root.mkdir()
         for index, row in enumerate(rows):
@@ -56,11 +78,21 @@ class SummaryReplayTest(unittest.TestCase):
                 "benchmark_reportable": True,
                 "acceptance_decision_eligible": True,
                 "non_reportable_result_count": 0,
+                **(
+                    {
+                        "protocol_digest": protocol["protocol_digest"],
+                        "run_context_digest": context["run_digest"],
+                        "adapter_digest": protocol["adapter"]["digest"],
+                    }
+                    if protocol is not None and context is not None
+                    else {}
+                ),
             },
         )
         atomic_write_json(
             run_dir / "run.json",
             {
+                "schema_version": "0.2.0" if protocol is not None else "0.1.0",
                 "run_id": "run-1",
                 "status": "completed",
                 "suite": {
@@ -71,7 +103,20 @@ class SummaryReplayTest(unittest.TestCase):
                 "task_count": len(rows),
                 "task_ids": task_ids,
                 "task_manifest": task_manifest,
-                "adapter": {"name": adapter_name, "benchmark_reportable": True},
+                "adapter": (
+                    protocol["adapter"]
+                    if protocol is not None
+                    else {"name": adapter_name, "benchmark_reportable": True}
+                ),
+                **(
+                    {
+                        "protocol": protocol,
+                        "run_context": context,
+                        "run_context_digest": context["run_digest"],
+                    }
+                    if protocol is not None and context is not None
+                    else {}
+                ),
             },
         )
 

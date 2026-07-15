@@ -23,6 +23,7 @@ def build_packet(
     ranked_clusters: list[tuple[str, dict[str, Any]]],
     ledger_path: Path,
     baseline_summary: dict[str, Any],
+    candidate_allowlist: list[str],
 ) -> Path:
     top = ranked_clusters[:5]
     ledger_tail = read_rows(ledger_path)[-3:]
@@ -46,6 +47,7 @@ def build_packet(
             "strict_success_rate": baseline_summary.get("strict_success_rate"),
             "status_counts": baseline_summary.get("status_counts"),
         },
+        "candidate_allowlist": list(candidate_allowlist),
     }
     (iteration_dir / "packet.json").write_text(
         json.dumps(payload, indent=2) + "\n", encoding="utf-8"
@@ -83,9 +85,10 @@ def build_packet(
         "",
         "## What to produce",
         "",
-        "1. One change inside `harness/components/<target_component>/` (one hypothesis, one commit).",
-        "2. `manifest.json` in this iteration directory; the optimizer-input experiment branch of canonical `schemas/experiment.schema.json` requires `target_component` and `cluster_ref`.",
-        "3. Then ask the conductor to gate: `opti-loop gate --campaign <id>`.",
+        "1. One hypothesis and one commit whose complete diff stays inside the frozen candidate allowlist: "
+        + ", ".join(f"`{prefix}`" for prefix in candidate_allowlist),
+        "2. `manifest.json` in the candidate worktree root; the optimizer-input experiment branch of canonical `schemas/experiment.schema.json` requires `target_component` and `cluster_ref`. `target_component` is attribution only, not path authority.",
+        "3. Then ask the conductor to gate: `opti-loop run-iteration --campaign <id>`.",
         "",
     ]
     if ledger_tail:

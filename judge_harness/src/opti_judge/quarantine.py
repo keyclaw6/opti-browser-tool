@@ -434,6 +434,16 @@ class QuarantineQueue:
                 fingerprints.add(flag["fingerprint"])
         return fingerprints
 
+    def exact_run_dispositions(
+        self, *, task_id: str, run_ref: str
+    ) -> list[dict[str, Any]]:
+        """Validated disposition records bound to one exact evidence run."""
+        return [
+            entry.to_dict()
+            for entry in self._load_all()
+            if entry.task_id == task_id and entry.run_ref == run_ref
+        ]
+
     def run_is_blocked(self, *, task_id: str, run_ref: str) -> bool:
         """Whether this exact evidence run still has an uncleared disposition.
 

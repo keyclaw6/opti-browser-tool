@@ -30,7 +30,6 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 CATALOG_RELPATH = "evals/catalog/tasks.jsonl"
-COMPONENT_ROOT = "harness/components"
 _HOST_STOPLIST = {"localhost", "127.0.0.1", "github.com", "example.com"}
 _B64_RE = re.compile(r"[A-Za-z0-9+/]{16,}={0,2}")
 # Punctuation used to break a literal token across string fragments.
@@ -157,30 +156,39 @@ def scan_files(repo_root: Path, files: list[str], *, vocabulary: dict[str, set[s
     return report
 
 
-def scan_tree(worktree: Path, *, vocabulary: dict[str, set[str]] | None = None) -> LintReport:
-    """Scan the WHOLE candidate component tree, rejecting non-scannable files."""
+def scan_tree(
+    worktree: Path,
+    *,
+    allowed_prefixes: tuple[str, ...],
+    vocabulary: dict[str, set[str]] | None = None,
+) -> LintReport:
+    """Scan every file under the frozen candidate-owned boundary."""
     vocab = vocabulary or build_vocabulary(worktree)
     patterns = _source_patterns(vocab)
     report = LintReport()
-    root = worktree / COMPONENT_ROOT
-    if not root.is_dir():
-        return report
-    for path in sorted(root.rglob("*")):
-        rel = path.relative_to(worktree).as_posix()
-        if path.is_symlink() or (path.exists() and not (path.is_file() or path.is_dir())):
-            report.findings.append(LintFinding(rel, 0, "non_regular_file", "", ""))
+    for prefix in allowed_prefixes:
+        root = worktree / prefix.rstrip("/")
+        if root.is_symlink() or not root.is_dir():
+            report.findings.append(
+                LintFinding(prefix.rstrip("/"), 0, "non_regular_file", "", "")
+            )
             continue
-        if not path.is_file():
-            continue
-        raw = path.read_bytes()
-        if b"\x00" in raw:
-            report.findings.append(LintFinding(rel, 0, "binary_payload", "", ""))
-            continue
-        try:
-            text = raw.decode("utf-8")
-        except UnicodeDecodeError:
-            report.findings.append(LintFinding(rel, 0, "binary_payload", "", ""))
-            continue
-        report.scanned_files += 1
-        report.findings.extend(_scan_text(rel, text, vocab, patterns))
+        for path in sorted(root.rglob("*")):
+            rel = path.relative_to(worktree).as_posix()
+            if path.is_symlink() or (path.exists() and not (path.is_file() or path.is_dir())):
+                report.findings.append(LintFinding(rel, 0, "non_regular_file", "", ""))
+                continue
+            if not path.is_file():
+                continue
+            raw = path.read_bytes()
+            if b"\x00" in raw:
+                report.findings.append(LintFinding(rel, 0, "binary_payload", "", ""))
+                continue
+            try:
+                text = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                report.findings.append(LintFinding(rel, 0, "binary_payload", "", ""))
+                continue
+            report.scanned_files += 1
+            report.findings.extend(_scan_text(rel, text, vocab, patterns))
     return report

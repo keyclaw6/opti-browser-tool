@@ -1,7 +1,9 @@
 # Auto-research readiness execution
 
 Status: active orchestration ledger. Milestones A/B/C and the pre-D decision
-transition are complete; milestone D is next.
+transition are complete. The corrected milestone-D1 implementation is
+uncommitted; its final independent correctness and elegance/YAGNI/vision
+results are both **CLEAN**, and the slice is ready to commit.
 Branch: `codex/auto-research-readiness`. ADR-0018 proposal commit: `544750b`.
 This file records implementation direction and evidence; it does not authorize
 a live campaign or turn fixture output into benchmark evidence.
@@ -33,7 +35,7 @@ remain separate inputs.
 | **B — decide the three external reviews** | **Complete** | The matrix below retains, adapts, defers, or rejects each major proposal against current code, charter value, and YAGNI; separate correctness and elegance reviews are clean. |
 | **C — clean installability** | **Complete** | Code commit `9d0a7ab` declares the actual package graph; evidence commit `ef0da6b` passes isolated source-to-wheel installation, transitive dependency, negative resolver, installed CLI/test, no-network-namespace, and full portable ZIP/bundle verification. The code and evidence slices have clean independent correctness and elegance/YAGNI reviews. |
 | **Pre-D architecture transition** | **Complete; Accepted** | Proposal commit `544750b` passed separate correctness and elegance/YAGNI/vision re-reviews. On 2026-07-15 the owner-delegated coordinator, acting under the founder's delegated architecture-decision authority, approved it exactly: `Accept ADR-0018 as written.` ADR-0018 now binds the minimal repeated-decision, identity/activation, candidate-boundary, indivisible-build, atomic-publication, and reversible WARC/BrowserGym/Playwright qualification transition while ADR-0002/0003 remain Open. |
-| **D — exact identity and trusted activation** | **Next; not started** | Bind exact run/build/protocol/environment/verifier/executor identity, immutable candidate execution, and conductor-authoritative activation proof with deterministic negative and positive coverage. |
+| **D — exact identity and trusted activation** | **In progress — D1 reviews clean and ready to commit** | D1 freezes a self-contained closed protocol before baseline; binds exact suite role, ordered scheduled task subset, seed, bounded repeat, arm, accepted/candidate build, adapter, verifier/admissions, and all trusted eval/loop/judge code; uses a minimal per-run context and typed live receipt; and fails replay/accepted-run loading closed on substitution. Its final independent correctness and elegance/YAGNI/vision reviews are clean. D2 immutable candidate materialization and D3 trusted activation proof remain required before milestone D can complete. |
 
 Milestones D-I remain ordered as identity/activation; repeated decision and
 champion protection; concrete
@@ -55,7 +57,7 @@ review's proposed rewrite or timing.
 | Consolidate the three packages into one distribution | R1/R3 | **Reject unless audit evidence proves it is simpler** | Before `9d0a7ab`, package manifests incorrectly declared no dependencies and the Makefile supplied them through `PYTHONPATH`; that was a real installability defect. Commit `9d0a7ab` completed the explicit dependency repair and clean-install proof without consolidation. Preserve the package boundaries unless later evidence proves them materially worse. No fourth contracts package is planned. |
 | Replace the current run layout with one new canonical bundle and delete `results.jsonl`, summaries, `EvalRun`, and replay checks | R3 | **Reject now** | The present redundancy is validated fail-closed and AR-003 relies on it. A greenfield persistence migration is not required for readiness. New code should avoid creating another authority; simplify existing records only when a demonstrated correctness or recovery problem requires it. |
 | Split optimizer proposal from conductor decision and parse untrusted input strictly | R1/R3 | **Adapt** | Ownership separation and strict decoding are correct. Preserve the existing versioned manifest/history where useful, but ensure optimizer input cannot supply trusted activation, attribution, terminal decision, or state transition. Do not build a compatibility framework for non-production fixture records. |
-| Broaden `harness/components/**` so the candidate can test the charter's real harness behavior | R1 | **Adapt and implement** | `harness/` currently contains contracts and registrations but no browser code; `harness/infra` freezes backend/session behavior plus model-interface and harness-local routing surfaces that the charter permits as harness treatments. Define an explicit candidate-owned harness-build boundary while keeping tasks, setup/reset, verifiers, secrets, evidence admission, safety policy, acceptance code, and the executor's exact model/provider identity and settings immutable within a harness experiment. Model comparisons remain separate experiments. Retain `target_component` and one causal treatment where they aid attribution; do not force every valid treatment into an artificially narrow file taxonomy. |
+| Broaden `harness/components/**` so the candidate can test the charter's real harness behavior | R1 | **Adapt and implement** | `harness/` currently contains registrations but no executable browser runtime. The frozen candidate allowlist is the sole path authority and may later include concrete harness-runtime surfaces; `harness/infra`, lanes, tasks, setup/reset, verifiers, secrets, evidence admission, safety policy, acceptance code, and the executor's exact model/provider identity/settings remain trusted and immutable. Model comparisons remain separate experiments. `target_component` remains attribution only and cannot narrow or expand the allowlist. |
 | Remove the one-component causal rule and fixed taxonomy entirely | R1 | **Reject now** | One hypothesis and a bounded causal change remain valuable safeguards. Broaden only surfaces proven to be harness behavior; add a bounded multi-surface treatment only when a concrete irreducible change needs it. |
 | Partially retain or roll back files/components from an evaluated candidate without a new experiment | R1 | **Reject** | Acceptance evidence belongs to the exact tested candidate build as an indivisible treatment. Removing or retaining only a subset creates a different, untested build; that rollback must be proposed as a new candidate and pass the complete identity, activation, evidence, repeated-decision, regression, and transfer protocol. |
 | Supersede E0-E5 with a new undifferentiated experiment transaction | R1/R3 | **Reject** | E0-E5 are useful fail-fast checks and scheduling structure, and their substantive containment, activation, smoke, targeted, regression, and full-evaluation roles already work. Keep the ladder, but correct the final decision protocol and transaction/recovery semantics. |
@@ -82,14 +84,101 @@ review's proposed rewrite or timing.
 |---|---|---|
 | `/root` | Active | Orchestration, integration, milestone sequencing, and final authority. |
 | `/root/adr_transition_impl` | Complete | Proposed ADR-0018 and decision/documentation support; no D/E/F code. |
-| `/root/adr0018_acceptance_impl` | Complete | Acceptance-only decision metadata, cross-links, ledgers, final wording corrections, and regenerated manifests; no D/E/F code. |
-| `/root/installability_audit` | Complete; correctness clean | Independent correctness review of the proposal and acceptance-only slice. |
+| `/root/adr0018_acceptance_impl` | Complete; final D1 elegance/YAGNI/vision result CLEAN | Independently re-reviewed the corrected D1 slice after its earlier actionable findings; no actionable finding remains. |
+| `/root/installability_audit` | Complete; final D1 correctness result CLEAN | Independently re-reviewed the corrected D1 slice after its earlier actionable findings; no actionable finding remains. |
 | `/root/milestone_a_verify` | Complete; elegance clean after wording fixes | Independent elegance/YAGNI/vision review of the proposal and acceptance-only slice. |
 | `/root/milestone_d_impact_scout` | Complete; read-only | Post-acceptance D impact discovery only; no implementation authority. |
+| `/root/d2_materialization_scout` | Complete; read-only | Bounded D2 immutable materialization/import and recovery design; no implementation or shared-surface edits. |
+| `/root/d3_activation_scout` | Complete; read-only | Bounded D3 trusted activation design; no implementation or shared-surface edits. |
+| `/root/milestone_d1_identity_impl` | Complete; D1 ready to commit | Sole D1 editor for frozen protocol/run identity, replay binding, tests, and this ledger; no D2 immutable materialization, D3 activation, or milestone-E decision implementation. |
 
-No D/E/F implementation sub-agent is active. The acceptance-only documentation
-slice is clean after separate correctness and elegance/YAGNI/vision reviews and
-is ready for its own commit.
+No D2/D3/E/F implementation sub-agent is active. D1 remains uncommitted and is
+ready to commit; its separate correctness and elegance/YAGNI/vision reviews
+are clean.
+
+### Milestone D1 implementation and correction record
+
+- Final independent correctness result: **CLEAN**. Final independent
+  elegance/YAGNI/vision result: **CLEAN**. Earlier passes found open task/suite
+  scheduling, duplicated context identity, weak adapter/verifier authorization, insufficient
+  trusted-code/admissions drift checks, caller-free replay promotion, broad
+  placeholder matching, stale cleanup/comparison semantics, and duplicated
+  allowlist authority. The latest P1 pass additionally required AR-003 to be
+  the only reportability/decision authority; independent admission of both
+  benchmark arms and every real noise sample; durable revalidation of accepted
+  evidence; one frozen candidate path authority over the complete diff;
+  count-insensitive calibration binding; and rejection of a treatment with the
+  accepted materialized digest. Those findings are corrected in the current
+  uncommitted slice. A subsequent review found that real noise bands retained
+  only digest-shaped receipt strings, so missing or stale calibration evidence
+  was not replayed before reuse, and that generality lint still had a hidden
+  component-only default. Real bands now carry closed per-sample evidence
+  anchors and must reproduce every AR-003 receipt before the gate will consume
+  them; lint requires the frozen allowlist explicitly. The final bounded P1
+  review then showed that valid anchors could accompany mutated persisted
+  margins, flip allowances, or task counts. Revalidation now retains the
+  freshly reloaded/admitted runs, canonically remeasures their real noise band,
+  and requires exact equality of every serialized authoritative field before
+  setting the transient validation flag. Both final re-reviews found no
+  remaining actionable issue.
+- The conductor now resolves and atomically freezes one full, self-contained,
+  closed protocol snapshot before baseline. Keeping the full normalized
+  snapshot is intentional: an archived run can validate its complete apparatus
+  without mutable campaign configuration. Per-run context stays small and
+  contains only run ID, mode, arm, suite role, exact ordered task subset,
+  repeat, seed, protocol digest, build, and run digest.
+- The protocol binds exact ordered suite/task records, every declared dev
+  task/seed matched block and arm order, source reset/environment/browser
+  identities, normalized live adapter identity, verifier checksum/bundle and
+  exact admissions bytes, executor identity/settings, instrumentation, lane,
+  one normalized non-overlapping candidate allowlist, accepted build, repeated
+  protocol, and the complete Python source trees of `opti_eval`, `opti_loop`,
+  and `opti_judge` where the loop consumes them.
+- Before E2, any scheduled E3, E4, E5, and again immediately before eligibility,
+  the gate recomputes trusted code/admissions bindings. Drift is invalid, not a
+  treatment result. The runner also requires actual adapter and verifier
+  bindings to equal the frozen identities before issuing a typed in-memory
+  receipt.
+- Adapters receive only `run_id` and `run_context_digest`. Callers must supply
+  the exact protocol and context; persisted replay without the caller-held
+  receipt is diagnostic and non-reportable. Receipt mismatch, protocol/run/task
+  substitution, stale accepted anchors, and simulated accepted anchors fail
+  closed. Cross-campaign ranking additionally requires one shared comparison-
+  apparatus digest and a live benchmark-eligible accepted anchor.
+- Raw runner summaries now always persist
+  `benchmark_reportable=false`/`acceptance_decision_eligible=false`. Only a
+  closed in-memory AR-003 admission receipt can authorize a benchmark
+  comparison or decision. Baseline and treatment arms, regression runs, and
+  every real noise sample are independently assessed; the accepted-run loader
+  reloads the exact evidence directory, reruns AR-003, and requires the full
+  receipt to equal the durable anchor.
+- The normalized frozen candidate allowlist is shared by protocol freeze and
+  replay and rejects trusted harness surfaces. It controls containment,
+  identity hashing, lint, registration, the exact full-diff manifest scope,
+  and optimizer instructions. `target_component` is attribution only. The
+  optimizer packet now records and prints the exact frozen allowlist instead
+  of hard-coding `harness/components/<target_component>/`.
+- Calibration identity ignores only the repeat count and its count-derived
+  `valid_after`/`max_runs` scheduling values; apparatus changes still drift the
+  binding. Treatment identity rejects equal accepted/candidate materialized
+  bytes even when Git commit/tree fields differ.
+- A persisted real noise band now contains one closed campaign-relative
+  evidence-directory/full-AR-003-receipt anchor per ordered sample. Decision
+  preflight reloads the frozen calibration protocol and every sample with its
+  derived live identity, reruns AR-003/T1 against current admissions and
+  quarantine state, and requires exact receipt equality. Unsafe, duplicate,
+  missing, tampered, stale, fabricated, reordered, symlinked, or wrong-protocol
+  samples invalidate the decision. Digest-only bands are rejected; synthetic
+  fixture bands remain anchor-free and nonreportable.
+- Production identity validation is positive and field-scoped: exact sentinel
+  values/namespaces are rejected case-insensitively without rejecting legitimate
+  identities such as `model-latest-stable`. Accepted-build and arm-specific
+  roles are enforced. Fixture/direct paths remain explicitly simulated.
+- Start preflights the next iteration path before creating a worktree and rolls
+  back only state/directories it created if identity or baseline setup fails.
+  Existing owner artifacts are preserved. The current conductor still emits a
+  mutable build receipt, so benchmark start remains blocked until D2 supplies
+  immutable materialization; no benchmark performance is claimed.
 
 ### ADR-0018 acceptance record
 
@@ -225,6 +314,47 @@ The milestone-A/B/C closure state has current verification:
 - independent AR-003 correctness and elegance reviews, plus independent
   milestone-B correctness and elegance reviews, report no actionable findings.
 
+The corrected uncommitted D1 worktree passes 46 eval tests, 28 judge tests, and
+112 loop tests (111 passed plus the existing optional-`jsonschema` skip). The
+cached offline schema environment passes 531 documents with zero errors (195
+evidence-contract and 180 experiment-contract cases). Documentation passes 84
+Markdown files, 171 local links, and 18 ADRs. Repository/package/catalog
+completeness, Python compilation, and `git diff --check` pass. The working-tree
+clean-install proof builds all three wheels, installs only the declared
+eval/judge/loop dependency graph through offline/no-index resolution, runs
+installed CLI checks and all three installed test suites, rejects the
+missing-judge negative control, and records `benchmark_evidence=false`.
+The regenerated inventory catalogs 379 files and the digest manifest verifies
+380 files.
+The final codebase-memory index contains 12,210 nodes and 19,038 edges.
+
+Adversarial D1 coverage includes exact ordered task subsets and suite roles;
+undeclared seed/repeat/order rejection; exact matched blocks and arm order;
+accepted/baseline, candidate/treatment, and diagnostic role enforcement;
+case-folded production sentinels without substring false positives; minimal
+adapter-visible context; actual adapter/verifier mismatch; caller-held receipt
+and bundle-substitution rejection; ordinary non-reportable replay; complete
+eval/loop/judge code drift and admissions drift; gate rechecks between runs and
+before eligibility; frozen-config mutation; protocol tamper/overwrite refusal;
+normalized allowlist overlap rejection; stale-noise binding; existing-iteration
+preflight preservation; failure cleanup; comparison-apparatus exclusion of
+campaign/iteration/build; missing/different comparison identity; and rejection
+of simulated accepted anchors. The P1 correction coverage additionally proves
+raw-summary nonauthority; independent admission of paired arms and every real
+noise sample; accepted evidence-directory/receipt replay; strict persisted
+noise evidence-class/admission types; positive real-noise restart/reuse;
+missing/deleted, tampered, stale-admission, fabricated-anchor, wrong-order,
+symlink, changed-calibration-protocol/current-binding, unvalidated-gate, and digest-only
+real-noise rejection; full-diff manifest equality; `target_component`
+nonauthority; lint and identity across every frozen allowed root; required
+explicit lint allowlist; trusted harness-surface rejection; exact
+optimizer-packet allowlist;
+count-derived calibration equivalence; and same-materialized-bytes treatment
+rejection. It also reproduces the reviewer's exact zero-margin/zero-flip band
+mutation to a `1.0` margin and task-count flip allowance, plus task-count and
+anchor-order controls; all fail closed while positive restart revalidation
+remains green. No fixture artifact becomes benchmark evidence.
+
 The ordinary clean-install verifier enforces uv offline mode, `--no-index`, a
 local wheelhouse, and an empty install cache; it is not by itself an OS network
 sandbox. The separate successful `unshare -Urn` run supplies that stronger
@@ -251,8 +381,8 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
 - `harness/` is a scaffold with no executable browser harness; the current loop
   can construct only fixture, harness-fixture, and non-reportable command
   adapters.
-- Full run/build/protocol/environment/verifier/model identity is incomplete;
-  immutable candidate execution and trusted dynamic activation are not proven.
+- D1 now supplies closed protocol and run-context identity, but D2 immutable
+  candidate execution and D3 trusted dynamic activation are not yet proven.
 - E5 executes one treatment run; the four-valued repeated paired/interleaved
   protocol, durable champion/regression protection, and deterministic
   positive/no-op/regression/invalid simulations are incomplete.
@@ -281,17 +411,18 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
 
 ## Next steps
 
-1. Implement milestone D exact identity, immutable candidate execution, and
-   trusted activation in a bounded implementation/review loop.
-2. Implement the four-valued repeated protocol in milestone E, with positive,
+1. Commit the independently reviewed D1 slice without broadening its scope.
+2. Implement D2 immutable candidate execution and D3 trusted activation in
+   separate bounded implementation/review loops.
+3. Implement the four-valued repeated protocol in milestone E, with positive,
    no-op, regression, invalid, and interruption simulations.
-3. Implement the reversible WARC `online.4` readiness path in milestone F (or document the
+4. Implement the reversible WARC `online.4` readiness path in milestone F (or document the
    evidence that forces a different concrete source): precise preflight,
    reset/verifier/artifact/config contracts, constrained execution seam, and
    offline/local fixture integration only.
-4. Finish single-host lifecycle, analyst/learning, source dispositions,
+5. Finish single-host lifecycle, analyst/learning, source dispositions,
    status/operator commands, adversarial integration, manifest regeneration,
    and final independent correctness plus elegance reviews.
-5. Stop at software readiness and publish the exact external activation
+6. Stop at software readiness and publish the exact external activation
    checklist. Do not run or imply a real campaign without owner-supplied inputs
    and explicit authorization.

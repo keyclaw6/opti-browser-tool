@@ -37,6 +37,7 @@ def _runtime_report(payload: object) -> manifest.ManifestReport:
         return manifest.load_and_validate(
             path,
             changed_files=["harness/components/observation/observation_contract.md"],
+            allowed_prefixes=("harness/components/",),
         )
 
 

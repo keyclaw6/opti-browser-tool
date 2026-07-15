@@ -21,7 +21,7 @@ trusted experiment boundary (ADR-0015 §5) is silently void:**
 | Role | Runs as | May write |
 |---|---|---|
 | **Conductor/operator** (you, privileged) | owner-side OS user | trusted store, repo main, environments |
-| **Optimizer** (phase D) | a SEPARATE confined session/OS user | ONLY `<candidate-worktree>/harness/components/**` + its `manifest.json` |
+| **Optimizer** (phase D) | a SEPARATE confined session/OS user | ONLY the campaign's frozen candidate allowlist + its `manifest.json` |
 | **Judges/Analyst** (T2) | sub-agents you spawn, preset GPT-5.6 Sol Ultra (ADR-0017) | analysis artifacts only — never scores, never the harness |
 
 Hard rules:

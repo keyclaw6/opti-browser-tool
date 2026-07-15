@@ -1,19 +1,19 @@
 # PROGRAM.md — Optimizer Runbook (v0)
 
-- Status: **The auto-research loop is NOT yet active.** This runbook is governed by [ADR-0015](docs/adr/0015-auto-research-loop-architecture.md), [ADR-0016](docs/adr/0016-judge-panel-and-verifier-audit-protocol.md), [ADR-0005](docs/adr/0005-experiment-gating.md), and [ADR-0004](docs/adr/0004-trace-storage.md) — all **Accepted 2026-07-13**. It becomes operative only after the pre-activation requirements pass: source bridges emitting conforming traces, verifiers admitted via probe kits, the suite and noise band calibrated, the ADR-0005 injection catalog green, and the project owner explicitly starting the loop.
+- Status: **The auto-research loop is NOT yet active.** This runbook is governed by [ADR-0015](docs/adr/0015-auto-research-loop-architecture.md), [ADR-0016](docs/adr/0016-judge-panel-and-verifier-audit-protocol.md), [ADR-0018](docs/adr/0018-auto-research-readiness-protocol-transition.md), [ADR-0005](docs/adr/0005-experiment-gating.md), and [ADR-0004](docs/adr/0004-trace-storage.md). It becomes operative only after the pre-activation requirements pass: source bridges emitting conforming traces, verifiers admitted via probe kits, the suite and noise band calibrated, the ADR-0005 injection catalog green, and the project owner explicitly starting the loop.
 - Audience: the external coding agent acting as the **Optimizer**.
 - Binding constraints you inherit regardless of this document: [ADR-0001](docs/adr/0001-project-constitution.md) (constitution), [ADR-0007](docs/adr/0007-nested-smoke-suite.md), [ADR-0012](docs/adr/0012-reference-success-band-35-to-70.md), [ADR-0014](docs/adr/0014-run-all-140-candidates-before-filtering.md), and [`PROJECT_CHARTER.md`](PROJECT_CHARTER.md).
 
 ## 1. Your role
 
-You improve the browser-agent **harness-under-test** — nothing else. You read traces and analysis, form one falsifiable hypothesis, make one component-scoped change, predict its effects, and submit it to a deterministic gate. You do not score runs, you do not decide acceptance, and you do not modify the instruments that measure you.
+You improve the browser-agent **harness-under-test** — nothing else. You read traces and analysis, form one falsifiable hypothesis, make one causal treatment inside the frozen candidate boundary, predict its effects, and submit it to a deterministic gate. You do not score runs, you do not decide acceptance, and you do not modify the instruments that measure you.
 
 ## 2. Files you own and files you must never touch
 
 | Surface | Access |
 |---|---|
-| `harness/components/**` (the eight components: policy, observation, actions, tool_descriptions, middleware, skills, sub_agents, memory — see [`docs/architecture/COMPONENT_TREE.md`](docs/architecture/COMPONENT_TREE.md)) | **read/write — the only writable surface** |
-| `harness/infra/**` (session interface, backend adapters, model config, tracer, budgets) | read-only |
+| Exact paths printed by `opti-loop start` from the frozen `candidate_allowlist` | **read/write — the only writable surfaces** |
+| `harness/infra/**`, `harness/lanes/**`, activation instrumentation, executor/model pins, safety and evidence contracts | read-only |
 | `evals/**`, `schemas/**`, `eval_harness/**`, verifiers, bridges, suite manifests | read-only; never edited inside an iteration |
 | `docs/**`, `scripts/**`, `PROGRAM.md`, ledger and manifest history | read-only |
 | Holdout tasks, holdout traces, judge-only evidence, verifier internals | **no access — do not attempt to locate or infer** |
@@ -30,8 +30,8 @@ Campaign identity (harness workspace branch, base lane, ledger, cluster register
 2. **D — EVOLVE (you)**: work **inside the worktree**:
    - Take the **highest-priority unresolved cluster** from the packet unless the Conductor directs otherwise.
    - **If the iteration is marked divergent** (exploration quota or plateau, [ADR-0015](docs/adr/0015-auto-research-loop-architecture.md) §9): do not target the top cluster; select an architecture-class hypothesis and set `cluster_ref` to `divergent/...`.
-   - Form **one hypothesis**; select **exactly one target component**.
-   - Edit only `harness/components/<component>/**`; make **one candidate commit**.
+   - Form **one hypothesis** and name one `target_component` for attribution. That label is not path authority.
+   - Edit only the exact frozen allowlist paths printed by `start`; make **one candidate commit**. An irreducible cross-surface treatment must predeclare every changed file.
    - Write **one `manifest.json`** in the worktree root (§4) — untracked; the Conductor ingests it.
    - After **two failed attempts** at the same cluster+component the Conductor forces a **pivot** — a third local retry is rejected at E0.
 3. **E + B + F — RUN-ITERATION (one transaction)**: `opti-loop run-iteration --campaign <id>` is a single atomic step. It ingests and validates your manifest, runs the E0–E5 ladder ([ADR-0005](docs/adr/0005-experiment-gating.md)) over the `base..candidate` **commit diff**, computes attribution (B), writes the gate report + ledger row to the trusted store (F), advances accepted state **only** on a genuine `(accepted, benchmark)` verdict, and resets your worktree either way. There is no separate, forgeable gate/record/rollback step to exploit.
@@ -46,7 +46,7 @@ Minimum content: trace evidence (run and event IDs) → suspected root cause →
 
 ## 5. Hard rules
 
-1. **One hypothesis, one component, one commit, one manifest** per iteration.
+1. **One hypothesis, one causal treatment, one commit, one manifest** per iteration.
 2. **Never** edit verifiers, tasks, suites, bridges, judges, schemas, gate code, or this file.
 3. **Never** encode benchmark tokens, task IDs, or site-specific answers into code, skills, or memory. The generality lint reads your diff and your memory content; state predictions as failure classes.
 4. **Never** read or infer holdout material or judge-only evidence.
@@ -91,6 +91,11 @@ The optional global flags are `--repo-root PATH` and `--store-root PATH`; put
 either before `init`, `status`, or another subcommand. When `--repo-root` and
 `OPTI_BROWSER_REPO_ROOT` are absent, the installed CLI discovers the repository
 from the current directory and its parents.
+
+Raw evaluator summaries never grant benchmark reportability or decision
+eligibility. Only the Conductor's complete AR-003 result/trace/artifact,
+verifier-admission, T1, and quarantine review can issue an admission receipt.
+Both paired benchmark arms and every real noise sample require one.
 
 Fixture and simulated runs validate plumbing only; their verdicts carry
 `evidence_class: simulated` and can **never** advance real accepted state or be

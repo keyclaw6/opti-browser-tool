@@ -4,7 +4,7 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
-from .base import Adapter
+from .base import Adapter, AdapterExecutionContext
 from ..models import TaskResult, validate_nonempty_string, validate_task_id
 
 
@@ -20,7 +20,13 @@ class FixtureAdapter(Adapter):
         self.pass_rate = float(pass_rate)
         self.seed = int(seed)
 
-    def run(self, task: dict[str, Any], task_dir: Path, *, run_id: str) -> TaskResult:
+    def run(
+        self,
+        task: dict[str, Any],
+        task_dir: Path,
+        *,
+        execution_context: AdapterExecutionContext,
+    ) -> TaskResult:
         task_id = validate_task_id(task.get("id"))
         source = validate_nonempty_string(task.get("source"), field_name="source")
         digest = hashlib.sha256(f"{self.seed}:{task_id}".encode("utf-8")).digest()

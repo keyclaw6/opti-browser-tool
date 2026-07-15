@@ -14,6 +14,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .fileguard import is_regular_file, path_is_safe
 from .manifest import COMPONENT_ROOT, COMPONENTS
 
 
@@ -28,14 +29,12 @@ class RegistrationReport:
         return not self.errors
 
 
-def check_tree(repo_root: Path) -> RegistrationReport:
-    """Validate every component.json in the harness tree."""
+def _check_components(
+    repo_root: Path, components: list[str]
+) -> RegistrationReport:
     report = RegistrationReport()
     root = repo_root / COMPONENT_ROOT
-    if not root.is_dir():
-        report.errors.append(f"missing component root: {COMPONENT_ROOT}/")
-        return report
-    for component in COMPONENTS:
+    for component in components:
         directory = root / component
         manifest = directory / "component.json"
         if not directory.is_dir():
@@ -55,8 +54,16 @@ def check_tree(repo_root: Path) -> RegistrationReport:
                 f"{component}/component.json declares component "
                 f"{payload.get('component')!r}"
             )
-        for relfile in payload.get("files", []):
-            if not (directory / relfile).is_file():
+        files = payload.get("files", [])
+        if type(files) is not list:
+            report.errors.append(f"{component}/component.json files must be an array")
+            files = []
+        for relfile in files:
+            if type(relfile) is not str or not path_is_safe(relfile):
+                report.errors.append(
+                    f"{component}/component.json lists unsafe file: {relfile!r}"
+                )
+            elif not is_regular_file(directory, relfile):
                 report.errors.append(
                     f"{component}/component.json lists missing file: {relfile}"
                 )
@@ -68,24 +75,53 @@ def check_tree(repo_root: Path) -> RegistrationReport:
     return report
 
 
+def check_tree(repo_root: Path) -> RegistrationReport:
+    """Validate every component.json in the legacy component tree."""
+    if not (repo_root / COMPONENT_ROOT).is_dir():
+        return RegistrationReport(errors=[f"missing component root: {COMPONENT_ROOT}/"])
+    return _check_components(repo_root, list(COMPONENTS))
+
+
 def check_change_registered(repo_root: Path, target_component: str, changed_files: list[str]) -> RegistrationReport:
-    """Every changed file inside the component must be listed in its component.json."""
-    report = check_tree(repo_root)
-    directory = repo_root / COMPONENT_ROOT / target_component
-    manifest_path = directory / "component.json"
-    if not manifest_path.is_file():
-        return report
-    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-    listed = set(payload.get("files", []))
-    prefix = f"{COMPONENT_ROOT}/{target_component}/"
-    for path in changed_files:
-        if not path.startswith(prefix):
+    """Validate only legacy component paths actually changed.
+
+    ``target_component`` is retained for manifest attribution compatibility;
+    the frozen allowlist, not that label, owns path authority.
+    """
+    del target_component
+    prefix = COMPONENT_ROOT + "/"
+    changed_components = sorted(
+        {
+            path[len(prefix):].split("/", 1)[0]
+            for path in changed_files
+            if path.startswith(prefix) and "/" in path[len(prefix):]
+        }
+    )
+    unknown = sorted(set(changed_components) - set(COMPONENTS))
+    report = _check_components(
+        repo_root, [component for component in changed_components if component in COMPONENTS]
+    )
+    for component in unknown:
+        report.errors.append(f"unknown legacy component directory: {component}")
+    for component in changed_components:
+        if component not in COMPONENTS:
             continue
-        relative = path[len(prefix):]
-        if relative == "component.json":
+        directory = repo_root / COMPONENT_ROOT / component
+        manifest_path = directory / "component.json"
+        if not manifest_path.is_file():
             continue
-        if relative not in listed:
-            report.errors.append(
-                f"changed file not registered in {target_component}/component.json: {relative}"
-            )
+        try:
+            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        listed = set(payload.get("files", []))
+        component_prefix = f"{COMPONENT_ROOT}/{component}/"
+        for path in changed_files:
+            if not path.startswith(component_prefix):
+                continue
+            relative = path[len(component_prefix):]
+            if relative != "component.json" and relative not in listed:
+                report.errors.append(
+                    f"changed file not registered in {component}/component.json: {relative}"
+                )
     return report
