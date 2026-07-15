@@ -8,6 +8,7 @@
 - Approval state: Accepted — explicit project-owner approval (2026-07-13). Loop activation remains separately gated on bridges, calibration, and the ADR-0005 injection catalog.
 - Supersedes: —
 - Superseded by: —
+- Nonbinding transition proposal: [ADR-0018](0018-auto-research-readiness-protocol-transition.md) would broaden the explicit candidate-owned harness-build boundary and make exact evaluated builds indivisible; it has no effect unless explicitly accepted.
 - Answers: Open Question 16
 - Supporting specifications: [`../architecture/COMPONENT_TREE.md`](../architecture/COMPONENT_TREE.md), [`../architecture/ANALYST.md`](../architecture/ANALYST.md), [`../../PROGRAM.md`](../../PROGRAM.md)
 

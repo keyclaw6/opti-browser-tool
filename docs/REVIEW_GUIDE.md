@@ -36,6 +36,9 @@ Confirm that the repository does not falsely claim selection of:
 
 (Models, judges, and the reference harness are now selected by ADR-0017; judge PROMPTS remain uncalibrated and untrusted until measured.)
 
+ADR-0018 is Proposed and must remain nonbinding unless its exact owner-approval
+gate has been satisfied and recorded.
+
 Implemented bridge and fixture code is provisional infrastructure, not evidence that any of those choices is accepted.
 
 ## 4. Verify task preservation

@@ -1,7 +1,7 @@
 # Auto-research readiness execution
 
-Status: active orchestration ledger. Milestones A/B/C complete; the required
-pre-D architecture-transition ADR is active.
+Status: active orchestration ledger. Milestones A/B/C complete; ADR-0018 is
+Proposed and milestones D-F await explicit project-owner acceptance.
 Branch: `codex/auto-research-readiness`. Milestone-C evidence commit:
 `ef0da6b`.
 This file records implementation direction and evidence; it does not authorize
@@ -33,9 +33,9 @@ remain separate inputs.
 | **A — reproduce verification and finish AR-003** | **Complete** | AR-003 closed at `72e73c2`; separate correctness and elegance reviewers returned no actionable findings; full verification and the regenerated file inventory/manifests pass. |
 | **B — decide the three external reviews** | **Complete** | The matrix below retains, adapts, defers, or rejects each major proposal against current code, charter value, and YAGNI; separate correctness and elegance reviews are clean. |
 | **C — clean installability** | **Complete** | Code commit `9d0a7ab` declares the actual package graph; evidence commit `ef0da6b` passes isolated source-to-wheel installation, transitive dependency, negative resolver, installed CLI/test, no-network-namespace, and full portable ZIP/bundle verification. The code and evidence slices have clean independent correctness and elegance/YAGNI reviews. |
-| **Pre-D architecture transition** | **Active** | Before D, E, or F changes accepted architecture, create the minimal amendment or superseding ADR, update the decision register/timeline, and record any WARC/BrowserGym/Playwright bring-up pin as reversible without silently settling ADR-0003. |
+| **Pre-D architecture transition** | **Proposed; owner decision required** | ADR-0018 records the minimal repeated-decision, identity/activation, candidate-boundary, indivisible-build, atomic-publication, and reversible WARC/BrowserGym/Playwright qualification transition. It is nonbinding; D-F implementation remains blocked until explicit owner acceptance. |
 
-After the architecture transition, milestones D-I remain ordered as
+After ADR-0018 is explicitly accepted, milestones D-I remain ordered as
 identity/activation; repeated decision and champion protection; concrete
 source/backend readiness; safe single-host lifecycle; trace-backed
 learning/operator flow; and final integration/adversarial verification.
@@ -76,13 +76,43 @@ review's proposed rewrite or timing.
 | Omit generated commands/status/documentation until a real run stabilizes | R2 | **Reject; implement minimal operator surfaces** | Readiness requires exact missing-input diagnostics and safe start/status/resume instructions. Implement direct commands and executable docs, not a command-generation framework or polished observability platform. |
 | Use staging plus atomic publication and minimal journal/receipt recovery | R3 | **Accept and implement in the existing filesystem design** | Interrupted work must not become evidence and accepted state must not outrun its decision receipt. This supplies the needed single-host recovery without SQLite, distributed transactions, or a generic workflow engine. |
 
-## Active agents
+## Current orchestration roster
 
 | Agent | Status | Bounded ownership |
 |---|---|---|
 | `/root` | Active | Orchestration, integration, milestone sequencing, and final authority. |
+| `/root/adr_transition_impl` | Complete | Proposed ADR-0018 and decision/documentation support; no D/E/F code. |
+| `/root/installability_audit` | Complete; substantively clean | Independent correctness re-review found no substantive issue; only this durable-roster closeout remained. |
+| `/root/milestone_a_verify` | Complete; clean after closeout | Independent elegance/YAGNI/vision re-review found only the EXT-002 ledger inconsistency corrected here. |
+| `/root/milestone_d_impact_scout` | Complete; read-only | Post-acceptance D impact discovery only; no implementation authority. |
 
-No implementation sub-agent is active. The milestone-C evidence review found
+No D/E/F implementation sub-agent is active. The proposed ADR-0018 transition
+slice is documentation and verification only; its independent reviews are
+clean after this closeout, and implementation awaits explicit owner acceptance.
+
+### Completed ADR-0018 review/fix loop
+
+- `/root/installability_audit` returned seven correctness findings covering the
+  frozen matched-block protocol, exact amendment/taxonomy semantics, trusted
+  activation/evaluation boundaries, constitutional modality, timeline drift,
+  ADR metadata/relationships, and durable roster. This implementation agent
+  applied the corrections; correctness re-review found the substance clean and
+  requested only this roster closeout.
+- `/root/milestone_a_verify` challenged timeline wording,
+  amendment/taxonomy clarity, and the unsupported implication that WACZ and
+  verifier bytes were already pinned. The correction now makes those external
+  identities preflight requirements and gives the reversible target a narrow
+  revisit rule. Its final re-review found only the EXT-002 ledger inconsistency
+  corrected in this closeout.
+- `/root/milestone_d_impact_scout` concluded that post-acceptance milestone D
+  should compose one frozen conductor protocol snapshot, one immutable build
+  receipt/materialization path, and one trusted E1 activation record—not expand
+  a disconnected collection of hashes. This is read-only preparation, not D
+  implementation or authorization.
+
+### Completed-review history
+
+The milestone-C evidence review found
 manifest portability, exact loop-count accounting, stale package-rationale,
 and durable-roster findings. `/root/milestone_c_evidence_impl` corrected those
 findings without changing package, CLI, or archive logic; the only code change
@@ -99,8 +129,6 @@ confirmed the archive proof is distinct from the clean-install proof and found
 the closure slice otherwise clean; its sole commit-stability finding was the
 ephemeral future-rerun narration removed in this correction. With that
 correction applied, both archive-closure reviews are clean.
-
-### Completed-review history
 
 - `/root/milestone_a_verify` found the original numeric/order and Git-worktree
   gaps, then returned a clean post-correction correctness sign-off.
@@ -194,6 +222,13 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
 
 ## Blockers
 
+### Decision blocker before milestones D-F
+
+- ADR-0018 is Proposed, not Accepted. Its exact owner gate is `Accept ADR-0018
+  as written.` Until approval is recorded in the ADR, register, and timeline,
+  no D/E/F implementation may treat its repeated protocol, candidate boundary,
+  build semantics, or reversible adapter pin as binding architecture.
+
 ### Software blockers to close in milestones D-I
 
 - `harness/` is a scaffold with no executable browser harness; the current loop
@@ -229,16 +264,12 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
 
 ## Next steps
 
-1. Before milestone D, E, or F implements the architecture transitions selected
-   here, create the minimal amendment/superseding ADR for ADR-0015's candidate
-   boundary and
-   indivisible-build semantics, ADR-0005's repeated E5 decision, and any
-   resolution of ADR-0002 lane semantics; one coherent transition record may
-   cover them when the decision process permits. Update `DECISION_REGISTER.md`
-   and `DECISION_TIMELINE.md`. Record WARC/BrowserGym/Playwright only as a
-   reversible readiness/bring-up pin through that process, leave ADR-0003's
-   final selection open, and do not claim ungranted owner approval.
-2. Implement exact identity, immutable candidate execution, trusted activation,
+1. Obtain explicit project-owner acceptance of proposed ADR-0018. If accepted,
+   record its approval date and Accepted status in the ADR, decision register,
+   and timeline before changing D/E/F architecture. ADR-0002 and ADR-0003 stay
+   Open; the WARC/BrowserGym/Playwright path remains only a reversible
+   qualification pin.
+2. After acceptance, implement exact identity, immutable candidate execution, trusted activation,
    and the four-valued repeated protocol in bounded milestones, with positive,
    no-op, regression, invalid, and interruption simulations.
 3. Implement the reversible WARC `online.4` readiness path (or document the

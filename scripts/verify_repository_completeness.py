@@ -25,6 +25,7 @@ REQUIRED_FILES = [
     "docs/adr/0001-project-constitution.md",
     "docs/adr/0012-reference-success-band-35-to-70.md",
     "docs/adr/0014-run-all-140-candidates-before-filtering.md",
+    "docs/adr/0018-auto-research-readiness-protocol-transition.md",
     "research/benchmarks/task-candidates/batch-1-candidates.jsonl",
     "research/benchmarks/task-candidates/batch-1-candidates.csv",
     "research/benchmarks/task-candidates/batch-1-index.md",

@@ -6,6 +6,7 @@
 - Date accepted: 2026-07-13
 - Source: explicit project-owner direction (project thread, 2026-07-13); items 4–7 delegated by the owner and decided by the agent
 - Answers: Open Question 17 at the selection level (exact API identifiers/snapshots are recorded per campaign at bring-up)
+- Nonbinding transition proposal: [ADR-0018](0018-auto-research-readiness-protocol-transition.md) would replace item 7's literal writable path with a frozen campaign harness-build allowlist while preserving two-user confinement; it has no effect unless explicitly accepted.
 
 ## Decision
 

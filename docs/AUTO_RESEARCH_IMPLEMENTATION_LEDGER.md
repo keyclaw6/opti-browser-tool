@@ -57,7 +57,8 @@ active sequence is now governed jointly with
 `docs/AUTO_RESEARCH_READINESS_EXECUTION.md`: milestone C is complete through
 code commit `9d0a7ab`, evidence commit `ef0da6b`, and the successful full
 portable-archive proof from that clean evidence commit. The minimal required ADR
-transition is active before milestones D, E, or F change accepted architecture.
+transition is Proposed as ADR-0018 and awaits explicit project-owner acceptance
+before milestones D, E, or F change accepted architecture.
 AR-004 through AR-020 remain queued and are pulled into bounded milestones only
 when their dependencies and review boundaries align. This ordering does not
 mark, skip, or silently supersede any queued package.
@@ -70,7 +71,7 @@ less trustworthy, so they start only when their dependency is real.
 | ID | State | Work | Why deferred / activation condition |
 |---|---|---|---|
 | EXT-001 | blocked-external | Pin, deploy, reset, and bridge all five benchmark sources | FOUND-003. Requires upstream runtime assets, credentials/access, native verifiers, and observable reset state. Start source-by-source when an environment is actually available. |
-| EXT-002 | decision-required | Select the first browser baseline and build the minimal seed | FOUND-005 and ADR-0003. Complete Phase-1 harness research and obtain the owner's explicit backend decision before implementation. |
+| EXT-002 | decision-required | Accept the first browser baseline and build the minimal seed | FOUND-005 and ADR-0003. Complete the required research and obtain the owner's explicit decision before treating any backend as the accepted baseline. ADR-0018's reversible WARC `online.4` / BrowserGym / Playwright qualification work is separate, keeps ADR-0003 Open, and does not complete EXT-002. |
 | EXT-003 | blocked-external | Create a private disjoint holdout | FOUND-004; CONV-013. Requires a genuinely private source and owner-controlled commitment; moving public tasks is not a holdout. |
 | EXT-004 | blocked-by-EXT-001/002 | Calibrate all 140, filter/freeze suites, and source Batch 2 | FOUND-006/010. Requires real resets, admitted verifiers, a reference protocol, and the exact cheap-executor seed. |
 | EXT-005 | blocked-by-real-traces | Calibrate real Analyst/T2 roles | CONV-011/012. Code identity/routing comes first; statistical trust requires held-back real trace corpora. |

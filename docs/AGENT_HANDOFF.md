@@ -63,6 +63,14 @@ Only decisions marked **Accepted** in `docs/DECISION_REGISTER.md` are binding:
 - ADR-0016 — judge panel and verifier audit protocol (accepted 2026-07-13); and
 - ADR-0017 — model and infrastructure pins for loop bring-up (accepted 2026-07-13).
 
+ADR-0018 is **Proposed, not binding**. It proposes amendments to ADR-0005 and
+ADR-0015 plus a conforming writable-path amendment to ADR-0017, recording the
+readiness transition for repeated decisions, exact identity/activation, the
+candidate-owned harness-build boundary, indivisible evaluated builds, atomic
+advancement, and one reversible WARC/BrowserGym/Playwright qualification path.
+Milestones D-F must not implement that transition until the project owner
+explicitly accepts ADR-0018. ADR-0002 and ADR-0003 remain Open.
+
 The 35–70 rule has an important evidence boundary: current public percentages are benchmark-family aggregates. They screened source families only. No individual task has yet been shown to fall inside the band.
 
 ## Implemented conventions that are not architecture selections
@@ -96,10 +104,11 @@ Read `docs/TASK_DATA_GUIDE.md` for the exact distinction between included task d
 
 ## Immediate next execution phase
 
-1. Before milestones D, E, or F change accepted architecture, create the
-   minimal required ADR amendment or superseding record and update the decision
-   register and timeline. Do not silently settle the open backend decision.
-2. Then continue the readiness execution order through exact identity and
+1. Independently review proposed ADR-0018, then obtain explicit project-owner
+   acceptance using its recorded decision gate. If accepted, update its status,
+   approval date, decision register, and timeline before D/E/F code begins. Do
+   not silently settle ADR-0002 or ADR-0003.
+2. Only after acceptance, continue the readiness execution order through exact identity and
    activation, repeated decisions and champion protection, and one reversible
    source/backend readiness seam, using separate implementation and review
    loops.

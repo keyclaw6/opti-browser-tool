@@ -26,5 +26,6 @@ File names use `NNNN-short-title.md`. The authoritative status summary is [`../D
 | [0015](0015-auto-research-loop-architecture.md) | Auto-research loop architecture | Accepted |
 | [0016](0016-judge-panel-and-verifier-audit-protocol.md) | Judge panel and verifier audit protocol | Accepted |
 | [0017](0017-model-and-infrastructure-pins.md) | Model and infrastructure pins for loop bring-up | Accepted |
+| [0018](0018-auto-research-readiness-protocol-transition.md) | Auto-research readiness protocol transition | Proposed |
 
 The template is in [`TEMPLATE.md`](TEMPLATE.md).
