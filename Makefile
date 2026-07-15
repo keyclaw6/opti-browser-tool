@@ -2,10 +2,16 @@ PYTHON ?= python
 REPO_ROOT := $(CURDIR)
 PYTHONPATH := $(REPO_ROOT)/eval_harness/src
 
-.PHONY: eval-build eval-validate eval-test eval-smoke-fixture eval-all-fixture docs-verify schema-verify manifest-build archive-build archive-verify loop-test loop-init-dryrun judge-test
+.PHONY: install install-check eval-build eval-validate eval-test eval-smoke-fixture eval-all-fixture docs-verify schema-verify manifest-build archive-build archive-verify loop-test loop-init-dryrun judge-test
 
 LOOP_PYTHONPATH := $(REPO_ROOT)/eval_harness/src:$(REPO_ROOT)/loop_harness/src
 JUDGE_PYTHONPATH := $(LOOP_PYTHONPATH):$(REPO_ROOT)/judge_harness/src
+
+install:
+	$(PYTHON) -m pip install -e ./eval_harness -e ./judge_harness -e ./loop_harness
+
+install-check:
+	$(PYTHON) scripts/verify_clean_install.py --repo-root $(REPO_ROOT)
 
 eval-build:
 	$(PYTHON) scripts/build_eval_catalog.py

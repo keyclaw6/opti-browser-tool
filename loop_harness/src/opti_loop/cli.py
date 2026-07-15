@@ -1,6 +1,6 @@
 """opti-loop CLI — the conductor's operator surface (transactional v2).
 
-    opti-loop init --campaign X [--adapter fixture] [--dev-suite smoke] [--store-root PATH]
+    opti-loop [--store-root PATH] init --campaign X [--adapter fixture] [--dev-suite smoke]
     opti-loop measure-noise --campaign X [--runs N]
     opti-loop start --campaign X            # phase A+C: base worktree, baseline, packet
     opti-loop run-iteration --campaign X    # phases E+B+F as ONE transaction
@@ -10,16 +10,18 @@
     opti-loop transfer-eval --deltas model=0.03,model2=-0.01
 
 The trusted store lives OUTSIDE repo_root (env OPTI_STORE_ROOT or --store-root;
-default <repo>/../opti-store). repo_root comes from --repo-root or
-OPTI_BROWSER_REPO_ROOT.
+default <repo>/../opti-store). repo_root is discovered from --repo-root,
+OPTI_BROWSER_REPO_ROOT, or the current directory.
 """
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
+
+from opti_eval.errors import ConfigurationError
+from opti_eval.paths import find_repo_root
 
 from .campaign import init_campaign, load_campaign
 from .conductor import compare_campaigns, measure_noise, run_iteration, start_iteration
@@ -27,11 +29,7 @@ from .transfer import evaluate_checkpoint, plan_checkpoint
 
 
 def _repo_root(args) -> Path:
-    raw = args.repo_root or os.environ.get("OPTI_BROWSER_REPO_ROOT")
-    if not raw:
-        print("error: set --repo-root or OPTI_BROWSER_REPO_ROOT", file=sys.stderr)
-        raise SystemExit(2)
-    return Path(raw).resolve()
+    return find_repo_root(args.repo_root)
 
 
 def _emit(payload) -> None:
@@ -67,7 +65,11 @@ def main(argv: list[str] | None = None) -> int:
     p_teval.add_argument("--deltas", required=True, help="comma list model=delta")
 
     args = parser.parse_args(argv)
-    repo_root = _repo_root(args)
+    try:
+        repo_root = _repo_root(args)
+    except (ConfigurationError, ValueError, OSError) as exc:
+        print(f"opti-loop: {exc}", file=sys.stderr)
+        return 2
     store_root = args.store_root
 
     if args.command == "compare-campaigns":

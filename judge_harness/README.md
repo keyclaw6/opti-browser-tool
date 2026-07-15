@@ -32,6 +32,16 @@ finite JSON flags with recomputable fingerprints, coherent pending/resolved
 state, and RFC 3339 timestamps. Writes use a same-directory fsynced temporary
 file plus atomic replace, preserving the prior trusted file on failure.
 
+## Install
+
+From the repository root, `make install` installs all three local packages.
+The declared package contract is `opti-judge==0.1.0` requiring
+`opti-browser-eval==0.1.0`; no repository `PYTHONPATH` composition is needed
+after installation. `make install-check` builds with uv offline, resolves and
+installs from the local wheelhouse with no index, and runs deterministic tests
+without a live backend. It is not an OS-level network sandbox. Neither install
+command admits a verifier or activates live evaluation.
+
 ## What is deliberately NOT here yet
 
 1. **Real verifiers** — they arrive with the five benchmark bridges; each must

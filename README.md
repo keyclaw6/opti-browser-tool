@@ -53,9 +53,11 @@ Task success and repeatability come first. Time, tokens, cost, action count, ret
 ```bash
 python -m venv .venv
 . .venv/bin/activate
-pip install -e ./eval_harness
+make install
 
 opti-eval validate
+opti-judge --help
+opti-loop --help
 opti-eval list --suite smoke
 opti-eval run \
   --suite primary \
@@ -65,6 +67,26 @@ opti-eval run \
 ```
 
 The fixture adapter validates catalog, scheduling, result, and artifact plumbing only. Its output is marked `benchmark_reportable=false` and must never be presented as browser-agent performance.
+
+`make install` installs the three existing editable distributions with their
+declared dependency graph: `opti-loop` requires exact `opti-judge` and
+`opti-browser-eval` version `0.1.0`, and `opti-judge` requires exact
+`opti-browser-eval` version `0.1.0`. It does not activate a campaign.
+
+For the isolated packaging proof, run:
+
+```bash
+make install-check
+```
+
+That check builds all three wheels from a disposable repository snapshot with
+`uv build --offline`, using the existing uv cache for the `setuptools>=68`
+build requirement. It then resolves and installs only `opti-loop` from the
+local wheelhouse with `--offline --no-index` and an initially empty install
+cache. The installed package CLIs and deterministic tests run without a
+repository `PYTHONPATH` and invoke no live backend. `make install-check` is not
+an OS-level network sandbox; it does not access a live source or produce
+benchmark evidence.
 
 Run the preservation and documentation checks with:
 

@@ -106,4 +106,12 @@ python scripts/build_repository_archive.py \
   --bundle
 ```
 
-The builder includes `.git`, verifies the source repository, tests ZIP integrity, extracts into a fresh directory, reruns documentation, completeness, checksum, Git, and unit-test checks there, and writes SHA-256 sidecars.
+The builder refuses a dirty worktree, clones committed `HEAD` locally with
+`--no-hardlinks`, removes the clone origin, and rejects external Git common
+directories or object alternates. It archives the standalone clone with its
+self-contained `.git`, tests ZIP integrity, restores stored Unix permissions
+during extraction, and requires the extracted checkout to remain clean. It
+then runs completeness (including documentation and Git integrity), the file
+manifest, and the clean local-wheel install proof with installed tests once on
+the extracted archive. ZIP and optional bundle outputs receive SHA-256
+sidecars.

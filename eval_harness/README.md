@@ -13,12 +13,18 @@ From the repository root:
 ```bash
 python -m venv .venv
 . .venv/bin/activate
-pip install -e ./eval_harness
+make install
 opti-eval validate
 opti-eval list --suite smoke
 ```
 
-The package has no runtime dependency outside the Python standard library.
+This installs the evaluator, judge, and loop using their explicit local
+dependency graph. For an evaluator-only environment, use
+`python -m pip install -e ./eval_harness`. The evaluator itself has no runtime
+dependency outside the Python standard library. `make install-check` performs
+the uv-offline/no-index wheel and transitive-install proof described in the
+root README, then runs deterministic installed tests without a live backend.
+It is not an OS-level network sandbox.
 
 ## Verify runner plumbing
 

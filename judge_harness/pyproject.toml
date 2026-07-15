@@ -5,9 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "opti-judge"
 version = "0.1.0"
-description = "Provisional evaluation-plane judge instrumentation for opti-browser-tool (implements the Proposed ADR-0016 layering; does not accept it)"
+description = "Evaluation-plane judge instrumentation for opti-browser-tool"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["opti-browser-eval==0.1.0"]
 
 [project.scripts]
 opti-judge = "opti_judge.cli:main"

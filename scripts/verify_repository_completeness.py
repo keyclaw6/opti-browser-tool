@@ -6,6 +6,7 @@ import argparse
 import json
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 REQUIRED_FILES = [
@@ -44,12 +45,16 @@ REQUIRED_FILES = [
     "eval_harness/src/opti_eval/adapters/command.py",
     "eval_harness/src/opti_eval/adapters/registry.py",
     "eval_harness/tests/test_repository_validation.py",
+    "judge_harness/pyproject.toml",
+    "judge_harness/src/opti_judge/cli.py",
+    "loop_harness/pyproject.toml",
+    "loop_harness/src/opti_loop/cli.py",
     "scripts/verify_documentation.py",
     "scripts/validate_json_schemas.py",
     "scripts/build_file_manifest.py",
     "scripts/build_repository_archive.py",
+    "scripts/verify_clean_install.py",
     "archive/superseded/runnable-suite-v0-100/README.md",
-    "validation/README.md",
     "validation/README.md",
     "validation/documentation-validation.json",
     "validation/repository-validation.json",
@@ -60,6 +65,70 @@ REQUIRED_FILES = [
     "validation/compileall.txt",
     "validation/unit-tests.txt",
 ]
+
+PACKAGE_CONTRACTS = {
+    "eval_harness/pyproject.toml": {
+        "name": "opti-browser-eval",
+        "dependencies": [],
+        "script": ("opti-eval", "opti_eval.cli:main"),
+    },
+    "judge_harness/pyproject.toml": {
+        "name": "opti-judge",
+        "dependencies": ["opti-browser-eval==0.1.0"],
+        "script": ("opti-judge", "opti_judge.cli:main"),
+    },
+    "loop_harness/pyproject.toml": {
+        "name": "opti-loop",
+        "dependencies": ["opti-browser-eval==0.1.0", "opti-judge==0.1.0"],
+        "script": ("opti-loop", "opti_loop.cli:main"),
+    },
+}
+
+
+def audit_package_metadata(root: Path) -> dict:
+    """Check the exact three-package dependency and CLI contract."""
+    errors: list[str] = []
+    packages: list[dict] = []
+    for relative, expected in PACKAGE_CONTRACTS.items():
+        path = root / relative
+        if not path.is_file():
+            errors.append(f"missing package metadata: {relative}")
+            continue
+        try:
+            project = tomllib.loads(path.read_text(encoding="utf-8"))["project"]
+        except (OSError, KeyError, tomllib.TOMLDecodeError) as exc:
+            errors.append(f"invalid package metadata {relative}: {exc}")
+            continue
+        name = project.get("name")
+        version = project.get("version")
+        dependencies = project.get("dependencies")
+        script_name, script_target = expected["script"]
+        scripts = project.get("scripts", {})
+        if name != expected["name"]:
+            errors.append(
+                f"{relative}: expected project name {expected['name']!r}, got {name!r}"
+            )
+        if version != "0.1.0":
+            errors.append(f"{relative}: expected version '0.1.0', got {version!r}")
+        if dependencies != expected["dependencies"]:
+            errors.append(
+                f"{relative}: expected dependencies {expected['dependencies']!r}, "
+                f"got {dependencies!r}"
+            )
+        if scripts.get(script_name) != script_target:
+            errors.append(
+                f"{relative}: expected script {script_name}={script_target!r}, "
+                f"got {scripts.get(script_name)!r}"
+            )
+        packages.append(
+            {
+                "name": name,
+                "version": version,
+                "dependencies": dependencies,
+                "script": script_name,
+            }
+        )
+    return {"ok": not errors, "packages": packages, "errors": errors}
 
 
 def audit_git_repository(root: Path) -> list[str]:
@@ -115,6 +184,9 @@ def main() -> int:
         if not path.is_file():
             errors.append(f"missing required file: {relative}")
 
+    package_report = audit_package_metadata(root)
+    errors.extend(package_report["errors"])
+
     sys.path.insert(0, str(root / "eval_harness" / "src"))
     suite_report = None
     try:
@@ -142,6 +214,7 @@ def main() -> int:
         "ok": not errors,
         "repo_root": str(root),
         "required_file_count": len(REQUIRED_FILES),
+        "package_metadata_validation": package_report,
         "suite_validation": suite_report,
         "documentation_validation": documentation_report,
         "errors": errors,

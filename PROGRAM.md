@@ -67,13 +67,18 @@ make eval-validate        # catalog + suite integrity (140 tasks, nesting)
 make eval-test            # unit tests for the orchestration layer
 make eval-smoke-fixture   # plumbing check; reports benchmark_reportable=false
 make loop-test            # loop-shell unit + end-to-end dry-run tests
+make install-check        # uv-offline/no-index install + deterministic installed tests
 make docs-verify          # documentation and link integrity
 ```
+
+`install-check` invokes no live backend, but it is not an OS-level network
+sandbox. Its package build, resolution, and install steps are constrained to
+uv's offline mode, a local wheelhouse, and no index.
 
 Loop operator commands (conductor; see `loop_harness/README.md`):
 
 ```bash
-opti-loop init --campaign <id> [--store-root PATH]   # store lives OUTSIDE the repo
+opti-loop --store-root PATH init --campaign <id>     # global flags precede the subcommand
 opti-loop measure-noise --campaign <id>              # owner artifact, identity-bound
 opti-loop start --campaign <id>                      # phase A+C: base worktree, baseline, packet
 opti-loop run-iteration --campaign <id>              # phases E+B+F as ONE transaction
@@ -81,6 +86,11 @@ opti-loop status --campaign <id>
 opti-loop compare-campaigns --campaigns a,b          # scheduled, run-identity-checked
 opti-loop transfer-plan --campaign <id>              # pre-registered transfer checkpoint
 ```
+
+The optional global flags are `--repo-root PATH` and `--store-root PATH`; put
+either before `init`, `status`, or another subcommand. When `--repo-root` and
+`OPTI_BROWSER_REPO_ROOT` are absent, the installed CLI discovers the repository
+from the current directory and its parents.
 
 Fixture and simulated runs validate plumbing only; their verdicts carry
 `evidence_class: simulated` and can **never** advance real accepted state or be

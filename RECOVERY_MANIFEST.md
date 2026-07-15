@@ -59,4 +59,13 @@ The repository is accepted as reconstructable only if all of the following pass:
 
 ## Rebuilding the complete archive
 
-Use `scripts/build_repository_archive.py` from a clean repository. It includes `.git`, verifies the source tree, extracts the ZIP into a temporary directory, reruns repository, documentation, checksum, Git, and unit-test checks, and writes SHA-256 sidecars.
+Run `scripts/build_repository_archive.py` only after committing the intended
+state and making the worktree clean. The builder creates a local
+`git clone --no-hardlinks` of committed `HEAD`, removes its origin, and rejects
+an external Git common directory or object alternates. It archives that
+standalone checkout including its self-contained `.git`, checks ZIP integrity,
+then extracts with stored Unix permissions restored and requires the extracted
+checkout to remain clean. On that extracted archive it runs repository
+completeness (including documentation and Git integrity), the file manifest,
+and the clean local-wheel install proof with installed tests exactly once. ZIP
+and optional bundle outputs receive SHA-256 sidecars.
