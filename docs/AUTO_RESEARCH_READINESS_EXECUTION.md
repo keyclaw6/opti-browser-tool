@@ -3,8 +3,10 @@
 Status: active orchestration ledger. Milestones A/B/C, the pre-D decision
 transition, and D1 exact protocol/run identity are complete. D1 is committed at
 `e599c46`. The rejected five-file D2a0 attempt was discarded without commit,
-is absent from the current tree, and must not be resurrected; D2 is in
-architecture rework. D3 trusted activation and milestones E-I have not started.
+is absent from the current tree, and must not be resurrected. The corrected
+uncommitted D2 checkpoint has clean targeted independent correctness and
+elegance/YAGNI/vision re-reviews. D3 trusted activation and milestones E-I have
+not started.
 Branch: `codex/auto-research-readiness`. ADR-0018 proposal commit: `544750b`.
 This file records implementation direction and evidence; it does not authorize
 a live campaign or turn fixture output into benchmark evidence.
@@ -36,12 +38,50 @@ remain separate inputs.
 | **B — decide the three external reviews** | **Complete** | The matrix below retains, adapts, defers, or rejects each major proposal against current code, charter value, and YAGNI; separate correctness and elegance reviews are clean. |
 | **C — clean installability** | **Complete** | Code commit `9d0a7ab` declares the actual package graph; evidence commit `ef0da6b` passes isolated source-to-wheel installation, transitive dependency, negative resolver, installed CLI/test, no-network-namespace, and full portable ZIP/bundle verification. The code and evidence slices have clean independent correctness and elegance/YAGNI reviews. |
 | **Pre-D architecture transition** | **Complete; Accepted** | Proposal commit `544750b` passed separate correctness and elegance/YAGNI/vision re-reviews. On 2026-07-15 the owner-delegated coordinator, acting under the founder's delegated architecture-decision authority, approved it exactly: `Accept ADR-0018 as written.` ADR-0018 now binds the minimal repeated-decision, identity/activation, candidate-boundary, indivisible-build, atomic-publication, and reversible WARC/BrowserGym/Playwright qualification transition while ADR-0002/0003 remain Open. |
-| **D — exact identity and trusted activation** | **In progress — D2 architecture rework** | D1 is committed at `e599c46` after clean independent correctness and elegance/YAGNI/vision reviews. The coordinator rejected the five-file D2a0 same-UID descriptor/race-hardening attempt because it did not prove provenance from the exact trusted Git build; it was discarded without commit, is absent from the current tree, and must not be resurrected. D2 must be rebuilt around trusted Git-object import and the accepted single-host/two-user boundary before fresh independent reviews. D3 trusted activation proof remains required before milestone D can complete. |
+| **D — exact identity and trusted activation** | **In progress — D2 review-clean commit candidate; D3 pending** | D1 is committed at `e599c46` after clean independent correctness and elegance/YAGNI/vision reviews. The uncommitted Git-backed D2 checkpoint addresses all six initial findings, and both targeted re-reviews are clean. D3 trusted activation proof remains required before milestone D can complete. |
 
 Milestones D-I remain ordered as identity/activation; repeated decision and
 champion protection; concrete
 source/backend readiness; safe single-host lifecycle; trace-backed
 learning/operator flow; and final integration/adversarial verification.
+
+### Founder fast path for the remaining work
+
+The remaining readiness work is organized into four vertical slices: **A** is
+D2 immutable Git-backed materialization followed by D3 trusted activation;
+**B** is milestone E repeated decision and champion protection; **C** is
+milestone F concrete source/backend readiness; and **D** is milestones G-I
+single-host lifecycle, learning/operator flow, and final integration. Each
+checkpoint has one bounded implementation owner and exactly two fresh
+independent reviewers: one correctness reviewer and one
+elegance/YAGNI/vision reviewer. Focused tests run during editing, one broader
+suite runs when a checkpoint becomes a review candidate, and complete
+repository gates run once per coherent milestone or final release candidate.
+After both reviewers are clean, the checkpoint is committed promptly on this
+branch without push or merge.
+
+Every **new** worker must be launched with local
+`codex exec -m gpt-5.6-sol -c 'model_reasoning_effort="medium"' -c
+'approval_policy="never"' -C <repo>` and one self-contained prompt, plus
+`--output-last-message`. Only the sole bounded implementer receives a writable
+sandbox; the correctness and elegance/YAGNI/vision reviewers run in parallel
+with read-only access. There is no collaboration-spawn fallback: an exact
+runner failure stops that assignment and must be reported. `/root` under the
+local GPT-5.6 Sol medium runner is the sole writable editor for this bounded
+D2 correction pass; no other worker edited its production, tests, ledger, or
+generated evidence surfaces.
+
+Bounded scope is qualitative, with no LOC or production-file-count target. A
+larger direct implementation can be correct and elegant; a smaller one can
+still be duplicated, speculative, or disconnected. Each slice must implement
+one dependency-correct behavior with one editor, no speculative abstractions or
+unused generality, and only the tests and validation required by current
+invariants. Diff size may be recorded as neutral transparency, but never as a
+budget, target, exception, acceptance rule, or evidence of elegance. No further
+D2 hardening, generic filesystem machinery, or size-driven rewrite is allowed
+without a concrete current test, accepted ADR, or actionable review finding.
+D3 is not part of this checkpoint. D2 remains uncommitted but both targeted
+re-reviews are clean.
 
 ## Three-review decision matrix
 
@@ -83,7 +123,9 @@ review's proposed rewrite or timing.
 
 | Agent | Status | Bounded ownership |
 |---|---|---|
-| `/root` | Active | Orchestration, integration, milestone sequencing, and final authority. |
+| `/root` | Active orchestrator; D2 correction/reviews complete | Orchestration, integration decision, ledger maintenance, commit sequencing, and later-slice direction. The sole local medium correction editor has exited; no D3/E/F editor is active. |
+| `019f67c9-753d-7ed2-8f9b-a9db72a8c418` | Complete; targeted D2 correctness result CLEAN | Local GPT-5.6 Sol medium, read-only re-review of the six corrected findings; no editing or commit authority. |
+| `019f67c9-7589-7212-aaaa-6a0b8b11b392` | Complete; targeted D2 elegance/YAGNI/vision result CLEAN | Local GPT-5.6 Sol medium, read-only qualitative review; no numeric size criterion, editing, or commit authority. |
 | `/root/adr_transition_impl` | Complete | Proposed ADR-0018 and decision/documentation support; no D/E/F code. |
 | `/root/adr0018_acceptance_impl` | Complete; final D1 elegance/YAGNI/vision result CLEAN | Independently re-reviewed the corrected D1 slice after its earlier actionable findings; no actionable finding remains. |
 | `/root/installability_audit` | Complete; final D1 correctness result CLEAN | Independently re-reviewed the corrected D1 slice after its earlier actionable findings; no actionable finding remains. |
@@ -94,11 +136,13 @@ review's proposed rewrite or timing.
 | `/root/milestone_d1_identity_impl` | Complete; D1 committed at `e599c46` | Sole D1 editor for frozen protocol/run identity, replay binding, tests, and this ledger; no D2 immutable materialization, D3 activation, or milestone-E decision implementation. |
 | `/root/d2a0_receipt_impl` | Stopped; attempt rejected and discarded without commit | Produced the rejected five-file D2a0 attempt. Its same-UID descriptor/race-hardening boundary was rejected; the files are absent from the current tree and must not be resurrected. |
 | `/root/d2_rework_ledger_impl` | Complete; documentation only | Recorded the coordinator's D2 rejection and Git-backed replacement direction in this ledger; no production code, tests, inventory, manifest, or commit authority. |
+| `/root/d2_git_materialization_impl` | Complete; initial uncommitted review candidate handed off | Built the initial Git-backed D2 candidate. It is no longer editing; `/root` alone owns the bounded correction pass. |
 
 D2a0 review cleanliness cannot override the coordinator's architecture
-correction. No replacement D2/D3/E/F implementation editor is recorded here
-yet. D1 is committed and its separate correctness and
-elegance/YAGNI/vision reviews are clean.
+correction. The sole correction editor completed the six bounded dispositions;
+no D3/E/F editor is active. D1 is committed and its separate reviews are clean.
+The corrected uncommitted D2 replacement now also has clean targeted
+correctness and elegance/YAGNI/vision re-reviews.
 
 ### Milestone D2 architecture correction record
 
@@ -134,6 +178,45 @@ elegance/YAGNI/vision reviews are clean.
   with D1 `protocol.build_identity()`. Fresh correctness and
   elegance/YAGNI/vision reviewers must assess this Git-backed design before any
   D2 commit.
+- **Corrected uncommitted checkpoint:** the conductor-facing import API accepts
+  the validated frozen D1 protocol snapshot, trusted repository, bundle, and
+  held store lock. It derives the base commit and candidate allowlist only from
+  that snapshot, and identity projection rechecks the same authority. Before
+  invoking Git it resolves `.git`/`commondir` itself, rejects uncontrolled,
+  symlinked, or group/world-writable administration, and fetches only from the
+  canonical conductor-controlled common directory. Sanitized Git bundle
+  verification plus an explicit `refs/heads/candidate` refspec replaces the
+  deleted bundle-wire parser. Direct-parent/nonmerge/nonempty, allowlist, strict
+  fsck, object format, full raw tree, and `100644`/`100755` checks remain.
+- **Finding dispositions:** (1) the complete tree is capped at 10,000 files,
+  each blob at 16 MiB, and expanded bytes at 256 MiB; sizes are batch-queried
+  before strict fsck or blob-body reads, and accepted blobs stream to files
+  while hashing; (2) canonical trusted Git administration is preflighted as
+  above, with a linked-worktree unsafe-mode negative test; (3) the decorative
+  optimizer UID parameter/assertion was deleted because D2 cannot establish
+  inbox provenance from a caller-provided integer; (4) frozen protocol base
+  and allowlist are now the only import/projection authority; (5) the custom
+  bundle-header parser and its cross-product test were deleted because the
+  explicit candidate refspec and retained commit/tree validation supply the
+  required provenance; and (6) the closed canonical receipt now stores one
+  domain-separated `git_tree_digest`, the allowlisted `materialized_digest`,
+  Git identities, and frozen allowlist, then recomputes both digests from the
+  sealed tree on every verification.
+- **Deliberate D3 residual:** configured separate-account and inbox ownership
+  preflight belongs to the next lifecycle/activation checkpoint, where a real
+  handback path and optimizer account exist. Retaining a D2 caller-invented UID
+  would falsely claim that proof. D3 activation, campaign wiring, and any live
+  source/model operation remain untouched.
+- **Checkpoint evidence and review sign-off:** as neutral size transparency, the
+  materialization module is 858 lines and the focused test module is 500 lines;
+  those counts are not an acceptance or elegance criterion. Sixteen focused D2
+  tests plus 35 affected D1/unit tests pass; the broader loop suite passes 127
+  of 128 tests with the one deliberate optional-`jsonschema` skip. Ruff,
+  changed-file compilation, `git diff --check`, repository completeness, and
+  documentation verification pass. Targeted correctness and qualitative
+  elegance/YAGNI/vision re-reviews both returned **CLEAN**. Inventory/manifest
+  verification follows this final ledger digest update. D2 is a review-clean
+  commit candidate; D3 and Slice A completion are not claimed.
 
 ### Milestone D1 implementation and correction record
 
@@ -369,6 +452,31 @@ The D1 commit-time inventory catalogs 379 files and the digest manifest
 verifies 380 files.
 The final codebase-memory index contains 12,210 nodes and 19,038 edges.
 
+The uncommitted corrected D2 review candidate has the following local worker
+evidence; none is independent review or milestone-completion evidence:
+
+- `python -m unittest loop_harness.tests.test_materialization
+  loop_harness.tests.test_units` with the three package source roots and
+  `OPTI_BROWSER_REPO_ROOT` set: 51 tests passed (16 D2 plus 35 affected units);
+- `python -m unittest discover -s loop_harness/tests -p 'test_*.py'` under the
+  same local environment: 128 tests ran, 127 passed, and the existing optional
+  `jsonschema` case skipped;
+- standalone `ruff check` over the three changed production modules and focused
+  test module: passed; `py_compile` over the same four Python files: passed;
+- `git diff --check f012c9f --`: passed;
+- `python scripts/verify_repository_completeness.py --repo-root .`: passed with
+  55 required files, the exact three-package metadata graph, and all 140
+  catalog tasks; and
+- `python scripts/verify_documentation.py --repo-root .`: passed across 84
+  Markdown files, 171 local links, and 18 ADRs.
+
+The initial candidate's offline clean-install proof was not rerun for this
+bounded correction because no package metadata or dependency surface changed.
+`python scripts/build_file_manifest.py` regenerated the inventory once for this
+pass (381 inventoried files; 382 manifest entries). The final ledger row and
+its dependent inventory digest were then updated, and
+`python scripts/verify_file_manifest.py --repo-root .` passed all 382 entries.
+
 Adversarial D1 coverage includes exact ordered task subsets and suite roles;
 undeclared seed/repeat/order rejection; exact matched blocks and arm order;
 accepted/baseline, candidate/treatment, and diagnostic role enforcement;
@@ -425,8 +533,9 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
 - D1 supplies closed protocol and run-context identity. The rejected five-file
   D2a0 attempt did not derive candidate identity from trusted Git objects; it
   was discarded without commit, is absent from the current tree, and must not
-  be resurrected. D2 immutable candidate execution and D3 trusted dynamic
-  activation are not yet proven.
+  be resurrected. The corrected Git-backed D2 materialization is review-clean
+  but remains uncommitted and unwired; D3 must connect immutable candidate
+  execution and trusted dynamic activation.
 - E5 executes one treatment run; the four-valued repeated paired/interleaved
   protocol, durable champion/regression protection, and deterministic
   positive/no-op/regression/invalid simulations are incomplete.
@@ -455,24 +564,20 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
 
 ## Next steps
 
-1. Assign one bounded D2 architecture/implementation agent to replace the
-   rejected D2a0 surface with the trusted-Git-object design above. Preserve
-   only the retained receipt/seal/rehash concepts; do not resurrect the
-   discarded five-file attempt.
-2. Give the replacement D2 slice to fresh, separate correctness and
-   elegance/YAGNI/vision reviewers. Return findings to the implementation
-   agent until both are clean, then commit one coherent D2 milestone.
-3. Implement D3 trusted activation in its own bounded implementation/review
+1. Apply the ledger-only qualitative-YAGNI policy correction, regenerate and
+   verify documentation/manifests, then commit the review-clean D2 checkpoint
+   without expanding into D3 or resurrecting D2a0 machinery.
+2. Implement D3 trusted activation in its own bounded implementation/review
    loop.
-4. Implement the four-valued repeated protocol in milestone E, with positive,
+3. Implement the four-valued repeated protocol in milestone E, with positive,
    no-op, regression, invalid, and interruption simulations.
-5. Implement the reversible WARC `online.4` readiness path in milestone F (or document the
+4. Implement the reversible WARC `online.4` readiness path in milestone F (or document the
    evidence that forces a different concrete source): precise preflight,
    reset/verifier/artifact/config contracts, constrained execution seam, and
    offline/local fixture integration only.
-6. Finish single-host lifecycle, analyst/learning, source dispositions,
+5. Finish single-host lifecycle, analyst/learning, source dispositions,
    status/operator commands, adversarial integration, manifest regeneration,
    and final independent correctness plus elegance reviews.
-7. Stop at software readiness and publish the exact external activation
+6. Stop at software readiness and publish the exact external activation
    checklist. Do not run or imply a real campaign without owner-supplied inputs
    and explicit authorization.

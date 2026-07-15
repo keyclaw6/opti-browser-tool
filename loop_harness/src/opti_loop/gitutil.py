@@ -33,6 +33,26 @@ def _run(cwd: Path, *args: str, check: bool = True) -> subprocess.CompletedProce
     return proc
 
 
+def parse_raw_tree(raw: bytes) -> list[tuple[str, str, str, str]]:
+    """Parse ``git ls-tree -rz`` without path quoting or locale ambiguity."""
+    entries: list[tuple[str, str, str, str]] = []
+    records = raw.split(b"\0")
+    if records[-1] != b"":
+        raise GitError("raw Git tree output is not NUL terminated")
+    for record in records[:-1]:
+        try:
+            metadata, raw_path = record.split(b"\t", 1)
+            raw_mode, raw_type, raw_oid = metadata.split(b" ", 2)
+            mode = raw_mode.decode("ascii")
+            object_type = raw_type.decode("ascii")
+            oid = raw_oid.decode("ascii")
+            path = raw_path.decode("utf-8")
+        except (UnicodeDecodeError, ValueError) as exc:
+            raise GitError("raw Git tree contains a malformed record") from exc
+        entries.append((mode, object_type, oid, path))
+    return entries
+
+
 def head_sha(repo: Path) -> str:
     return _run(repo, "rev-parse", "HEAD").stdout.strip()
 

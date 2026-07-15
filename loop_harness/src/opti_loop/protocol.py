@@ -5,6 +5,7 @@ import copy
 import hashlib
 import json
 import os
+import re
 import tempfile
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -31,6 +32,10 @@ from .campaign import Campaign
 
 PROTOCOL_FILENAME = "protocol.snapshot.json"
 _SUITE_ROLES = ("dev", "smoke", "regression")
+BUILD_DIGEST_DOMAIN = "opti.build.v1"
+GIT_TREE_DIGEST_DOMAIN = "opti.git-tree.v1"
+BUILD_ROW_FIELDS = frozenset({"path", "mode", "sha256"})
+_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 
 
 class ProtocolError(RuntimeError):
@@ -97,33 +102,118 @@ def normalize_candidate_allowlist(value: object) -> list[str]:
         raise ProtocolError(str(exc)) from exc
 
 
-def _allowlist_roots(repo_root: Path, allowlist: list[str]) -> list[Path]:
-    roots: list[Path] = []
-    for entry in allowlist:
-        if type(entry) is not str or not entry:
-            raise ProtocolError("candidate_allowlist entries must be non-empty strings")
-        if not entry.endswith("/"):
-            raise ProtocolError("candidate_allowlist must already be normalized")
-        raw = entry[:-1]
-        posix = PurePosixPath(raw)
-        if (
-            posix.is_absolute()
-            or not posix.parts
-            or posix.as_posix() != raw
-            or any(part in {"", ".", ".."} for part in posix.parts)
-        ):
-            raise ProtocolError(f"unsafe candidate_allowlist entry: {entry!r}")
-        path = repo_root.joinpath(*posix.parts)
-        if path.is_symlink():
-            raise ProtocolError(f"candidate_allowlist root is a symlink: {entry!r}")
+def canonical_git_path(value: object) -> str:
+    if type(value) is not str or not value or "\x00" in value or "\\" in value:
+        raise ProtocolError("build row path must be a safe relative POSIX path")
+    path = PurePosixPath(value)
+    if (
+        path.is_absolute()
+        or path.as_posix() != value
+        or any(part in {"", ".", "..", ".git"} for part in path.parts)
+    ):
+        raise ProtocolError("build row path must be a safe relative POSIX path")
+    return value
+
+
+def canonical_git_rows(value: object) -> list[dict[str, str]]:
+    """Validate the full-tree row shape shared by D1 and D2."""
+    if type(value) is not list or not value:
+        raise ProtocolError("Git tree resolves to no files")
+    rows: list[dict[str, str]] = []
+    paths: list[str] = []
+    for index, entry in enumerate(value):
+        if type(entry) is not dict or set(entry) != BUILD_ROW_FIELDS:
+            raise ProtocolError(f"build row {index} has wrong fields")
+        path = canonical_git_path(entry["path"])
+        mode = entry["mode"]
+        checksum = entry["sha256"]
+        if mode not in {"100644", "100755"}:
+            raise ProtocolError(f"build row {index} has unsupported Git mode")
+        if type(checksum) is not str or _SHA256.fullmatch(checksum) is None:
+            raise ProtocolError(f"build row {index} has invalid SHA-256")
+        rows.append({"path": path, "mode": mode, "sha256": checksum})
+        paths.append(path)
+    if paths != sorted(paths) or len(paths) != len(set(paths)):
+        raise ProtocolError("build rows must be sorted by unique path")
+    return rows
+
+
+def canonical_build_rows(
+    value: object, *, candidate_allowlist: list[str]
+) -> list[dict[str, str]]:
+    """Close the one D1/D2 allowlisted projection used for build identity."""
+    try:
+        allowlist = validate_candidate_allowlist(candidate_allowlist)
+    except IdentityError as exc:
+        raise ProtocolError(str(exc)) from exc
+    rows = canonical_git_rows(value)
+    paths = [row["path"] for row in rows]
+    outside = [path for path in paths if not any(path.startswith(p) for p in allowlist)]
+    if outside:
+        raise ProtocolError(f"build rows are outside candidate_allowlist: {outside}")
+    for prefix in allowlist:
+        if not any(path.startswith(prefix) for path in paths):
+            raise ProtocolError(
+                f"candidate_allowlist prefix resolves to no Git blobs: {prefix!r}"
+            )
+    return rows
+
+
+def canonical_build_digest(
+    value: object, *, candidate_allowlist: list[str]
+) -> str:
+    rows = canonical_build_rows(value, candidate_allowlist=candidate_allowlist)
+    return digest_json(rows, domain=BUILD_DIGEST_DOMAIN)
+
+
+def canonical_git_tree_digest(value: object) -> str:
+    """Digest one complete canonical Git tree without making its rows durable."""
+    return digest_json(canonical_git_rows(value), domain=GIT_TREE_DIGEST_DOMAIN)
+
+
+def _worktree_build_rows(
+    repo_root: Path, *, candidate_allowlist: list[str]
+) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    resolved_repo = repo_root.resolve()
+    for prefix in candidate_allowlist:
+        root = repo_root.joinpath(*PurePosixPath(prefix[:-1]).parts)
+        if root.is_symlink():
+            raise ProtocolError(f"candidate_allowlist root is a symlink: {prefix!r}")
         try:
-            resolved = path.resolve(strict=True)
+            resolved = root.resolve(strict=True)
         except OSError as exc:
-            raise ProtocolError(f"candidate_allowlist entry does not resolve: {entry!r}: {exc}") from exc
-        if repo_root.resolve() not in resolved.parents:
-            raise ProtocolError(f"candidate_allowlist entry escapes repository: {entry!r}")
-        roots.append(resolved)
-    return roots
+            raise ProtocolError(f"candidate_allowlist entry does not resolve: {prefix!r}") from exc
+        if resolved_repo not in resolved.parents:
+            raise ProtocolError(f"candidate_allowlist entry escapes repository: {prefix!r}")
+        descendants = [resolved] if resolved.is_file() else sorted(resolved.rglob("*"))
+        for path in descendants:
+            if path.is_symlink():
+                raise ProtocolError(f"candidate build contains a symlink: {path}")
+            if path.is_file():
+                mode = path.stat().st_mode & 0o777
+                if mode not in {0o644, 0o755}:
+                    raise ProtocolError(f"candidate build file mode is not 0644/0755: {path}")
+                relative = path.relative_to(resolved_repo).as_posix()
+                canonical_git_path(relative)
+                git_mode = "100755" if mode == 0o755 else "100644"
+                rows.append(
+                    {
+                        "path": relative,
+                        "mode": git_mode,
+                        "sha256": _file_sha256(path),
+                    }
+                )
+    rows.sort(key=lambda row: row["path"])
+    return canonical_build_rows(rows, candidate_allowlist=candidate_allowlist)
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def build_identity(
@@ -134,38 +224,21 @@ def build_identity(
     candidate_allowlist: list[str],
     immutable: bool = False,
 ) -> dict[str, Any]:
-    """Record the exact current allowlisted bytes; D2 will make the receipt immutable."""
+    """Hash the live allowlisted surface with the shared D1/D2 row authority."""
     try:
         validate_candidate_allowlist(candidate_allowlist)
     except IdentityError as exc:
         raise ProtocolError(str(exc)) from exc
     if gitutil.head_sha(repo_root) != commit_sha:
         raise ProtocolError("build commit_sha does not match the materialized worktree HEAD")
-    roots = _allowlist_roots(repo_root, candidate_allowlist)
-    entries: list[dict[str, Any]] = []
-    resolved_repo = repo_root.resolve()
-    for root in roots:
-        descendants = [root] if root.is_file() else sorted(root.rglob("*"))
-        for path in descendants:
-            if path.is_symlink():
-                raise ProtocolError(f"candidate build contains a symlink: {path}")
-        paths = [path for path in descendants if path.is_file()]
-        for path in paths:
-            relative = path.relative_to(resolved_repo).as_posix()
-            entries.append(
-                {
-                    "path": relative,
-                    "mode": path.stat().st_mode & 0o777,
-                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-                }
-            )
-    if not entries:
-        raise ProtocolError("candidate_allowlist resolves to no build files")
+    rows = _worktree_build_rows(repo_root, candidate_allowlist=candidate_allowlist)
     return {
         "role": role,
         "commit_sha": commit_sha,
         "tree_sha": gitutil.rev_parse(repo_root, f"{commit_sha}^{{tree}}"),
-        "materialized_digest": digest_json(entries, domain="opti.build.v1"),
+        "materialized_digest": canonical_build_digest(
+            rows, candidate_allowlist=candidate_allowlist
+        ),
         "immutable": immutable,
     }
 
