@@ -121,7 +121,11 @@
           "format": "date-time",
           "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})(?![\\s\\S])"
         },
-        "elapsed_seconds": {"type": "number", "minimum": 0}
+        "elapsed_seconds": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1.7976931348623157e308
+        }
       }
     }
   }

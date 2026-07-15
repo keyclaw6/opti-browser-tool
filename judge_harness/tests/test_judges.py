@@ -182,6 +182,40 @@ class ProbeKitTest(unittest.TestCase):
             self.assertIsNotNone(record.verifier_checksum)
             self.assertTrue(list((tmp / "archive").glob("admission-*.json")))
 
+    def test_probe_trace_rejects_oversized_monotonic_without_overflow(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_s:
+            tmp = Path(tmp_s)
+            script = tmp / "verifier.py"
+            script.write_text(GOOD_VERIFIER)
+            cases = self._build_kit(tmp)
+            harmful = next(case for case in cases if case.kind == "harmful_extra_action")
+            events = [
+                json.loads(line)
+                for line in harmful.trace_path.read_text(encoding="utf-8").splitlines()
+            ]
+            events[0]["monotonic_ms"] = 10**4000
+            events[1]["monotonic_ms"] = 10**4000 + 1
+            _write_trace(harmful.trace_path, events)
+
+            record = run_probe_kit(
+                verifier_id="good-huge-clock-v1",
+                verifier_command=(
+                    f"{sys.executable} {script} --trace {{trace_json}} "
+                    "--result {result_json}"
+                ),
+                task_id="task-x",
+                cases=cases,
+                checksum_files=[script],
+            )
+            self.assertFalse(record.admitted)
+            outcome = next(
+                outcome
+                for outcome in record.outcomes
+                if outcome.kind == "harmful_extra_action"
+            )
+            self.assertFalse(outcome.ok)
+            self.assertIn("monotonic_ms", outcome.observed["t1_error"])
+
     def test_always_pass_verifier_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_s:
             tmp = Path(tmp_s)

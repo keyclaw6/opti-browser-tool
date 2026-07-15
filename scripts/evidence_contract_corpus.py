@@ -24,6 +24,7 @@ EDGE_WHITESPACE_CASES = (
     ("nel", "\u0085"),
     ("bom", "\ufeff"),
 )
+HUGE_INTEGER = 10**4000
 
 
 def artifact_ref(**overrides: Any) -> dict[str, Any]:
@@ -272,6 +273,12 @@ def build_evidence_contract_corpus() -> list[dict[str, Any]]:
         )
     add("result-bool-reward", "result", persisted_result(reward=True), valid=False)
     add(
+        "result-huge-out-of-range-reward",
+        "result",
+        persisted_result(reward=HUGE_INTEGER),
+        valid=False,
+    )
+    add(
         "result-duplicate-visibility",
         "result",
         persisted_result(artifacts=[artifact_ref(visibility=["judge", "judge"])]),
@@ -300,6 +307,14 @@ def build_evidence_contract_corpus() -> list[dict[str, Any]]:
     bool_timing = copy.deepcopy(persisted_result()["timing"])
     bool_timing["elapsed_seconds"] = True
     add("result-bool-elapsed", "result", persisted_result(timing=bool_timing), valid=False)
+    huge_timing = copy.deepcopy(persisted_result()["timing"])
+    huge_timing["elapsed_seconds"] = HUGE_INTEGER
+    add(
+        "result-oversized-elapsed",
+        "result",
+        persisted_result(timing=huge_timing),
+        valid=False,
+    )
     add("result-nested-metrics-type", "result", persisted_result(metrics=[]), valid=False)
     add("result-nested-verifier-type", "result", persisted_result(verifier=[]), valid=False)
     for label, edge in EDGE_WHITESPACE_CASES:
@@ -395,6 +410,12 @@ def build_evidence_contract_corpus() -> list[dict[str, Any]]:
             valid=False,
         )
     add("bridge-bool-reward", "bridge", bridge_result(reward=True), valid=False)
+    add(
+        "bridge-huge-out-of-range-reward",
+        "bridge",
+        bridge_result(reward=HUGE_INTEGER),
+        valid=False,
+    )
     add("bridge-nested-metadata-type", "bridge", bridge_result(metadata=[]), valid=False)
     add(
         "bridge-invalid-artifact-visibility",
@@ -590,6 +611,18 @@ def build_evidence_contract_corpus() -> list[dict[str, Any]]:
     )
     add("event-bool-sequence", "event", trace_event(1, sequence=True), valid=False)
     add("event-bool-monotonic", "event", trace_event(1, monotonic_ms=True), valid=False)
+    add(
+        "event-exact-large-integer-monotonic",
+        "event",
+        trace_event(1, monotonic_ms=2**60 + 1),
+        valid=True,
+    )
+    add(
+        "event-oversized-monotonic",
+        "event",
+        trace_event(1, monotonic_ms=HUGE_INTEGER),
+        valid=False,
+    )
     add("event-invalid-date", "event", trace_event(1, timestamp="yesterday"), valid=False)
     add(
         "event-final-lf-timestamp",
@@ -848,6 +881,68 @@ def build_evidence_contract_corpus() -> list[dict[str, Any]]:
         ],
         valid=False,
         schema_valid=True,
+    )
+    add(
+        "trace-backwards-submicrosecond-wall-clock",
+        "trace",
+        [
+            trace_event(1, timestamp="2026-07-14T00:00:00.1234567Z"),
+            trace_event(
+                2,
+                "verifier_result",
+                timestamp="2026-07-14T00:00:00.1234566Z",
+            ),
+        ],
+        valid=False,
+        schema_valid=True,
+    )
+    add(
+        "trace-backwards-submicrosecond-offset-wall-clock",
+        "trace",
+        [
+            trace_event(1, timestamp="2026-07-14T01:00:00.1234567+01:00"),
+            trace_event(
+                2,
+                "verifier_result",
+                timestamp="2026-07-13T19:00:00.1234566-05:00",
+            ),
+        ],
+        valid=False,
+        schema_valid=True,
+    )
+    add(
+        "trace-equal-submicrosecond-offset-wall-clock",
+        "trace",
+        [
+            trace_event(1, timestamp="2026-07-14T00:00:00.1234567Z"),
+            trace_event(
+                2,
+                "verifier_result",
+                timestamp="2026-07-14T01:00:00.1234567+01:00",
+            ),
+        ],
+        valid=True,
+        schema_valid=True,
+    )
+    add(
+        "trace-decreasing-large-integer-monotonic",
+        "trace",
+        [
+            trace_event(1, monotonic_ms=2**60 + 1),
+            trace_event(2, "verifier_result", monotonic_ms=2**60),
+        ],
+        valid=False,
+        schema_valid=True,
+    )
+    add(
+        "trace-oversized-increasing-integer-monotonic",
+        "trace",
+        [
+            trace_event(1, monotonic_ms=HUGE_INTEGER),
+            trace_event(2, "verifier_result", monotonic_ms=HUGE_INTEGER + 1),
+        ],
+        valid=False,
+        schema_valid=False,
     )
     add(
         "trace-decreasing-browser-epoch",

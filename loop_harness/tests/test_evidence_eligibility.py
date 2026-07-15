@@ -19,6 +19,7 @@ from opti_loop.gates import run_gate
 from opti_eval.models import (
     EDGE_WHITESPACE_CHARS,
     EDGE_WHITESPACE_SCHEMA_CLASS,
+    MAX_FINITE_REAL_MAGNITUDE,
     has_edge_whitespace,
 )
 from opti_judge import evidence
@@ -1580,6 +1581,16 @@ class EvidenceSchemaAlignmentTest(unittest.TestCase):
         self.assertEqual(
             set(bridge_schema["$defs"]["artifact_ref"]["required"]),
             evidence.ARTIFACT_FIELDS,
+        )
+        self.assertEqual(
+            trace_schema["properties"]["monotonic_ms"]["maximum"],
+            MAX_FINITE_REAL_MAGNITUDE,
+        )
+        self.assertEqual(
+            result_schema["$defs"]["timing"]["properties"]["elapsed_seconds"][
+                "maximum"
+            ],
+            MAX_FINITE_REAL_MAGNITUDE,
         )
 
 

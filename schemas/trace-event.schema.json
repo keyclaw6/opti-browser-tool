@@ -60,7 +60,8 @@
     },
     "monotonic_ms": {
       "type": "number",
-      "minimum": 0
+      "minimum": 0,
+      "maximum": 1.7976931348623157e308
     },
     "actor": {
       "enum": [

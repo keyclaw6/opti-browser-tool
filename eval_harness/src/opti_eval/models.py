@@ -7,6 +7,7 @@ import math
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -14,7 +15,8 @@ ALLOWED_STATUSES = {"passed", "failed", "invalid", "error", "skipped"}
 ALLOWED_ARTIFACT_VISIBILITY = {"executor", "judge", "orchestrator", "restricted"}
 TASK_ID_PATTERN = re.compile(r"[a-z0-9][a-z0-9_-]{0,94}")
 RFC3339_PATTERN = re.compile(
-    r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})"
+    r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}"
+    r"(?:\.(?P<fraction>\d+))?(?:Z|[+-]\d{2}:\d{2})"
 )
 # Explicit union of Python and ECMA-262 edge whitespace, plus U+0085 NEL.
 # U+FEFF BOM is deliberately classified as edge whitespace and rejected.
@@ -55,6 +57,8 @@ PERSISTED_RESULT_FIELDS = {
     "timing",
 }
 TIMING_FIELDS = {"started_at", "finished_at", "elapsed_seconds"}
+MAX_FINITE_REAL_MAGNITUDE = float.fromhex("0x1.fffffffffffffp+1023")
+_MAX_FINITE_REAL_INTEGER = int(MAX_FINITE_REAL_MAGNITUDE)
 
 
 def validate_task_id(value: object, *, field_name: str = "task_id") -> str:
@@ -110,6 +114,34 @@ def validate_rfc3339(value: object, *, field_name: str) -> str:
     if parsed.tzinfo is None:
         raise ValueError(f"{field_name} must include a timezone")
     return text
+
+
+def rfc3339_utc_order_key(value: object, *, field_name: str) -> tuple[int, Decimal]:
+    """Return an exact UTC key without truncating fractional seconds."""
+    text = validate_rfc3339(value, field_name=field_name)
+    parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    offset = parsed.utcoffset()
+    if offset is None:  # validate_rfc3339 already requires an aware datetime.
+        raise ValueError(f"{field_name} must include a timezone")
+    whole_seconds = (
+        parsed.date().toordinal() * 86_400
+        + parsed.hour * 3_600
+        + parsed.minute * 60
+        + parsed.second
+        - int(offset.total_seconds())
+    )
+    match = RFC3339_PATTERN.fullmatch(text)
+    if match is None:  # validate_rfc3339 already checked the same pattern.
+        raise ValueError(f"{field_name} must be an RFC 3339 date-time")
+    fraction = match.group("fraction") or "0"
+    return whole_seconds, Decimal(f"0.{fraction}")
+
+
+def is_finite_real_number(value: object) -> bool:
+    """Whether value fits the finite binary64 magnitude, without int coercion."""
+    if type(value) is int:
+        return -_MAX_FINITE_REAL_INTEGER <= value <= _MAX_FINITE_REAL_INTEGER
+    return type(value) is float and math.isfinite(value)
 
 
 def canonical_json(value: object) -> str:
@@ -298,9 +330,7 @@ def validate_persisted_result(
     reward = value.get("reward")
     if status in {"passed", "failed"}:
         if (
-            isinstance(reward, bool)
-            or not isinstance(reward, (int, float))
-            or not math.isfinite(reward)
+            not is_finite_real_number(reward)
             or not 0.0 <= reward <= 1.0
         ):
             raise ValueError("terminal task result reward must be a finite number in [0, 1]")
@@ -358,9 +388,7 @@ def validate_persisted_result(
     validate_rfc3339(timing.get("finished_at"), field_name="result timing finished_at")
     elapsed = timing.get("elapsed_seconds")
     if (
-        isinstance(elapsed, bool)
-        or not isinstance(elapsed, (int, float))
-        or not math.isfinite(elapsed)
+        not is_finite_real_number(elapsed)
         or elapsed < 0
     ):
         raise ValueError("result timing elapsed_seconds must be a finite non-negative number")
@@ -416,9 +444,9 @@ class TaskResult:
         if self.status == "failed" and self.reward is None:
             self.reward = 0.0
         if self.reward is not None:
-            if isinstance(self.reward, bool) or not isinstance(self.reward, (int, float)):
+            if not is_finite_real_number(self.reward):
                 raise ValueError("Reward must be a number or null")
-            if not math.isfinite(self.reward) or not 0.0 <= self.reward <= 1.0:
+            if not 0.0 <= self.reward <= 1.0:
                 raise ValueError(f"Reward must be in [0, 1], got {self.reward!r}")
         if self.status in {"invalid", "error", "skipped"} and self.reward is not None:
             raise ValueError(f"{self.status} result must not have a reward")
@@ -504,9 +532,7 @@ class TaskResult:
         raw_status = payload.get("status")
         status = raw_status if isinstance(raw_status, str) else ""
         reward = payload.get("reward")
-        if reward is not None and (
-            isinstance(reward, bool) or not isinstance(reward, (int, float))
-        ):
+        if reward is not None and not is_finite_real_number(reward):
             raise ValueError("Bridge result reward must be a number or null")
         for field_name in ("verifier", "metrics", "metadata"):
             field_value = payload.get(field_name)

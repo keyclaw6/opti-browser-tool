@@ -82,6 +82,7 @@ class SummaryReplayTest(unittest.TestCase):
         markers: list[bool | None],
         *,
         adapter_name: str = "diagnostic-test",
+        elapsed_seconds: int | float = 1.0,
     ) -> None:
         results = []
         for index, marker in enumerate(markers):
@@ -105,7 +106,7 @@ class SummaryReplayTest(unittest.TestCase):
                     "timing": {
                         "started_at": "2026-07-14T00:00:00Z",
                         "finished_at": "2026-07-14T00:00:01Z",
-                        "elapsed_seconds": 1.0,
+                        "elapsed_seconds": elapsed_seconds,
                     },
                 }
             )
@@ -163,6 +164,21 @@ class SummaryReplayTest(unittest.TestCase):
             self.assertFalse(printed["benchmark_reportable"])
             self.assertFalse(printed["acceptance_decision_eligible"])
 
+    def test_cli_replay_rejects_oversized_elapsed_without_overflow(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp)
+            self._write_run(run_dir, [False], elapsed_seconds=10**4000)
+            summary = load_run_summary(run_dir)
+            self.assertFalse(summary["run_valid"])
+            self.assertTrue(summary["replay_errors"])
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(main(["summarize", str(run_dir)]), 0)
+            printed = json.loads(stdout.getvalue())
+            self.assertFalse(printed["run_valid"])
+            self.assertTrue(printed["replay_errors"])
+
     def test_malformed_result_matrix_fails_closed_for_helper_and_cli(self) -> None:
         valid = {
             "schema_version": "0.1.0",
@@ -192,6 +208,7 @@ class SummaryReplayTest(unittest.TestCase):
             "missing_task_id": [{k: v for k, v in valid.items() if k != "task_id"}],
             "numeric_task_id": [{**valid, "task_id": 1}],
             "empty_task_id": [{**valid, "task_id": ""}],
+            "huge_reward": [{**valid, "reward": 10**4000}],
             "duplicate_task_id": [valid, dict(valid)],
             "malformed_metadata": [{**valid, "metadata": []}],
             "non_object_row": [["not", "an", "object"]],

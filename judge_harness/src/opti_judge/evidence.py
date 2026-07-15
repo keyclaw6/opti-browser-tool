@@ -12,11 +12,10 @@ inside a bundle, but are never returned to consumers.
 """
 from __future__ import annotations
 
-import datetime as _dt
 import hashlib
-import math
 import os
 import stat
+from decimal import Decimal
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
@@ -24,11 +23,12 @@ from typing import Any, Iterable
 from opti_eval.models import (
     PERSISTED_RESULT_FIELDS,
     canonical_json,
+    is_finite_real_number,
+    rfc3339_utc_order_key,
     split_lf_jsonl_records,
     strict_json_loads,
     validate_nonempty_string,
     validate_persisted_result,
-    validate_rfc3339,
     validate_standard_json,
     validate_task_id,
 )
@@ -223,14 +223,13 @@ def _artifact_ref_shape(value: object, *, label: str) -> dict[str, Any]:
     }
 
 
-def _timestamp(value: object, *, line_number: int) -> _dt.datetime:
+def _timestamp(value: object, *, line_number: int) -> tuple[int, Decimal]:
     try:
-        text = validate_rfc3339(
+        return rfc3339_utc_order_key(
             value, field_name=f"trace line {line_number} timestamp"
         )
     except ValueError as exc:
         raise EvidenceError(str(exc)) from exc
-    return _dt.datetime.fromisoformat(text.replace("Z", "+00:00"))
 
 
 def _validate_event(event: object, line_number: int) -> dict[str, Any]:
@@ -258,9 +257,7 @@ def _validate_event(event: object, line_number: int) -> dict[str, Any]:
         raise EvidenceError(f"{label} sequence must be a non-negative integer")
     monotonic_ms = event.get("monotonic_ms")
     if (
-        isinstance(monotonic_ms, bool)
-        or not isinstance(monotonic_ms, (int, float))
-        or not math.isfinite(monotonic_ms)
+        not is_finite_real_number(monotonic_ms)
         or monotonic_ms < 0
     ):
         raise EvidenceError(f"{label} monotonic_ms must be a finite non-negative number")
@@ -343,8 +340,8 @@ def _parse_trace_text(
     trace_run_id: str | None = None
     trace_task_id: str | None = None
     previous_sequence: int | None = None
-    previous_monotonic: float | None = None
-    previous_timestamp: _dt.datetime | None = None
+    previous_monotonic: int | float | None = None
+    previous_timestamp: tuple[int, Decimal] | None = None
     previous_epoch: int | None = None
     verifier_results: list[dict[str, Any]] = []
 
@@ -396,7 +393,7 @@ def _parse_trace_text(
 
         seen_ids.add(event_id)
         previous_sequence = event["sequence"]
-        previous_monotonic = float(event["monotonic_ms"])
+        previous_monotonic = event["monotonic_ms"]
         previous_timestamp = timestamp
         artifact_refs.extend(event["artifact_refs"])
         if event["event_type"] == "verifier_result":

@@ -62,6 +62,46 @@ REQUIRED_FILES = [
 ]
 
 
+def audit_git_repository(root: Path) -> list[str]:
+    """Validate Git metadata for either a checkout or a linked worktree."""
+    try:
+        discovered = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError as exc:
+        return [f"git rev-parse failed: {exc}"]
+    if discovered.returncode != 0:
+        detail = discovered.stderr.strip() or discovered.stdout.strip()
+        message = "repo root has no Git work-tree toplevel"
+        return [message + (f": {detail}" if detail else "")]
+    expected_root = root.resolve()
+    discovered_root = Path(discovered.stdout.strip()).resolve()
+    if discovered_root != expected_root:
+        return [
+            f"repo root is not the Git work-tree toplevel: expected {expected_root}, "
+            f"got {discovered_root}"
+        ]
+
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(root), "fsck", "--full", "--no-dangling"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError as exc:
+        return [f"git fsck failed: {exc}"]
+    if completed.returncode != 0:
+        return [
+            "git fsck failed: "
+            + (completed.stderr.strip() or completed.stdout.strip())
+        ]
+    return []
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-root", required=True)
@@ -96,20 +136,7 @@ def main() -> int:
         errors.append(f"documentation audit crashed: {type(exc).__name__}: {exc}")
 
     if not args.skip_git:
-        if not (root / ".git").is_dir():
-            errors.append("missing .git directory")
-        else:
-            completed = subprocess.run(
-                ["git", "-C", str(root), "fsck", "--full", "--no-dangling"],
-                text=True,
-                capture_output=True,
-                check=False,
-            )
-            if completed.returncode != 0:
-                errors.append(
-                    "git fsck failed: "
-                    + (completed.stderr.strip() or completed.stdout.strip())
-                )
+        errors.extend(audit_git_repository(root))
 
     payload = {
         "ok": not errors,
