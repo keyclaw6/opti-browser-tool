@@ -2,13 +2,17 @@
 
 Status: reversible milestone-F software qualification checkpoint. Its bounded
 software qualification was independently reviewed and committed at `7c245e5`;
-the final Sentinel readiness correction is committed at
+an earlier Sentinel readiness correction is committed at
 `04ca532b078d31a1ad0959c7bcf94302e7362abb` by writer session
 `019f6bf0-e541-7952-9cb2-4aa547786a35`. Correctness reviewer session
 `019f6bf7-deca-79a0-96b1-57c1df08e0b6` and elegance/YAGNI/vision reviewer
 session `019f6bf7-df19-7070-b594-7c421a0e956c` both returned CLEAN on frozen
 production/test digest
 `f53db249a45600168a45392efdd800cdb209dbf799798125f705b98ab05f2d75`.
+The final bounded Sentinel correction is committed at
+`10831715041b455357d36fcc90cb9f33254b1bc3`; its production-template regression
+recursively verifies the complete closed-object key shape (44 dictionary
+objects) and rejects all five representative required-field deletions.
 This remains a software checkpoint, not live qualification: no live operation,
 external spend, merge, push, reportability claim, or campaign authorization has
 occurred, and ADR-0003 remains Open. `benchmark_reportable=false` and

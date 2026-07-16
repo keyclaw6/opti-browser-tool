@@ -311,12 +311,12 @@ findings, and only then may the package be committed and the next package start.
   holdout evidence; metering and owner decisions; and explicit campaign
   authorization.
 
-### Final bounded Sentinel correction — reviewer-clean, uncommitted
+### Final bounded Sentinel correction — committed and reviewer-clean
 
-- **Writer/base/review state:** sole implementation writer session
-  `019f6c34-7664-7a33-95f0-2a8a182b0ed2` reopened the checkpoint from clean
-  exact HEAD `978802caeea7c5d7eacdee0225b7aafd374af462`. On unchanged reviewed
-  production/test slice digest
+- **Writer/commit/review state:** sole implementation writer session
+  `019f6c34-7664-7a33-95f0-2a8a182b0ed2` produced the final correction committed
+  at exact commit `10831715041b455357d36fcc90cb9f33254b1bc3`. On unchanged
+  reviewed production/test slice digest
   `1bc3486a052696692146df98cdded2203f218a515f44d7409262312770df154b`,
   correctness session `019f6c3d-06ab-7a72-9810-a6f71e722088` returned CLEAN
   after actively running all five focused regressions and independently
@@ -324,9 +324,7 @@ findings, and only then may the package be committed and the next package start.
   representative deletions. Elegance/YAGNI/vision session
   `019f6c3d-06c3-7bd2-a35e-b43b1e8ab459` returned CLEAN with no new recovery
   or configuration machinery; its read-only sandbox prevented temp-backed
-  tests, while the correctness review supplied the dynamic reproduction. The
-  working tree deliberately remains dirty, uncommitted, pending commit, and
-  unpushed.
+  tests, while the correctness review supplied the dynamic reproduction.
 - **Exact correction:** the existing start-preparation rollback catches
   `BaseException` only at that transaction, restores durable trusted state
   first, then restores cluster bytes and removes iteration/worktree artifacts.
@@ -358,10 +356,10 @@ findings, and only then may the package be committed and the next package start.
   installed CLIs, and all installed suites. Neither clean-install proof used a
   live backend, and both retained `benchmark_evidence=false`.
 - **Honest boundary:** no live source, browser, model, campaign, credential,
-  external asset, paid request, external budget, commit, merge, or push was
-  used. Evidence is offline fixture plumbing only and is not benchmark
-  reportable. Existing external activation and explicit authorization blockers
-  remain unchanged.
+  external asset, paid request, external budget, merge, or push was used.
+  Evidence is offline fixture plumbing only and is not benchmark reportable.
+  Existing external activation and explicit authorization blockers remain
+  unchanged.
 
 ### Committed milestone-E software checkpoint
 

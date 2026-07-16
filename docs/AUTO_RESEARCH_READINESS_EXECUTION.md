@@ -912,12 +912,12 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
   calibration, transfer, and holdout evidence; metering and owner decisions;
   and explicit campaign authorization.
 
-### Final bounded Sentinel correction — reviewer-clean, uncommitted
+### Final bounded Sentinel correction — committed and reviewer-clean
 
-- **Writer/base/review state:** sole implementation writer session
-  `019f6c34-7664-7a33-95f0-2a8a182b0ed2` reopened the checkpoint from clean
-  exact HEAD `978802caeea7c5d7eacdee0225b7aafd374af462`. On unchanged reviewed
-  production/test slice digest
+- **Writer/commit/review state:** sole implementation writer session
+  `019f6c34-7664-7a33-95f0-2a8a182b0ed2` produced the final correction committed
+  at exact commit `10831715041b455357d36fcc90cb9f33254b1bc3`. On unchanged
+  reviewed production/test slice digest
   `1bc3486a052696692146df98cdded2203f218a515f44d7409262312770df154b`,
   correctness session `019f6c3d-06ab-7a72-9810-a6f71e722088` returned CLEAN
   after actively running all five focused regressions and independently
@@ -925,8 +925,7 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
   representative deletions. Elegance/YAGNI/vision session
   `019f6c3d-06c3-7bd2-a35e-b43b1e8ab459` returned CLEAN with no new recovery
   or configuration machinery; its read-only sandbox prevented temp-backed
-  tests, while correctness supplied the dynamic reproduction. The working tree
-  deliberately remains dirty, uncommitted, pending commit, and unpushed.
+  tests, while correctness supplied the dynamic reproduction.
 - **Bounded correction:** only the existing start-preparation transaction now
   catches `BaseException`, restores trusted campaign state before fallible
   cleanup, restores cluster bytes, removes iteration artifacts and the
@@ -960,9 +959,9 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
   installed CLIs, and all installed suites. Neither clean-install proof used a
   live backend, and both retained `benchmark_evidence=false`.
 - **Honest boundary:** no live source, browser, model, campaign, credential,
-  external asset, paid request, external budget, commit, merge, or push was
-  used. Fixture evidence remains non-live and nonreportable; all previously
-  documented owner-supplied activation inputs and authorization blockers remain.
+  external asset, paid request, external budget, merge, or push was used.
+  Fixture evidence remains non-live and nonreportable; all previously documented
+  owner-supplied activation inputs and authorization blockers remain.
 
 The milestone-F software checkpoint committed at `7c245e5` has the following
 local verification evidence; none is live/reportable qualification evidence:
