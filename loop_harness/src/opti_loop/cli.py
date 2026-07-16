@@ -32,7 +32,20 @@ from opti_eval.adapters.warc_online4 import (
 
 from . import fileguard, gitutil
 from .campaign import DEFAULT_CONFIG, init_campaign, load_campaign
-from .conductor import compare_campaigns, measure_noise, run_iteration, start_iteration
+from .conductor import (
+    compare_campaigns,
+    continue_campaign,
+    measure_noise,
+    run_iteration,
+    start_iteration,
+)
+from .learning import read_records
+from .ledger import read_rows
+from .operation import (
+    operation_config,
+    request,
+    status as operation_status,
+)
 from .protocol import ProtocolError, normalize_candidate_allowlist
 from .transfer import evaluate_checkpoint, plan_checkpoint
 
@@ -87,6 +100,25 @@ def _harness_fixture_file(repo_root: Path, value: str) -> str:
     return value
 
 
+def _warc_status(campaign) -> dict[str, object]:
+    adapter = campaign.config.get("adapter", {})
+    if adapter.get("kind") != "warc-online4":
+        return {"required": False}
+    report: dict[str, object] = {"required": True, "ready": False}
+    try:
+        checked = load_and_preflight_config(Path(adapter["config_path"]))
+    except (KeyError, OSError, ValueError, WarcOnline4Error) as exc:
+        report["blocker"] = str(exc)
+    else:
+        report.update(
+            ready=True,
+            mode=checked["mode"],
+            config_digest=checked["config_digest"],
+            lifecycle_executed=False,
+        )
+    return report
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="opti-loop", description=__doc__)
     parser.add_argument("--repo-root", default=None)
@@ -105,14 +137,24 @@ def main(argv: list[str] | None = None) -> int:
     p_init.add_argument("--bridge-command", default=None)
     p_init.add_argument("--warc-config", default=None)
     p_init.add_argument("--dev-suite", default="smoke")
+    p_init.add_argument("--max-iterations", type=int)
+    p_init.add_argument("--max-attempts", type=int)
+    p_init.add_argument("--deadline-seconds", type=int)
+    p_init.add_argument("--external-metering-id")
+    p_init.add_argument("--authorize-production-campaign", action="store_true")
 
-    for name in ("start", "status", "transfer-plan"):
+    for name in ("start", "status", "preflight", "pause", "stop", "transfer-plan"):
         p = sub.add_parser(name)
         p.add_argument("--campaign", required=True)
     p_run = sub.add_parser("run-iteration")
     p_run.add_argument("--campaign", required=True)
     p_run.add_argument("--candidate-bundle", default=None)
     p_run.add_argument("--candidate-manifest", default=None)
+    for name in ("run", "resume"):
+        p = sub.add_parser(name)
+        p.add_argument("--campaign", required=True)
+        p.add_argument("--candidate-bundle", default=None)
+        p.add_argument("--candidate-manifest", default=None)
 
     p_noise = sub.add_parser("measure-noise")
     p_noise.add_argument("--campaign", required=True)
@@ -247,8 +289,41 @@ def main(argv: list[str] | None = None) -> int:
                 ],
                 "lane": protocol_identity["lane"],
             }
+        if any(
+            value is None
+            for value in (
+                args.max_iterations, args.max_attempts, args.deadline_seconds
+            )
+        ):
+            print(
+                "error: --max-iterations, --max-attempts, and --deadline-seconds "
+                "are required closed campaign limits",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            operation = operation_config(
+                max_iterations=args.max_iterations,
+                max_attempts=args.max_attempts,
+                deadline_seconds=args.deadline_seconds,
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        if args.adapter == "warc-online4" and checked["mode"] == "production":
+            operation["external_metering"] = (
+                f"available:{args.external_metering_id}"
+                if args.external_metering_id
+                else "unavailable"
+            )
+            operation["authorization"] = (
+                "owner_authorized"
+                if args.authorize_production_campaign
+                else "required"
+            )
         overrides = {
             "adapter": adapter,
+            "operation": operation,
             "suites": {
                 "dev": args.dev_suite,
                 "smoke": (
@@ -285,29 +360,96 @@ def main(argv: list[str] | None = None) -> int:
 
     campaign = load_campaign(repo_root, args.campaign, store_root=store_root)
 
+    if args.command in {"pause", "stop"}:
+        try:
+            lifecycle = request(campaign, args.command)
+        except (RuntimeError, ValueError) as exc:
+            print(f"opti-loop: {exc}", file=sys.stderr)
+            return 2
+        _emit({"campaign": campaign.campaign_id, "lifecycle": lifecycle})
+        return 0
+
+    if args.command in {"run", "resume"}:
+        try:
+            request(campaign, "run", resume=args.command == "resume")
+            result = continue_campaign(
+                campaign,
+                candidate_bundle=(
+                    Path(args.candidate_bundle) if args.candidate_bundle else None
+                ),
+                candidate_manifest=(
+                    Path(args.candidate_manifest) if args.candidate_manifest else None
+                ),
+            )
+        except (RuntimeError, ValueError, OSError) as exc:
+            print(f"opti-loop: {exc}", file=sys.stderr)
+            return 2
+        _emit(result)
+        return 0
+
+    if args.command == "preflight":
+        report = operation_status(campaign)
+        warc = _warc_status(campaign)
+        report["warc_online4"] = warc
+        report["ok"] = not report["blockers"] and not (
+            warc.get("required") and not warc.get("ready")
+        )
+        _emit(report)
+        return 0 if report["ok"] else 1
+
     if args.command == "measure-noise":
         _emit({"noise_band": measure_noise(campaign, runs=args.runs).to_dict()})
         return 0
     if args.command == "start":
-        _emit(start_iteration(campaign))
+        try:
+            _emit(start_iteration(campaign))
+        except (RuntimeError, ValueError, OSError) as exc:
+            print(f"opti-loop: {exc}", file=sys.stderr)
+            return 2
         return 0
     if args.command == "run-iteration":
-        result = run_iteration(
-            campaign,
-            candidate_bundle=(Path(args.candidate_bundle) if args.candidate_bundle else None),
-            candidate_manifest=(
-                Path(args.candidate_manifest) if args.candidate_manifest else None
-            ),
-        )
+        try:
+            result = run_iteration(
+                campaign,
+                candidate_bundle=(Path(args.candidate_bundle) if args.candidate_bundle else None),
+                candidate_manifest=(
+                    Path(args.candidate_manifest) if args.candidate_manifest else None
+                ),
+            )
+        except (RuntimeError, ValueError, OSError) as exc:
+            print(f"opti-loop: {exc}", file=sys.stderr)
+            return 2
         _emit(result)
         return 0 if result.get("advanced_accepted_state") else 1
     if args.command == "transfer-plan":
         _emit(plan_checkpoint(campaign).to_dict())
         return 0
     if args.command == "status":
-        rows = []
-        if campaign.ledger_path.is_file():
-            rows = [json.loads(x) for x in campaign.ledger_path.read_text().splitlines() if x.strip()]
+        operation = operation_status(campaign)
+        try:
+            rows = read_rows(campaign.ledger_path)
+        except (OSError, UnicodeDecodeError, ValueError) as exc:
+            ledger_summary = {}
+            operation["blockers"].append(
+                f"ledger: {exc}; repair the retained campaign ledger"
+            )
+        else:
+            ledger_summary = {
+                "ledger_rows": len(rows),
+                "last": [
+                    {"iteration": row["iteration"], "verdict": row["verdict"]}
+                    for row in rows[-5:]
+                ],
+            }
+        try:
+            records = read_records(
+                campaign.learnings_path,
+                campaign_root=campaign.store.campaign_dir,
+            )
+            latest_learning = records[-1] if records else None
+        except ValueError as exc:
+            latest_learning = {"invalid": str(exc)}
+            operation["blockers"].append(f"learning: {exc}")
         _emit({
             "campaign": campaign.campaign_id,
             "store": str(campaign.store.campaign_dir),
@@ -316,8 +458,10 @@ def main(argv: list[str] | None = None) -> int:
             "pending_iteration": campaign.state.get("pending_iteration", 0),
             "accepted_iterations": campaign.state.get("accepted_iterations", []),
             "noise_band": campaign.config.get("noise_band"),
-            "ledger_rows": len(rows),
-            "last": [{"iteration": r.get("iteration"), "verdict": r.get("verdict")} for r in rows[-5:]],
+            "operation": operation,
+            "warc_online4": _warc_status(campaign),
+            "latest_learning_record": latest_learning,
+            **ledger_summary,
         })
         return 0
     parser.error(f"unknown command {args.command}")

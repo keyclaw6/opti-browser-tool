@@ -24,6 +24,7 @@ def build_packet(
     ledger_path: Path,
     baseline_summary: dict[str, Any],
     candidate_allowlist: list[str],
+    latest_learning_record: dict[str, Any] | None,
 ) -> Path:
     top = ranked_clusters[:5]
     ledger_tail = read_rows(ledger_path)[-3:]
@@ -48,6 +49,7 @@ def build_packet(
             "status_counts": baseline_summary.get("status_counts"),
         },
         "candidate_allowlist": list(candidate_allowlist),
+        "latest_learning_record": latest_learning_record,
     }
     (iteration_dir / "packet.json").write_text(
         json.dumps(payload, indent=2) + "\n", encoding="utf-8"
@@ -82,6 +84,7 @@ def build_packet(
         "- Analysis: `analysis/overview.md` (+ `analysis/analysis.json`) in this iteration directory",
         "- Baseline evaluation artifacts: `eval/dev_baseline/`",
         "- Recent ledger rows: `packet.json` → see campaign `ledger.jsonl` for full history",
+        "- Latest validated learning: `packet.json` → `latest_learning_record`",
         "",
         "## What to produce",
         "",

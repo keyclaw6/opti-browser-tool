@@ -152,7 +152,8 @@ The operable offline D3 rehearsal is initialized directly with, for example:
 opti-loop --store-root /safe/path init --campaign rehearsal \
   --adapter harness-fixture \
   --harness-file harness/components/policy/quality.txt \
-  --pass-rate 0.55 --seed 0
+  --pass-rate 0.55 --seed 0 \
+  --max-iterations 3 --max-attempts 6 --deadline-seconds 3600
 ```
 
 `--harness-file` is required for `harness-fixture`; `--pass-rate` supplies its
@@ -165,9 +166,12 @@ has the same finite range. Fixture evidence remains simulated, cannot advance
 accepted state, and cannot change research-continuation counters. Unsupported
 adapters stop at E1 before any treatment execution.
 
-Operator commands (see `opti-loop --help`): `init`, `measure-noise`, `start`,
-`run-iteration`, `status`, `compare-campaigns`, `transfer-plan`, and the
+Operator commands (see `opti-loop --help`): `init`, `preflight`, `run`,
+`resume`, `pause`, `stop`, `measure-noise`, `start`, `run-iteration`, `status`,
+`compare-campaigns`, `transfer-plan`, and the
 non-executing `warc-online4-preflight`. See
+[`docs/AUTO_RESEARCH_OPERATOR_RUNBOOK.md`](../docs/AUTO_RESEARCH_OPERATOR_RUNBOOK.md)
+for the exact foreground workflow and external activation checklist, and
 [`docs/WARC_ONLINE4_QUALIFICATION.md`](../docs/WARC_ONLINE4_QUALIFICATION.md)
 for the exact external-input and operator contract.
 The optimizer's contract lives in [`PROGRAM.md`](../PROGRAM.md).

@@ -43,7 +43,8 @@ from .compare import NoiseBand, NoiseBandError, measure_noise_band
 from .eligibility import Eligibility, assess
 from .evaluate import EvalRun, load_run, run_suite
 from .gates import GateReport, RungResult, run_gate
-from .ledger import learnings_template
+from .learning import build_record, ensure_record, read_records, validate_record
+from .ledger import LEDGER_ROW_FIELDS, read_rows
 from .manifest import ManifestReport, rejected_submission_record, validate_manifest
 from .materialization import (
     MAX_BUNDLE_BYTES,
@@ -53,6 +54,7 @@ from .materialization import (
     materialize_candidate_bundle,
     project_build_identity,
 )
+from .operation import LIFECYCLE_VERSION, note_attempt, require_transition
 from .packet import build_packet
 from .protocol import (
     ProtocolError,
@@ -62,7 +64,7 @@ from .protocol import (
     run_context,
     verify_runtime_bindings,
 )
-from .store import append_jsonl, atomic_write_json, atomic_write_text
+from .store import atomic_write_json, atomic_write_text
 from .transfer import evaluate_checkpoint
 from .verdict import Verdict
 
@@ -70,9 +72,10 @@ DEV_BASELINE_DIR = "eval/dev_baseline"
 ACCEPTED_REF = "refs/opti/{campaign}/accepted"
 MAX_MANIFEST_BYTES = 256 * 1024
 PUBLICATION_RECORD = "accepted-publication.json"
-PUBLICATION_SCHEMA_VERSION = "0.2.0"
+PUBLICATION_SCHEMA_VERSION = "0.4.0"
 PUBLICATION_RECORD_TYPE = "accepted-publication"
-PUBLICATION_DIGEST_DOMAIN = "opti.accepted-publication.v1"
+PUBLICATION_DIGEST_DOMAIN = "opti.accepted-publication.v3"
+MANIFEST_SNAPSHOT_DIGEST_DOMAIN = "opti.publication-manifest-snapshot.v1"
 PUBLICATION_RESULT_FIELDS = {
     "iteration",
     "verdict",
@@ -94,13 +97,14 @@ PUBLICATION_IDENTITY_FIELDS = {
     "candidate_tree",
     "staging_ref",
     "expected_ref",
+    "manifest_snapshot_digest",
 }
 PENDING_PUBLICATION_FIELDS = PUBLICATION_IDENTITY_FIELDS | {
     "gate_report",
     "manifest_snapshot",
     "cluster_register",
     "ledger_row",
-    "learnings_entry",
+    "learning_record",
     "pre_state",
     "final_state",
     "result",
@@ -122,29 +126,6 @@ GATE_REPORT_FIELDS = {
     "admissions",
     "run_digests",
 }
-LEDGER_ROW_FIELDS = {
-    "iteration",
-    "campaign",
-    "verdict",
-    "decision",
-    "evidence_class",
-    "advances_accepted_state",
-    "divergent",
-    "base_sha",
-    "candidate_sha",
-    "protocol_digest",
-    "hypothesis",
-    "target_component",
-    "cluster_ref",
-    "gate_rungs",
-    "comparison",
-    "attribution",
-    "eligibility",
-    "fixed_variables",
-    "promotion_candidates",
-}
-
-
 class _AcceptedRefContention(gitutil.GitError):
     """The accepted ref changed before this publication could own it."""
 
@@ -493,15 +474,27 @@ def _start_iteration_locked(
 ) -> dict[str, Any]:
     materialization_store = campaign.store.campaign_dir / "materializations"
     lock.require_held(materialization_store)
+    require_transition(campaign, action="start")
     if campaign.state.get("pending_iteration"):
         raise RuntimeError(
             f"iteration {campaign.state['pending_iteration']} is already pending; "
             "run `opti-loop run-iteration` first"
         )
-    learnings_incomplete = (
-        campaign.learnings_path.is_file()
-        and "<fill in" in campaign.learnings_path.read_text(encoding="utf-8").split("## Iteration")[-1]
+    learning_records = read_records(
+        campaign.learnings_path, campaign_root=campaign.store.campaign_dir
     )
+    if campaign.current_iteration:
+        matches = [
+            row for row in learning_records
+            if row["iteration"] == campaign.current_iteration
+        ]
+        if len(matches) != 1:
+            raise RuntimeError(
+                "latest completed iteration lacks one valid trace-cited LearningRecord"
+            )
+        latest_learning = matches[0]
+    else:
+        latest_learning = None
     previous_accepted = _load_accepted_run(campaign)
 
     base_sha = str(campaign.state["accepted_base_sha"])
@@ -626,7 +619,8 @@ def _start_iteration_locked(
     build_packet(iteration_dir=iteration_dir, iteration=number, campaign_id=campaign.campaign_id,
                  divergent=divergent, ranked_clusters=ranked_unresolved(register),
                  ledger_path=campaign.ledger_path, baseline_summary=baseline.summary,
-                 candidate_allowlist=protocol["candidate_allowlist"])
+                 candidate_allowlist=protocol["candidate_allowlist"],
+                 latest_learning_record=latest_learning)
 
     campaign.state["pending_iteration"] = number
     campaign.state["pending_divergent"] = divergent
@@ -643,6 +637,11 @@ def _start_iteration_locked(
     campaign.state[
         "pending_regression_baseline_admission_receipt"
     ] = regression_admission
+    campaign.state["lifecycle"] = {
+        "schema_version": LIFECYCLE_VERSION,
+        "state": "running",
+        "request": "run",
+    }
     campaign.save_state()
 
     result: dict[str, Any] = {
@@ -661,8 +660,6 @@ def _start_iteration_locked(
     }
     if divergent:
         result["divergence_note"] = "cluster_ref must start with 'divergent' this iteration (ADR-0015 §9)"
-    if learnings_incomplete:
-        result["warning"] = "previous learnings entry has unfilled '<fill in' placeholders (PROGRAM.md §6)"
     return result
 
 
@@ -1012,6 +1009,10 @@ def _seal_publication_record(record: dict[str, Any]) -> dict[str, Any]:
     return sealed
 
 
+def _manifest_snapshot_digest(snapshot: object) -> str:
+    return digest_json(snapshot, domain=MANIFEST_SNAPSHOT_DIGEST_DOMAIN)
+
+
 def _has_accepted_history(state: dict[str, Any]) -> bool:
     accepted = state.get("accepted_iterations")
     if type(accepted) is not list or any(type(item) is not int for item in accepted):
@@ -1057,14 +1058,27 @@ def _validate_publication_identity(
         raise RuntimeError("accepted publication iteration is invalid")
     if not _is_sha256(record.get("protocol_digest")):
         raise RuntimeError("accepted publication protocol digest is invalid")
-    for field in ("base_sha", "candidate_sha", "candidate_tree"):
-        if not _is_git_oid(record.get(field)):
-            raise RuntimeError(f"accepted publication {field} is invalid")
-    if record.get("staging_ref") != f"refs/opti/import/{record['candidate_sha']}":
+    if not _is_git_oid(record.get("base_sha")):
+        raise RuntimeError("accepted publication base_sha is invalid")
+    candidate_sha = record.get("candidate_sha")
+    candidate_tree = record.get("candidate_tree")
+    staging_ref = record.get("staging_ref")
+    if candidate_sha is not None and not _is_git_oid(candidate_sha):
+        raise RuntimeError("accepted publication candidate_sha is invalid")
+    if candidate_tree is not None and not _is_git_oid(candidate_tree):
+        raise RuntimeError("accepted publication candidate_tree is invalid")
+    if (candidate_sha is None) is not (candidate_tree is None):
+        raise RuntimeError("accepted publication candidate identity is incomplete")
+    if staging_ref is not None and (
+        candidate_sha is None
+        or staging_ref != f"refs/opti/import/{candidate_sha}"
+    ):
         raise RuntimeError("accepted publication staging identity is invalid")
     expected_ref = record.get("expected_ref")
     if expected_ref is not None and not _is_git_oid(expected_ref):
         raise RuntimeError("accepted publication expected ref is invalid")
+    if not _is_sha256(record.get("manifest_snapshot_digest")):
+        raise RuntimeError("accepted publication manifest snapshot digest is invalid")
     if not _is_sha256(record.get("record_digest")) or record[
         "record_digest"
     ] != _publication_record_digest(record):
@@ -1075,18 +1089,25 @@ def _validate_result_summary(
     result: object,
     *,
     record: dict[str, Any],
-    complete: bool,
 ) -> dict[str, Any]:
     summary = _require_closed_object(
         result, PUBLICATION_RESULT_FIELDS, field_name="publication result summary"
     )
+    try:
+        verdict = Verdict(
+            str(summary.get("decision")), str(summary.get("evidence_class"))
+        )
+    except ValueError as exc:
+        raise RuntimeError("publication result summary verdict is invalid") from exc
     expected = {
         "iteration": record["iteration"],
-        "verdict": "accepted" if complete else "invalid",
-        "decision": "accepted" if complete else "invalid",
-        "evidence_class": "benchmark",
-        "advanced_accepted_state": complete,
-        "accepted_base_sha": record["candidate_sha"] if complete else record["base_sha"],
+        "verdict": verdict.label,
+        "advanced_accepted_state": verdict.advances_accepted_state,
+        "accepted_base_sha": (
+            record["candidate_sha"]
+            if verdict.advances_accepted_state
+            else record["base_sha"]
+        ),
     }
     for field, value in expected.items():
         if summary.get(field) != value:
@@ -1098,9 +1119,11 @@ def _validate_result_summary(
         type(promotions) is not list
         or any(type(item) is not str for item in promotions)
         or promotions != sorted(set(promotions))
-        or not complete and promotions
+        or not verdict.advances_accepted_state and promotions
     ):
         raise RuntimeError("publication result summary has invalid promotions")
+    if verdict.advances_accepted_state and not _is_git_oid(record.get("candidate_sha")):
+        raise RuntimeError("accepted publication result lacks candidate identity")
     return summary
 
 
@@ -1185,9 +1208,288 @@ def _accepted_final_state(
         ("pending_baseline_activation_observation", None),
         ("pending_regression_baseline_admission_receipt", None),
         ("pending_repeated_started_at", None),
+        ("active_attempt_iteration", None),
     ):
         final_state[key] = value
     return final_state
+
+
+def _nonadvancing_final_state(
+    pre_state: dict[str, Any],
+    *,
+    verdict: Verdict,
+    divergent: bool,
+    fingerprint: str | None,
+    cleanup_failure: str | None,
+) -> dict[str, Any]:
+    """Derive the state-inert terminal transition for every non-accept."""
+    final_state = copy.deepcopy(pre_state)
+    benchmark_rejection = (
+        verdict.decision == "rejected" and verdict.evidence_class == "benchmark"
+    )
+    if benchmark_rejection:
+        final_state["iterations_since_accept"] = int(
+            final_state.get("iterations_since_accept", 0)
+        ) + 1
+        if fingerprint:
+            failed = final_state.setdefault("failed_attempts", {})
+            failed[fingerprint] = int(failed.get(fingerprint, 0)) + 1
+        final_state["iterations_since_divergent"] = (
+            0
+            if divergent
+            else int(final_state.get("iterations_since_divergent", 0)) + 1
+        )
+    for key, value in (
+        ("pending_iteration", 0),
+        ("pending_divergent", False),
+        ("pending_base_sha", None),
+        ("pending_protocol_digest", None),
+        ("pending_baseline_run_digest", None),
+        ("pending_regression_baseline_run_digest", None),
+        ("pending_baseline_admission_receipt", None),
+        ("pending_baseline_activation_observation", None),
+        ("pending_regression_baseline_admission_receipt", None),
+        ("pending_repeated_started_at", None),
+        ("active_attempt_iteration", None),
+    ):
+        final_state[key] = value
+    if cleanup_failure is not None:
+        final_state["cleanup_health"] = {
+            "status": "failed",
+            "detail": cleanup_failure,
+        }
+    return final_state
+
+
+def _publication_gate_rungs(gate: dict[str, Any]) -> dict[str, str]:
+    if type(gate.get("rungs")) is not list:
+        raise RuntimeError("publication gate report rungs are malformed")
+    statuses: dict[str, str] = {}
+    for rung in gate["rungs"]:
+        row = _require_closed_object(
+            rung, {"rung", "status", "detail"}, field_name="publication gate rung"
+        )
+        if (
+            type(row["rung"]) is not str
+            or type(row["status"]) is not str
+            or type(row["detail"]) is not dict
+            or row["rung"] in statuses
+        ):
+            raise RuntimeError("publication gate rung identity is malformed")
+        statuses[row["rung"]] = row["status"]
+    return statuses
+
+
+def _publication_rejection_errors(gate: dict[str, Any]) -> list[str]:
+    """Return exact optimizer-admissibility errors retained by a failed gate."""
+    rungs = gate.get("rungs")
+    if type(rungs) is not list or len(rungs) != 1:
+        return []
+    rung = rungs[0]
+    if (
+        type(rung) is not dict
+        or rung.get("rung") != "E0"
+        or rung.get("status") != "fail"
+    ):
+        return []
+    detail = rung.get("detail")
+    if type(detail) is not dict:
+        return []
+    if set(detail) == {"manifest_errors"}:
+        errors = detail["manifest_errors"]
+        if (
+            type(errors) is not list
+            or not errors
+            or any(type(error) is not str or not error for error in errors)
+        ):
+            raise RuntimeError("publication E0 manifest errors are malformed")
+        return list(errors)
+    guard_fields = {"changed", "violations", "dirty_worktree", "ok"}
+    if set(detail) == guard_fields:
+        changed = detail["changed"]
+        violations = detail["violations"]
+        dirty = detail["dirty_worktree"]
+        if (
+            detail["ok"] is not False
+            or any(type(rows) is not list for rows in (changed, violations, dirty))
+            or any(
+                type(item) is not str or not item
+                for rows in (changed, violations, dirty)
+                for item in rows
+            )
+            or not violations and not dirty
+        ):
+            raise RuntimeError("publication E0 guard report is malformed")
+        return [*violations, *dirty]
+    if set(detail) & (guard_fields | {"manifest_errors"}):
+        raise RuntimeError("publication E0 rejection detail has an invalid closed shape")
+    return []
+
+
+def _validate_publication_cross_artifacts(
+    campaign: Campaign,
+    record: dict[str, Any],
+    *,
+    result: dict[str, Any],
+    gate: object,
+    snapshot: object,
+    ledger: object,
+    learning: object,
+) -> None:
+    """Validate the one canonical publication evidence graph in any phase."""
+    iteration = record["iteration"]
+    gate = _require_closed_object(
+        gate, GATE_REPORT_FIELDS, field_name="publication gate report"
+    )
+    verdict = Verdict(result["decision"], result["evidence_class"])
+    if gate.get("iteration") != iteration or gate.get("verdict") != verdict.to_dict():
+        raise RuntimeError("publication gate report has inconsistent identity or verdict")
+    gate_rungs = _publication_gate_rungs(gate)
+    run_digests = gate.get("run_digests")
+    if (
+        type(gate.get("admissions")) is not dict
+        or type(run_digests) is not dict
+        or any(
+            type(name) is not str or not _is_sha256(value)
+            for name, value in run_digests.items()
+        )
+    ):
+        raise RuntimeError("publication gate evidence identity is malformed")
+
+    ledger = _require_closed_object(
+        ledger, LEDGER_ROW_FIELDS, field_name="publication ledger row"
+    )
+    expected_ledger = {
+        "iteration": iteration,
+        "campaign": campaign.campaign_id,
+        "verdict": verdict.label,
+        "decision": verdict.decision,
+        "evidence_class": verdict.evidence_class,
+        "advances_accepted_state": verdict.advances_accepted_state,
+        "base_sha": record["base_sha"],
+        "candidate_sha": record["candidate_sha"],
+        "protocol_digest": record["protocol_digest"],
+        "gate_rungs": gate_rungs,
+        "comparison": gate.get("comparison"),
+        "attribution": gate.get("attribution"),
+        "eligibility": gate.get("eligibility"),
+        "promotion_candidates": result["promotion_candidates"],
+    }
+    for field, value in expected_ledger.items():
+        if ledger.get(field) != value:
+            raise RuntimeError(f"publication ledger row has inconsistent {field}")
+    if (
+        type(ledger.get("divergent")) is not bool
+        or any(
+            type(ledger.get(field)) is not str
+            for field in ("hypothesis", "target_component", "cluster_ref")
+        )
+        or type(ledger.get("fixed_variables")) is not dict
+    ):
+        raise RuntimeError("publication ledger manifest identity is malformed")
+
+    if verdict.advances_accepted_state:
+        if not {"dev_treatment", "regression_treatment"}.issubset(run_digests):
+            raise RuntimeError("publication gate evidence identity is malformed")
+        comparison = gate.get("comparison")
+        fixed = comparison.get("fixed") if type(comparison) is dict else None
+        if type(fixed) is not list or any(type(item) is not str for item in fixed):
+            raise RuntimeError("publication gate fixed-task evidence is malformed")
+        if result["promotion_candidates"] != sorted(set(fixed)):
+            raise RuntimeError("publication result and gate comparison promotions differ")
+    elif result["promotion_candidates"]:
+        raise RuntimeError("non-advancing publication has promotion candidates")
+
+    try:
+        learning = validate_record(
+            learning,
+            campaign_root=campaign.store.campaign_dir,
+            pending_gate=gate,
+        )
+    except ValueError as exc:
+        raise RuntimeError(f"publication LearningRecord is invalid: {exc}") from exc
+    for field, value in {
+        "campaign_id": campaign.campaign_id,
+        "iteration": iteration,
+        "base_sha": record["base_sha"],
+        "candidate_sha": record["candidate_sha"],
+        "protocol_digest": record["protocol_digest"],
+        "hypothesis": ledger["hypothesis"],
+        "target_component": ledger["target_component"],
+        "cluster_ref": ledger["cluster_ref"],
+        "decision": verdict.to_dict(),
+    }.items():
+        if learning.get(field) != value:
+            raise RuntimeError(f"publication LearningRecord has inconsistent {field}")
+
+    try:
+        protocol = load_frozen_protocol(campaign.iteration_dir(iteration))
+    except (OSError, ProtocolError) as exc:
+        raise RuntimeError(f"publication frozen protocol is invalid: {exc}") from exc
+    if (
+        protocol.get("campaign_id") != campaign.campaign_id
+        or protocol.get("iteration") != iteration
+        or protocol.get("protocol_digest") != record["protocol_digest"]
+        or protocol.get("accepted_build", {}).get("commit_sha") != record["base_sha"]
+        or protocol.get("execution", {}).get("fixed_variables")
+        != ledger["fixed_variables"]
+    ):
+        raise RuntimeError("publication frozen protocol identity is inconsistent")
+
+    if type(snapshot) is not dict:
+        raise RuntimeError("publication manifest snapshot must be an object")
+    if record["manifest_snapshot_digest"] != _manifest_snapshot_digest(snapshot):
+        raise RuntimeError("publication manifest snapshot digest is inconsistent")
+    if snapshot.get("record_type") == "rejected_submission":
+        validation_errors = _publication_rejection_errors(gate)
+        if not validation_errors:
+            raise RuntimeError(
+                "publication rejected manifest snapshot lacks gate validation errors"
+            )
+        try:
+            expected_snapshot = rejected_submission_record(
+                original_submission=snapshot.get("original_submission"),
+                validation_errors=validation_errors,
+                verdict=verdict.to_dict(),
+            )
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError("publication rejected manifest snapshot is invalid") from exc
+        if snapshot != expected_snapshot:
+            raise RuntimeError("publication rejected manifest snapshot is inconsistent")
+    else:
+        if snapshot.get("status") != verdict.label:
+            raise RuntimeError("publication manifest snapshot has inconsistent verdict")
+        if snapshot.get("attribution") != gate.get("attribution"):
+            raise RuntimeError("publication manifest snapshot attribution is inconsistent")
+        submitted_snapshot = copy.deepcopy(snapshot)
+        submitted_snapshot.pop("attribution", None)
+        submitted_snapshot["status"] = "proposed"
+        changed_files = None
+        if record["candidate_sha"] is not None:
+            try:
+                changed_files = [
+                    path
+                    for _status, path in gitutil.diff_name_status(
+                        campaign.repo_root,
+                        record["base_sha"],
+                        record["candidate_sha"],
+                    )
+                ]
+            except gitutil.GitError as exc:
+                raise RuntimeError("publication candidate build identity is invalid") from exc
+        snapshot_report = validate_manifest(
+            submitted_snapshot,
+            allowed_prefixes=tuple(protocol["candidate_allowlist"]),
+            changed_files=changed_files,
+            divergent=ledger["divergent"],
+        )
+        if not snapshot_report.ok:
+            raise RuntimeError("publication manifest snapshot is structurally invalid")
+        for field in ("hypothesis", "target_component", "cluster_ref"):
+            if snapshot.get(field) != ledger[field]:
+                raise RuntimeError(
+                    f"publication manifest snapshot has inconsistent {field}"
+                )
 
 
 def _validate_pending_publication(
@@ -1199,6 +1501,19 @@ def _validate_pending_publication(
     _validate_publication_identity(campaign, record)
     if record["status"] != "pending":
         raise RuntimeError("accepted publication intent has an invalid status")
+    result = _validate_result_summary(record["result"], record=record)
+    _validate_publication_cross_artifacts(
+        campaign,
+        record,
+        result=result,
+        gate=record["gate_report"],
+        snapshot=record["manifest_snapshot"],
+        ledger=record["ledger_row"],
+        learning=record["learning_record"],
+    )
+    if not result["advanced_accepted_state"]:
+        _validate_pending_nonadvancing_publication(campaign, record)
+        return
 
     iteration = record["iteration"]
     base_sha = record["base_sha"]
@@ -1272,7 +1587,6 @@ def _validate_pending_publication(
         if ledger.get(field) != value:
             raise RuntimeError(f"publication ledger row has inconsistent {field}")
 
-    result = _validate_result_summary(record["result"], record=record, complete=True)
     if result["promotion_candidates"] != ledger.get("promotion_candidates"):
         raise RuntimeError("publication result and ledger promotions differ")
     comparison = gate.get("comparison")
@@ -1367,18 +1681,30 @@ def _validate_pending_publication(
             raise RuntimeError("established accepted ref expectation is inconsistent")
     elif expected_ref not in {None, base_sha}:
         raise RuntimeError("first-publication accepted ref expectation is inconsistent")
-    learnings_entry = record.get("learnings_entry")
-    kind = "divergent (exploration)" if divergent else "cluster-targeted"
-    expected_learning_lines = (
-        f"## Iteration {iteration:04d} — accepted —",
-        f"- Kind: {kind}",
-        f"- Cluster: `{ledger['cluster_ref']}` · Component: `{ledger['target_component']}`",
-        f"- Hypothesis: {ledger['hypothesis']}",
-    )
-    if type(learnings_entry) is not str or any(
-        line not in learnings_entry for line in expected_learning_lines
+    try:
+        learning_record = validate_record(
+            record.get("learning_record"),
+            campaign_root=campaign.store.campaign_dir,
+            pending_gate=record["gate_report"],
+        )
+    except ValueError as exc:
+        raise RuntimeError(f"publication LearningRecord is invalid: {exc}") from exc
+    if any(
+        learning_record.get(field) != value
+        for field, value in {
+            "campaign_id": campaign.campaign_id,
+            "iteration": iteration,
+            "base_sha": base_sha,
+            "candidate_sha": candidate_sha,
+            "protocol_digest": protocol_digest,
+            "hypothesis": ledger["hypothesis"],
+            "target_component": ledger["target_component"],
+            "cluster_ref": ledger["cluster_ref"],
+        }.items()
     ):
-        raise RuntimeError("publication learnings entry is inconsistent")
+        raise RuntimeError("publication LearningRecord identity is inconsistent")
+    if learning_record["decision"] != accepted_verdict:
+        raise RuntimeError("publication LearningRecord decision is inconsistent")
 
     try:
         protocol = load_frozen_protocol(campaign.iteration_dir(iteration))
@@ -1429,6 +1755,162 @@ def _validate_pending_publication(
         raise RuntimeError("campaign state conflicts with accepted publication intent")
 
 
+def _cleanup_failure_from_gate(gate: dict[str, Any]) -> str | None:
+    rungs = gate.get("rungs")
+    if type(rungs) is not list:
+        return None
+    for rung in rungs:
+        if type(rung) is not dict:
+            continue
+        encoded = json.dumps(rung.get("detail"), sort_keys=True)
+        if "cleanup" in encoded.lower() and rung.get("status") == "invalid":
+            return encoded
+    return None
+
+
+def _validate_pending_nonadvancing_publication(
+    campaign: Campaign, record: dict[str, Any]
+) -> None:
+    """Validate the state-inert branch of the sole publication intent."""
+    iteration = record["iteration"]
+    result = record["result"]
+    verdict = Verdict(result["decision"], result["evidence_class"])
+    if verdict.advances_accepted_state:
+        raise RuntimeError("non-advancing publication intent has an accepted verdict")
+    gate = _require_closed_object(
+        record["gate_report"], GATE_REPORT_FIELDS, field_name="publication gate report"
+    )
+    if gate.get("iteration") != iteration or gate.get("verdict") != verdict.to_dict():
+        raise RuntimeError("publication gate report has inconsistent identity or verdict")
+    if type(gate.get("rungs")) is not list:
+        raise RuntimeError("publication gate report rungs are malformed")
+    gate_rungs: dict[str, str] = {}
+    for rung in gate["rungs"]:
+        row = _require_closed_object(
+            rung, {"rung", "status", "detail"}, field_name="publication gate rung"
+        )
+        if (
+            type(row["rung"]) is not str
+            or type(row["status"]) is not str
+            or type(row["detail"]) is not dict
+            or row["rung"] in gate_rungs
+        ):
+            raise RuntimeError("publication gate rung identity is malformed")
+        gate_rungs[row["rung"]] = row["status"]
+    if type(gate.get("admissions")) is not dict or type(gate.get("run_digests")) is not dict:
+        raise RuntimeError("publication gate evidence identity is malformed")
+
+    snapshot = record["manifest_snapshot"]
+    if type(snapshot) is not dict or snapshot.get("status") != verdict.label:
+        raise RuntimeError("publication manifest snapshot has inconsistent verdict")
+    ledger = _require_closed_object(
+        record["ledger_row"], LEDGER_ROW_FIELDS, field_name="publication ledger row"
+    )
+    expected_ledger = {
+        "iteration": iteration,
+        "campaign": campaign.campaign_id,
+        "verdict": verdict.label,
+        "decision": verdict.decision,
+        "evidence_class": verdict.evidence_class,
+        "advances_accepted_state": False,
+        "base_sha": record["base_sha"],
+        "candidate_sha": record["candidate_sha"],
+        "protocol_digest": record["protocol_digest"],
+        "gate_rungs": gate_rungs,
+        "comparison": gate.get("comparison"),
+        "attribution": gate.get("attribution"),
+        "eligibility": gate.get("eligibility"),
+        "promotion_candidates": [],
+    }
+    for field, value in expected_ledger.items():
+        if ledger.get(field) != value:
+            raise RuntimeError(f"publication ledger row has inconsistent {field}")
+    if (
+        type(ledger.get("divergent")) is not bool
+        or any(
+            type(ledger.get(field)) is not str
+            for field in ("hypothesis", "target_component", "cluster_ref")
+        )
+        or type(ledger.get("fixed_variables")) is not dict
+    ):
+        raise RuntimeError("publication ledger manifest identity is malformed")
+
+    try:
+        register = strict_json_loads(
+            campaign.clusters_path.read_text(encoding="utf-8"),
+            field_name="trusted cluster register",
+        )
+    except (OSError, UnicodeDecodeError, ValueError) as exc:
+        raise RuntimeError(f"publication cluster register is invalid: {exc}") from exc
+    if record["cluster_register"] != register:
+        raise RuntimeError("non-advancing publication changed the cluster register")
+
+    pre_state = record["pre_state"]
+    final_state = record["final_state"]
+    if type(pre_state) is not dict or type(final_state) is not dict:
+        raise RuntimeError("publication campaign states are malformed")
+    if (
+        pre_state.get("current_iteration") != iteration
+        or pre_state.get("pending_iteration") != iteration
+        or pre_state.get("pending_base_sha") != record["base_sha"]
+        or pre_state.get("pending_protocol_digest") != record["protocol_digest"]
+        or pre_state.get("accepted_base_sha") != record["base_sha"]
+    ):
+        raise RuntimeError("publication pre-state identity is inconsistent")
+    fingerprint = (
+        f"{ledger['cluster_ref']}::{ledger['target_component']}"
+        if ledger["cluster_ref"] and ledger["target_component"]
+        else None
+    )
+    expected_final = _nonadvancing_final_state(
+        pre_state,
+        verdict=verdict,
+        divergent=ledger["divergent"],
+        fingerprint=fingerprint,
+        cleanup_failure=_cleanup_failure_from_gate(gate),
+    )
+    if final_state != expected_final:
+        raise RuntimeError("publication final-state transition is inconsistent")
+    if campaign.state != pre_state and campaign.state != final_state:
+        raise RuntimeError("campaign state conflicts with pending publication intent")
+
+    try:
+        learning = validate_record(
+            record["learning_record"],
+            campaign_root=campaign.store.campaign_dir,
+            pending_gate=gate,
+        )
+    except ValueError as exc:
+        raise RuntimeError(f"publication LearningRecord is invalid: {exc}") from exc
+    for field, value in {
+        "campaign_id": campaign.campaign_id,
+        "iteration": iteration,
+        "base_sha": record["base_sha"],
+        "candidate_sha": record["candidate_sha"],
+        "protocol_digest": record["protocol_digest"],
+        "hypothesis": ledger["hypothesis"],
+        "target_component": ledger["target_component"],
+        "cluster_ref": ledger["cluster_ref"],
+        "decision": verdict.to_dict(),
+    }.items():
+        if learning.get(field) != value:
+            raise RuntimeError(f"publication LearningRecord has inconsistent {field}")
+
+    try:
+        protocol = load_frozen_protocol(campaign.iteration_dir(iteration))
+    except (OSError, ProtocolError) as exc:
+        raise RuntimeError(f"publication frozen protocol is invalid: {exc}") from exc
+    if (
+        protocol.get("campaign_id") != campaign.campaign_id
+        or protocol.get("iteration") != iteration
+        or protocol.get("protocol_digest") != record["protocol_digest"]
+        or protocol.get("accepted_build", {}).get("commit_sha") != record["base_sha"]
+        or protocol.get("execution", {}).get("fixed_variables")
+        != ledger["fixed_variables"]
+    ):
+        raise RuntimeError("publication frozen protocol identity is inconsistent")
+
+
 def _validate_terminal_publication(
     campaign: Campaign, record: dict[str, Any]
 ) -> None:
@@ -1440,9 +1922,7 @@ def _validate_terminal_publication(
         raise RuntimeError("terminal publication receipt has an invalid status")
     if not _is_sha256(record.get("intent_digest")):
         raise RuntimeError("terminal publication intent digest is invalid")
-    _validate_result_summary(
-        record["result_summary"], record=record, complete=status == "complete"
-    )
+    _validate_result_summary(record["result_summary"], record=record)
     if status == "failed" and (
         type(record.get("error")) is not str or not record["error"]
     ):
@@ -1468,18 +1948,33 @@ def _load_publication_record(campaign: Campaign) -> dict[str, Any] | None:
     return parsed
 
 
+def publication_status(campaign: Campaign) -> dict[str, Any]:
+    """Read-only projection of the conductor's sole publication validator."""
+    try:
+        record = _load_publication_record(campaign)
+        if record is not None and record["status"] != "pending":
+            _validate_terminal_publication_artifacts(campaign, record)
+    except (RuntimeError, ValueError) as exc:
+        return {
+            "status": "malformed",
+            "recovery_required": True,
+            "error": str(exc),
+        }
+    if record is None:
+        return {"status": "none", "recovery_required": False}
+    return {
+        "status": record["status"],
+        "iteration": record["iteration"],
+        "recovery_required": record["status"] == "pending",
+        "receipt_digest": record["record_digest"],
+    }
+
+
 def _ensure_ledger_row(path: Path, row: dict[str, Any], iteration: int) -> None:
-    rows: list[dict[str, Any]] = []
-    if path.is_file():
-        for index, line in enumerate(path.read_text(encoding="utf-8").splitlines()):
-            if not line.strip():
-                continue
-            parsed = strict_json_loads(
-                line, field_name=f"ledger row {index + 1}"
-            )
-            if not isinstance(parsed, dict):
-                raise RuntimeError("trusted ledger contains a non-object row")
-            rows.append(parsed)
+    try:
+        rows = read_rows(path)
+    except (OSError, UnicodeDecodeError, ValueError) as exc:
+        raise RuntimeError(f"trusted ledger is invalid: {exc}") from exc
     matches = [existing for existing in rows if existing.get("iteration") == iteration]
     if matches:
         if matches != [row]:
@@ -1490,18 +1985,6 @@ def _ensure_ledger_row(path: Path, row: dict[str, Any], iteration: int) -> None:
         path,
         "".join(json.dumps(item, sort_keys=True) + "\n" for item in rows),
     )
-
-
-def _ensure_learnings_entry(path: Path, entry: str, iteration: int) -> None:
-    current = path.read_text(encoding="utf-8") if path.is_file() else ""
-    heading = f"## Iteration {iteration:04d} —"
-    if heading in current:
-        if entry not in current:
-            raise RuntimeError(
-                "trusted learnings already has a different iteration entry"
-            )
-        return
-    atomic_write_text(path, current + entry)
 
 
 def _terminal_publication_record(
@@ -1538,26 +2021,48 @@ def _load_strict_object(path: Path, *, field_name: str) -> dict[str, Any]:
 
 
 def _terminal_ledger_row(campaign: Campaign, iteration: int) -> dict[str, Any]:
-    rows: list[dict[str, Any]] = []
-    if campaign.ledger_path.is_file():
-        for index, line in enumerate(
-            campaign.ledger_path.read_text(encoding="utf-8").splitlines()
-        ):
-            if not line.strip():
-                continue
-            try:
-                row = strict_json_loads(
-                    line, field_name=f"ledger row {index + 1}"
-                )
-            except ValueError as exc:
-                raise RuntimeError(f"trusted ledger is invalid: {exc}") from exc
-            if type(row) is not dict:
-                raise RuntimeError("trusted ledger contains a non-object row")
-            if row.get("iteration") == iteration:
-                rows.append(row)
+    try:
+        ledger = read_rows(campaign.ledger_path)
+    except (OSError, UnicodeDecodeError, ValueError) as exc:
+        raise RuntimeError(f"trusted ledger is invalid: {exc}") from exc
+    rows = [row for row in ledger if row["iteration"] == iteration]
     if len(rows) != 1:
         raise RuntimeError("terminal publication has no unique canonical ledger row")
     return rows[0]
+
+
+def _validate_terminal_publication_artifacts(
+    campaign: Campaign, record: dict[str, Any]
+) -> None:
+    iteration = record["iteration"]
+    result = record["result_summary"]
+    iteration_dir = campaign.iteration_dir(iteration)
+    gate = _load_strict_object(
+        iteration_dir / "gate-report.json", field_name="terminal gate report"
+    )
+    snapshot = _load_strict_object(
+        iteration_dir / "manifest.snapshot.json",
+        field_name="terminal manifest snapshot",
+    )
+    ledger = _terminal_ledger_row(campaign, iteration)
+    learning_matches = [
+        row
+        for row in read_records(
+            campaign.learnings_path, campaign_root=campaign.store.campaign_dir
+        )
+        if row["iteration"] == iteration
+    ]
+    if len(learning_matches) != 1:
+        raise RuntimeError("terminal publication lacks one valid LearningRecord")
+    _validate_publication_cross_artifacts(
+        campaign,
+        record,
+        result=result,
+        gate=gate,
+        snapshot=snapshot,
+        ledger=ledger,
+        learning=learning_matches[0],
+    )
 
 
 def _validate_terminal_publication_state(
@@ -1571,46 +2076,10 @@ def _validate_terminal_publication_state(
         or campaign.state.get("accepted_base_sha") != result["accepted_base_sha"]
     ):
         raise RuntimeError("terminal publication conflicts with current campaign state")
-    iteration_dir = campaign.iteration_dir(iteration)
-    gate = _load_strict_object(
-        iteration_dir / "gate-report.json", field_name="terminal gate report"
-    )
-    _require_closed_object(
-        gate, GATE_REPORT_FIELDS, field_name="terminal gate report"
-    )
-    if gate.get("iteration") != iteration or gate.get("verdict") != {
-        "decision": result["decision"],
-        "evidence_class": result["evidence_class"],
-        "label": result["verdict"],
-        "advances_accepted_state": result["advanced_accepted_state"],
-    }:
-        raise RuntimeError("terminal gate report conflicts with publication receipt")
-    snapshot = _load_strict_object(
-        iteration_dir / "manifest.snapshot.json",
-        field_name="terminal manifest snapshot",
-    )
-    if snapshot.get("status") != result["verdict"]:
-        raise RuntimeError("terminal manifest snapshot conflicts with publication receipt")
-    ledger = _terminal_ledger_row(campaign, iteration)
-    expected_ledger = {
-        "campaign": campaign.campaign_id,
-        "iteration": iteration,
-        "base_sha": record["base_sha"],
-        "candidate_sha": record["candidate_sha"],
-        "protocol_digest": record["protocol_digest"],
-        "verdict": result["verdict"],
-        "decision": result["decision"],
-        "evidence_class": result["evidence_class"],
-        "advances_accepted_state": result["advanced_accepted_state"],
-        "promotion_candidates": result["promotion_candidates"],
-    }
-    for field, value in expected_ledger.items():
-        if ledger.get(field) != value:
-            raise RuntimeError(f"terminal ledger row conflicts on {field}")
 
     accepted_ref = ACCEPTED_REF.format(campaign=campaign.campaign_id)
     current_ref = gitutil.try_rev_parse(campaign.repo_root, accepted_ref)
-    if record["status"] == "complete":
+    if result["advanced_accepted_state"]:
         accepted_iterations = campaign.state.get("accepted_iterations")
         if (
             type(accepted_iterations) is not list
@@ -1639,32 +2108,55 @@ def _cleanup_terminal_publication(
     materialization_store = campaign.store.campaign_dir / "materializations"
     lock.require_held(materialization_store)
     _validate_terminal_publication(campaign, record)
+    _validate_terminal_publication_artifacts(campaign, record)
     _validate_terminal_publication_state(campaign, record)
 
-    staging_ref = record["staging_ref"]
-    candidate_sha = record["candidate_sha"]
-    staged = gitutil.try_rev_parse(campaign.repo_root, staging_ref)
-    if staged == candidate_sha:
-        gitutil.delete_ref(campaign.repo_root, staging_ref, expected=candidate_sha)
-    elif staged is not None:
-        raise RuntimeError("terminal publication staging ref points elsewhere")
-    trusted_handback = (
-        campaign.iteration_dir(record["iteration"]) / "candidate.handback.bundle"
-    )
-    trusted_handback.unlink(missing_ok=True)
-    gitutil.worktree_remove(campaign.repo_root, campaign.worktree_path)
-    if campaign.worktree_path.exists() or campaign.worktree_path.is_symlink():
-        raise RuntimeError("terminal publication worktree cleanup did not complete")
+    try:
+        staging_ref = record["staging_ref"]
+        candidate_sha = record["candidate_sha"]
+        if staging_ref is not None:
+            staged = gitutil.try_rev_parse(campaign.repo_root, staging_ref)
+            if staged == candidate_sha:
+                gitutil.delete_ref(campaign.repo_root, staging_ref, expected=candidate_sha)
+            elif staged is not None:
+                raise RuntimeError("terminal publication staging ref points elsewhere")
+        trusted_handback = (
+            campaign.iteration_dir(record["iteration"]) / "candidate.handback.bundle"
+        )
+        trusted_handback.unlink(missing_ok=True)
+        gitutil.worktree_remove(campaign.repo_root, campaign.worktree_path)
+        if campaign.worktree_path.exists() or campaign.worktree_path.is_symlink():
+            raise RuntimeError("terminal publication worktree cleanup did not complete")
+    except Exception as exc:
+        campaign.state["cleanup_health"] = {
+            "status": "failed",
+            "detail": f"terminal publication cleanup failed: {exc}",
+        }
+        campaign.save_state()
+        raise
+    cleanup = campaign.state.get("cleanup_health")
+    if (
+        type(cleanup) is dict
+        and cleanup.get("status") == "failed"
+        and str(cleanup.get("detail", "")).startswith(
+            "terminal publication cleanup failed:"
+        )
+    ):
+        campaign.state["cleanup_health"] = {
+            "status": "clean",
+            "detail": "terminal publication cleanup recovered",
+        }
+        campaign.save_state()
     return copy.deepcopy(record["result_summary"])
 
 
-def _recover_accepted_publication(
+def _recover_publication(
     campaign: Campaign,
     record: dict[str, Any],
     *,
     lock: CampaignLock,
 ) -> dict[str, Any]:
-    """Idempotently finish the one accepted benchmark publication intent."""
+    """Idempotently finish the sole terminal publication intent."""
     materialization_store = campaign.store.campaign_dir / "materializations"
     lock.require_held(materialization_store)
     _validate_pending_publication(campaign, record)
@@ -1673,44 +2165,47 @@ def _recover_accepted_publication(
     candidate_tree = record["candidate_tree"]
     staging_ref = record["staging_ref"]
     expected_ref = record["expected_ref"]
-    if (
+    if candidate_sha is not None and (
         gitutil.rev_parse(campaign.repo_root, f"{candidate_sha}^{{commit}}")
         != candidate_sha
         or gitutil.rev_parse(campaign.repo_root, f"{candidate_sha}^{{tree}}")
         != candidate_tree
     ):
-        raise RuntimeError("accepted publication candidate commit/tree is unavailable")
-    accepted_ref = ACCEPTED_REF.format(campaign=campaign.campaign_id)
-    current_ref = gitutil.try_rev_parse(campaign.repo_root, accepted_ref)
-    if current_ref == expected_ref:
-        if gitutil.try_rev_parse(campaign.repo_root, staging_ref) != candidate_sha:
-            raise RuntimeError("accepted publication staging ref is unavailable")
-        try:
-            gitutil.compare_and_swap_ref(
-                campaign.repo_root,
-                accepted_ref,
-                candidate_sha,
-                expected=expected_ref,
+        raise RuntimeError("publication candidate commit/tree is unavailable")
+    if record["result"]["advanced_accepted_state"]:
+        if staging_ref is None or candidate_sha is None:
+            raise RuntimeError("accepted publication staging identity is unavailable")
+        accepted_ref = ACCEPTED_REF.format(campaign=campaign.campaign_id)
+        current_ref = gitutil.try_rev_parse(campaign.repo_root, accepted_ref)
+        if current_ref == expected_ref:
+            if gitutil.try_rev_parse(campaign.repo_root, staging_ref) != candidate_sha:
+                raise RuntimeError("accepted publication staging ref is unavailable")
+            try:
+                gitutil.compare_and_swap_ref(
+                    campaign.repo_root,
+                    accepted_ref,
+                    candidate_sha,
+                    expected=expected_ref,
+                )
+            except gitutil.GitError as exc:
+                observed_ref = gitutil.try_rev_parse(campaign.repo_root, accepted_ref)
+                if observed_ref == candidate_sha:
+                    pass
+                elif observed_ref is not None and observed_ref != expected_ref:
+                    raise _AcceptedRefContention(
+                        "accepted ref changed during candidate publication"
+                    ) from exc
+                else:
+                    raise
+        elif current_ref is not None and current_ref != candidate_sha:
+            raise _AcceptedRefContention(
+                "accepted ref conflicts with pending publication"
             )
-        except gitutil.GitError as exc:
-            observed_ref = gitutil.try_rev_parse(campaign.repo_root, accepted_ref)
-            if observed_ref == candidate_sha:
-                pass
-            elif observed_ref is not None and observed_ref != expected_ref:
-                raise _AcceptedRefContention(
-                    "accepted ref changed during candidate publication"
-                ) from exc
-            else:
-                raise
-    elif current_ref is not None and current_ref != candidate_sha:
-        raise _AcceptedRefContention(
-            "accepted ref conflicts with pending publication"
-        )
-    elif current_ref != candidate_sha:
-        raise gitutil.GitError(
-            "accepted ref is unavailable during pending publication"
-        )
-    _publication_checkpoint("accepted-ref")
+        elif current_ref != candidate_sha:
+            raise gitutil.GitError(
+                "accepted ref is unavailable during pending publication"
+            )
+        _publication_checkpoint("accepted-ref")
 
     iteration_dir = campaign.iteration_dir(iteration)
     atomic_write_json(iteration_dir / "gate-report.json", record["gate_report"])
@@ -1719,12 +2214,15 @@ def _recover_accepted_publication(
         iteration_dir / "manifest.snapshot.json", record["manifest_snapshot"]
     )
     _publication_checkpoint("manifest-snapshot")
-    atomic_write_json(campaign.clusters_path, record["cluster_register"])
-    _publication_checkpoint("cluster-register")
+    if record["result"]["advanced_accepted_state"]:
+        atomic_write_json(campaign.clusters_path, record["cluster_register"])
+        _publication_checkpoint("cluster-register")
     _ensure_ledger_row(campaign.ledger_path, record["ledger_row"], iteration)
     _publication_checkpoint("ledger")
-    _ensure_learnings_entry(
-        campaign.learnings_path, record["learnings_entry"], iteration
+    ensure_record(
+        campaign.learnings_path,
+        record["learning_record"],
+        campaign_root=campaign.store.campaign_dir,
     )
     _publication_checkpoint("learnings")
 
@@ -1733,34 +2231,111 @@ def _recover_accepted_publication(
         current_state != record["pre_state"]
         and current_state != record["final_state"]
     ):
-        raise RuntimeError("campaign state conflicts with pending accepted publication")
+        raise RuntimeError("campaign state conflicts with pending publication")
     campaign.state = copy.deepcopy(record["final_state"])
     campaign.save_state()
     _publication_checkpoint("campaign-state")
 
+    publication_error: str | None = None
+    terminal_status = "complete"
+    if not record["result"]["advanced_accepted_state"] and staging_ref is not None:
+        terminal_status = "failed"
+        for rung in record["gate_report"]["rungs"]:
+            detail = rung.get("detail") if type(rung) is dict else None
+            error = detail.get("error") if type(detail) is dict else None
+            if type(error) is str and error:
+                publication_error = error
+                break
+        if publication_error is None:
+            raise RuntimeError("failed publication outcome lacks a retained error")
     completed = _terminal_publication_record(
         record,
-        status="complete",
+        status=terminal_status,
         result_summary=record["result"],
+        error=publication_error,
     )
     atomic_write_json(_publication_path(campaign), completed)
-    _publication_checkpoint("complete-receipt")
+    _publication_checkpoint(
+        "failed-receipt" if terminal_status == "failed" else "complete-receipt"
+    )
     return _cleanup_terminal_publication(campaign, completed, lock=lock)
 
 
-def _recover_pending_accepted_publication(
+def _recover_pending_publication(
     campaign: Campaign, *, lock: CampaignLock
 ) -> dict[str, Any] | None:
     record = _load_publication_record(campaign)
     if record is None:
         return None
     if record["status"] == "pending":
-        return _recover_accepted_publication(campaign, record, lock=lock)
+        return _recover_publication(campaign, record, lock=lock)
     if record["iteration"] > campaign.current_iteration:
         raise RuntimeError("terminal publication receipt is ahead of campaign state")
     if record["iteration"] == campaign.current_iteration:
         return _cleanup_terminal_publication(campaign, record, lock=lock)
     return None
+
+
+def _persist_nonadvancing_publication(
+    campaign: Campaign,
+    *,
+    lock: CampaignLock,
+    iteration: int,
+    base_sha: str,
+    protocol_digest: str,
+    report: dict[str, Any],
+    manifest_snapshot: dict[str, Any],
+    ledger_row: dict[str, Any],
+    learning_record: dict[str, Any],
+    final_state: dict[str, Any],
+    candidate_sha: str | None,
+    candidate_tree: str | None,
+    staging_ref: str | None,
+    expected_ref: str | None,
+) -> dict[str, Any]:
+    """Seal then reconcile the state-inert branch of the sole intent."""
+    result = {
+        "iteration": iteration,
+        "verdict": report["verdict"]["label"],
+        "decision": report["verdict"]["decision"],
+        "evidence_class": report["verdict"]["evidence_class"],
+        "advanced_accepted_state": False,
+        "promotion_candidates": [],
+        "accepted_base_sha": base_sha,
+    }
+    publication = _seal_publication_record(
+        {
+            "schema_version": PUBLICATION_SCHEMA_VERSION,
+            "record_type": PUBLICATION_RECORD_TYPE,
+            "status": "pending",
+            "campaign_id": campaign.campaign_id,
+            "iteration": iteration,
+            "protocol_digest": protocol_digest,
+            "base_sha": base_sha,
+            "candidate_sha": candidate_sha,
+            "candidate_tree": candidate_tree,
+            "staging_ref": staging_ref,
+            "expected_ref": expected_ref,
+            "manifest_snapshot_digest": _manifest_snapshot_digest(
+                manifest_snapshot
+            ),
+            "gate_report": report,
+            "manifest_snapshot": manifest_snapshot,
+            "cluster_register": load_register(campaign.clusters_path),
+            "ledger_row": ledger_row,
+            "learning_record": learning_record,
+            "pre_state": copy.deepcopy(campaign.state),
+            "final_state": final_state,
+            "result": result,
+        }
+    )
+    _validate_pending_publication(campaign, publication)
+    atomic_write_json(_publication_path(campaign), publication)
+    persisted = _load_publication_record(campaign)
+    if persisted != publication:
+        raise RuntimeError("durable publication intent changed")
+    _publication_checkpoint("intent")
+    return _recover_publication(campaign, publication, lock=lock)
 
 
 def _clear_pre_intent_attempt(
@@ -1785,6 +2360,15 @@ def _clear_pre_intent_attempt(
             shutil.rmtree(output)
 
 
+def _cleanup_failure(report: GateReport) -> str | None:
+    """Return the exact retained cleanup failure without process machinery."""
+    for rung in report.rungs:
+        encoded = json.dumps(rung.detail, sort_keys=True)
+        if "cleanup" in encoded.lower() and rung.status == "invalid":
+            return encoded
+    return None
+
+
 def run_iteration(
     campaign: Campaign,
     *,
@@ -1802,7 +2386,8 @@ def run_iteration(
         )
         campaign.config = fresh.config
         campaign.state = fresh.state
-        recovered = _recover_pending_accepted_publication(campaign, lock=lock)
+        require_transition(campaign, action="reconcile")
+        recovered = _recover_pending_publication(campaign, lock=lock)
         if recovered is not None:
             return recovered
         with ExitStack() as resources:
@@ -1813,6 +2398,60 @@ def run_iteration(
                 lock=lock,
                 resources=resources,
             )
+
+
+def continue_campaign(
+    campaign: Campaign,
+    *,
+    candidate_bundle: Path | None = None,
+    candidate_manifest: Path | None = None,
+) -> dict[str, Any]:
+    """Reload under the campaign lock, then resume pending work or start once."""
+    materialization_store = campaign.store.campaign_dir / "materializations"
+    materialization_store.mkdir(mode=0o700, exist_ok=True)
+    materialization_store.chmod(0o700)
+    with CampaignLock(materialization_store) as lock:
+        fresh = load_campaign(
+            campaign.repo_root,
+            campaign.campaign_id,
+            store_root=campaign.store.root,
+        )
+        campaign.config = fresh.config
+        campaign.state = fresh.state
+        require_transition(campaign, action="reconcile")
+        try:
+            publication = _load_publication_record(campaign)
+        except RuntimeError as exc:
+            raise RuntimeError(
+                "publication record is malformed; inspect retained receipt: " + str(exc)
+            ) from exc
+        if publication is not None and publication["status"] != "pending":
+            try:
+                _validate_terminal_publication_artifacts(campaign, publication)
+            except (RuntimeError, ValueError) as exc:
+                raise RuntimeError(
+                    "publication record is malformed; inspect retained receipt: "
+                    + str(exc)
+                ) from exc
+        if publication is not None and publication["status"] == "pending":
+            return _recover_publication(campaign, publication, lock=lock)
+        if campaign.state.get("pending_iteration"):
+            with ExitStack() as resources:
+                return _run_iteration_locked(
+                    campaign,
+                    candidate_bundle=candidate_bundle,
+                    candidate_manifest=candidate_manifest,
+                    lock=lock,
+                    resources=resources,
+                )
+        if publication is not None:
+            if publication["iteration"] > campaign.current_iteration:
+                raise RuntimeError(
+                    "terminal publication receipt is ahead of campaign state"
+                )
+            if publication["iteration"] == campaign.current_iteration:
+                _cleanup_terminal_publication(campaign, publication, lock=lock)
+        return _start_iteration_locked(campaign, lock=lock)
 
 
 def _run_iteration_locked(
@@ -1848,6 +2487,7 @@ def _run_iteration_locked(
             "pending iteration base no longer matches freshly loaded accepted state"
         )
     expected_accepted_ref = _expected_accepted_ref(campaign, campaign.state)
+    note_attempt(campaign)
     divergent = bool(campaign.state.get("pending_divergent", False))
     benchmark_handback = _benchmark_handback_required(protocol)
 
@@ -2119,16 +2759,17 @@ def _run_iteration_locked(
                             )
                         )
                     else:
-                        if trusted_handback is not None:
-                            trusted_handback.unlink(missing_ok=True)
                         return _reject_pivot(
                             campaign,
                             number,
                             fingerprint,
                             prior_failures,
-                            iteration_dir,
                             base_sha,
                             manifest,
+                            protocol=protocol,
+                            divergent=divergent,
+                            expected_ref=expected_accepted_ref,
+                            lock=lock,
                         )
                 else:
                     # Gate code owns expected operational failures at their
@@ -2199,7 +2840,7 @@ def _run_iteration_locked(
                         )
     assert report is not None
     accepted_admission: dict[str, Any] | None = None
-    publication_failure: tuple[dict[str, Any], str] | None = None
+    publication_failure: str | None = None
     if report.verdict.advances_accepted_state:
         try:
             if not report.run_digests.get("dev_treatment") or not report.run_digests.get(
@@ -2283,6 +2924,15 @@ def _run_iteration_locked(
                 fingerprint=fingerprint,
                 comparison=report.comparison,
             )
+            manifest_snapshot = _trusted_manifest_snapshot(
+                manifest,
+                report.verdict,
+                report.attribution,
+                original_submission=submitted_manifest,
+                validation_errors=(
+                    manifest_report.errors if not manifest_report.ok else None
+                ),
+            )
             publication = _seal_publication_record(
                 {
                     "schema_version": PUBLICATION_SCHEMA_VERSION,
@@ -2296,25 +2946,23 @@ def _run_iteration_locked(
                     "candidate_tree": treatment_build["tree_sha"],
                     "staging_ref": staging_ref,
                     "expected_ref": staging_expected_ref,
-                    "gate_report": report.to_dict(),
-                    "manifest_snapshot": _trusted_manifest_snapshot(
-                        manifest,
-                        report.verdict,
-                        report.attribution,
-                        original_submission=submitted_manifest,
-                        validation_errors=(
-                            manifest_report.errors if not manifest_report.ok else None
-                        ),
+                    "manifest_snapshot_digest": _manifest_snapshot_digest(
+                        manifest_snapshot
                     ),
+                    "gate_report": report.to_dict(),
+                    "manifest_snapshot": manifest_snapshot,
                     "cluster_register": register,
                     "ledger_row": ledger_row,
-                    "learnings_entry": learnings_template(
+                    "learning_record": build_record(
+                        campaign_root=campaign.store.campaign_dir,
+                        campaign_id=campaign.campaign_id,
                         iteration=number,
-                        verdict=report.verdict.label,
-                        hypothesis=manifest.get("hypothesis", "<no manifest>"),
-                        target_component=manifest.get("target_component", "?"),
-                        cluster_ref=manifest.get("cluster_ref", "?"),
-                        divergent=divergent,
+                        base_sha=base_sha,
+                        candidate_sha=candidate_sha,
+                        protocol_digest=protocol["protocol_digest"],
+                        verdict=report.verdict.to_dict(),
+                        manifest=manifest,
+                        gate_report=report.to_dict(),
                     ),
                     "pre_state": copy.deepcopy(campaign.state),
                     "final_state": final_state,
@@ -2349,9 +2997,9 @@ def _run_iteration_locked(
         assert publication is not None
         _publication_checkpoint("intent")
         try:
-            return _recover_accepted_publication(campaign, publication, lock=lock)
+            return _recover_publication(campaign, publication, lock=lock)
         except _AcceptedRefContention as exc:
-            publication_failure = (publication, str(exc))
+            publication_failure = str(exc)
             report = GateReport(iteration=number)
             report.verdict = Verdict("invalid", "benchmark")
             report.rungs.append(
@@ -2361,107 +3009,101 @@ def _run_iteration_locked(
                     {"error": f"candidate publication preflight invalid: {exc}"},
                 )
             )
-    atomic_write_json(iteration_dir / "gate-report.json", report.to_dict())
-
     verdict: Verdict = report.verdict
-    _write_trusted_manifest_snapshot(
-        iteration_dir,
+    if verdict.advances_accepted_state:
+        raise RuntimeError("accepted publication bypassed its sole recovery state machine")
+    candidate_identity = candidate_sha or None
+    candidate_tree = (
+        gitutil.rev_parse(campaign.repo_root, f"{candidate_identity}^{{tree}}")
+        if candidate_identity is not None
+        else None
+    )
+    staging_ref = staged_publication[0] if staged_publication is not None else None
+    staging_expected_ref = (
+        staged_publication[1]
+        if staged_publication is not None
+        else expected_accepted_ref
+    )
+    report_dict = report.to_dict()
+    rejection_errors = _publication_rejection_errors(report_dict)
+    snapshot = _trusted_manifest_snapshot(
         manifest,
         verdict,
         report.attribution,
         original_submission=submitted_manifest,
-        validation_errors=(manifest_report.errors if not manifest_report.ok else None),
+        validation_errors=(rejection_errors or None),
     )
-
-    if verdict.advances_accepted_state:
-        raise RuntimeError("accepted publication bypassed its sole recovery state machine")
-    promotion_candidates: list[str] = []
-
-    # Ledger + learnings (trusted store).
-    append_jsonl(campaign.ledger_path, {
+    ledger_row = {
         "iteration": number, "campaign": campaign.campaign_id,
         "verdict": verdict.label, "decision": verdict.decision, "evidence_class": verdict.evidence_class,
-        "advances_accepted_state": verdict.advances_accepted_state, "divergent": divergent,
-        "base_sha": base_sha, "candidate_sha": candidate_sha,
+        "advances_accepted_state": False, "divergent": divergent,
+        "base_sha": base_sha, "candidate_sha": candidate_identity,
         "protocol_digest": protocol["protocol_digest"],
         "hypothesis": manifest.get("hypothesis", ""), "target_component": manifest.get("target_component", ""),
         "cluster_ref": manifest.get("cluster_ref", ""),
         "gate_rungs": {r.rung: r.status for r in report.rungs},
         "comparison": report.comparison, "attribution": report.attribution,
         "eligibility": report.eligibility, "fixed_variables": execution["fixed_variables"],
-        "promotion_candidates": promotion_candidates,
-    })
-    _append_learnings(campaign, number, verdict, manifest, divergent)
-
-    # State transition + regression memory discipline (F06). Only a valid
-    # benchmark accept/reject is research-continuation evidence; simulations
-    # and integrity-invalid transactions merely clear their pending fields.
-    benchmark_eligible = (
-        verdict.evidence_class == "benchmark"
-        and verdict.decision == "rejected"
-    )
-    if benchmark_eligible:
-        campaign.state["iterations_since_accept"] = int(campaign.state.get("iterations_since_accept", 0)) + 1
-        if fingerprint:
-            fa = campaign.state.setdefault("failed_attempts", {})
-            fa[fingerprint] = int(fa.get(fingerprint, 0)) + 1
-
-    if benchmark_eligible:
-        campaign.state["iterations_since_divergent"] = (
-            0
-            if divergent
-            else int(campaign.state.get("iterations_since_divergent", 0)) + 1
-        )
-    campaign.state["pending_iteration"] = 0
-    campaign.state["pending_divergent"] = False
-    campaign.state["pending_base_sha"] = None
-    campaign.state["pending_protocol_digest"] = None
-    campaign.state["pending_baseline_run_digest"] = None
-    campaign.state["pending_regression_baseline_run_digest"] = None
-    campaign.state["pending_baseline_admission_receipt"] = None
-    campaign.state["pending_baseline_activation_observation"] = None
-    campaign.state["pending_regression_baseline_admission_receipt"] = None
-    campaign.state["pending_repeated_started_at"] = None
-    campaign.save_state()
-    result = {
-        "iteration": number,
-        "verdict": verdict.label,
-        "decision": verdict.decision,
-        "evidence_class": verdict.evidence_class,
-        "advanced_accepted_state": False,
-        "promotion_candidates": promotion_candidates,
-        "accepted_base_sha": campaign.state["accepted_base_sha"],
+        "promotion_candidates": [],
     }
-    if publication_failure is not None:
-        pending_publication, publication_error = publication_failure
-        failed = _terminal_publication_record(
-            pending_publication,
-            status="failed",
-            result_summary=result,
-            error=publication_error,
+    learning_record = build_record(
+        campaign_root=campaign.store.campaign_dir,
+        campaign_id=campaign.campaign_id,
+        iteration=number,
+        base_sha=base_sha,
+        candidate_sha=candidate_identity,
+        protocol_digest=protocol["protocol_digest"],
+        verdict=verdict.to_dict(),
+        manifest=manifest,
+        gate_report=report_dict,
+    )
+    final_state = _nonadvancing_final_state(
+        campaign.state,
+        verdict=verdict,
+        divergent=divergent,
+        fingerprint=fingerprint,
+        cleanup_failure=_cleanup_failure(report),
+    )
+    try:
+        return _persist_nonadvancing_publication(
+            campaign,
+            lock=lock,
+            iteration=number,
+            base_sha=base_sha,
+            protocol_digest=protocol["protocol_digest"],
+            report=report_dict,
+            manifest_snapshot=snapshot,
+            ledger_row=ledger_row,
+            learning_record=learning_record,
+            final_state=final_state,
+            candidate_sha=candidate_identity,
+            candidate_tree=candidate_tree,
+            staging_ref=staging_ref,
+            expected_ref=staging_expected_ref,
         )
-        atomic_write_json(_publication_path(campaign), failed)
-        _publication_checkpoint("failed-receipt")
-        return _cleanup_terminal_publication(campaign, failed, lock=lock)
-    if trusted_handback is not None:
-        trusted_handback.unlink(missing_ok=True)
-
-    # Reset the boundary: discard the (accepted-or-rejected) worktree; the next
-    # `start` re-creates it at the new accepted base. Rejected candidate commits
-    # are unreferenced and GC-eligible; accepted ones are held by ACCEPTED_REF.
-    gitutil.worktree_remove(campaign.repo_root, worktree)
-
-    return result
+    except BaseException:
+        # Once the replacement intent is durable, replay owns all cleanup.
+        # Before that point, preserve any staged accepted candidate for the
+        # still-durable accepted intent rather than creating a second authority.
+        if publication_failure is None and staging_ref is not None:
+            persisted = _load_publication_record(campaign)
+            if persisted is None:
+                _delete_staged_candidate(campaign, staging_ref, candidate_identity)
+        raise
 
 
 def _reject_pivot(
-    campaign,
-    number,
-    fingerprint,
-    prior,
-    iteration_dir,
-    base_sha,
-    manifest,
+    campaign: Campaign,
+    number: int,
+    fingerprint: str,
+    prior: int,
+    base_sha: str,
+    manifest: dict[str, Any],
+    *,
+    protocol: dict[str, Any],
+    divergent: bool,
+    expected_ref: str | None,
+    lock: CampaignLock,
 ) -> dict[str, Any]:
     verdict = Verdict("rejected", "simulated")
     report = {
@@ -2469,50 +3111,61 @@ def _reject_pivot(
         "rungs": [{"rung": "E0", "status": "fail", "detail": {
             "pivot_rule": f"{prior} prior failed attempts at {fingerprint}; a component-level pivot is required (F16)"}}],
         "attribution": None, "comparison": None, "eligibility": None,
+        "admissions": {},
         "run_digests": {},
     }
-    atomic_write_json(iteration_dir / "gate-report.json", report)
-    _write_trusted_manifest_snapshot(iteration_dir, manifest, verdict)
-    append_jsonl(campaign.ledger_path, {
+    ledger_row = {
         "iteration": number, "campaign": campaign.campaign_id, "verdict": verdict.label,
         "decision": "rejected", "evidence_class": "simulated", "advances_accepted_state": False,
-        "cluster_ref": fingerprint, "reason": "pivot required",
-    })
-    _append_learnings(
-        campaign,
-        number,
-        verdict,
-        manifest,
-        bool(campaign.state.get("pending_divergent", False)),
+        "divergent": divergent, "base_sha": base_sha, "candidate_sha": None,
+        "protocol_digest": protocol["protocol_digest"],
+        "hypothesis": manifest.get("hypothesis", ""),
+        "target_component": manifest.get("target_component", ""),
+        "cluster_ref": manifest.get("cluster_ref", ""),
+        "gate_rungs": {"E0": "fail"}, "comparison": None,
+        "attribution": None, "eligibility": None,
+        "fixed_variables": protocol["execution"]["fixed_variables"],
+        "promotion_candidates": [],
+    }
+    learning_record = build_record(
+        campaign_root=campaign.store.campaign_dir,
+        campaign_id=campaign.campaign_id,
+        iteration=number,
+        base_sha=base_sha,
+        candidate_sha=None,
+        protocol_digest=protocol["protocol_digest"],
+        verdict=verdict.to_dict(),
+        manifest=manifest,
+        gate_report=report,
     )
-    campaign.state["pending_iteration"] = 0
-    campaign.state["pending_divergent"] = False
-    campaign.state["pending_base_sha"] = None
-    campaign.state["pending_protocol_digest"] = None
-    campaign.state["pending_baseline_run_digest"] = None
-    campaign.state["pending_regression_baseline_run_digest"] = None
-    campaign.state["pending_baseline_admission_receipt"] = None
-    campaign.state["pending_baseline_activation_observation"] = None
-    campaign.state["pending_regression_baseline_admission_receipt"] = None
-    campaign.state["pending_repeated_started_at"] = None
-    campaign.save_state()
-    gitutil.worktree_remove(campaign.repo_root, campaign.worktree_path)
-    return {"iteration": number, "verdict": verdict.label, "decision": "rejected",
-            "advanced_accepted_state": False, "reason": "pivot required", "fingerprint": fingerprint}
-
-
-def _append_learnings(campaign, number, verdict: Verdict, manifest, divergent) -> None:
-    with campaign.learnings_path.open("a", encoding="utf-8") as handle:
-        handle.write(learnings_template(
-            iteration=number, verdict=verdict.label,
-            hypothesis=manifest.get("hypothesis", "<no manifest>"),
-            target_component=manifest.get("target_component", "?"),
-            cluster_ref=manifest.get("cluster_ref", "?"), divergent=divergent,
-        ))
+    final_state = _nonadvancing_final_state(
+        campaign.state,
+        verdict=verdict,
+        divergent=divergent,
+        fingerprint=fingerprint,
+        cleanup_failure=None,
+    )
+    return _persist_nonadvancing_publication(
+        campaign,
+        lock=lock,
+        iteration=number,
+        base_sha=base_sha,
+        protocol_digest=protocol["protocol_digest"],
+        report=report,
+        manifest_snapshot=_trusted_manifest_snapshot(manifest, verdict),
+        ledger_row=ledger_row,
+        learning_record=learning_record,
+        final_state=final_state,
+        candidate_sha=None,
+        candidate_tree=None,
+        staging_ref=None,
+        expected_ref=expected_ref,
+    )
 
 
 # ── noise calibration (owner artifact, identity-bound) ─────────────────────
 def measure_noise(campaign: Campaign, *, runs: int = 3) -> NoiseBand:
+    require_transition(campaign, action="evaluate")
     base_sha = str(campaign.state["accepted_base_sha"])
     worktree = campaign.worktree_path
     gitutil.worktree_add(campaign.repo_root, worktree, base_sha)

@@ -20,6 +20,7 @@ from typing import Any
 from opti_eval.identity import simulated_identity_defaults
 
 from . import gitutil
+from .operation import initial_lifecycle
 from .store import TrustedStore, atomic_write_json, atomic_write_text, resolve_store_root
 
 
@@ -73,6 +74,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "reject_bet_if": "median per-model transfer delta <= 0 on discovery-excluded tasks across the stronger-model panel",
         "checkpoint_result": None,
     },
+    "operation": None,
 }
 
 
@@ -168,17 +170,16 @@ def init_campaign(
             "protected_tasks": [],
             "success_rates": {},
         },
+        "lifecycle": initial_lifecycle(),
+        "operation_attempts": 0,
+        "active_attempt_iteration": None,
+        "cleanup_health": {"status": "clean", "detail": "no cleanup failure recorded"},
     }
     store.campaign_dir.mkdir(parents=True, exist_ok=True)
     campaign.save_config()
     campaign.save_state()
     store.ledger_path.touch()
-    atomic_write_text(
-        store.learnings_path,
-        f"# Learnings — campaign {campaign_id}\n\n"
-        "Append one entry per iteration, pass or fail. The optimizer's only\n"
-        "persistent memory across iterations.\n",
-    )
+    atomic_write_text(store.learnings_path, "")
     atomic_write_json(store.clusters_path, {"schema_version": "0.1-draft", "clusters": {}})
     return campaign
 

@@ -32,33 +32,227 @@ findings, and only then may the package be committed and the next package start.
 | AR-001 | complete (`eb25f62`) | Fail external bridge results closed | FOUND-001; CONV-001; OPS-004 | Command/registry output cannot become benchmark-reportable by omission or a minimal pass payload; explicit task identity is mandatory; negative tests prove no state advance. |
 | AR-002 | complete (`f21038c`) | Canonical experiment manifest contract | CONV-005 | JSON Schema, runtime validator, example, and conductor-owned attribution agree on one format and one invalid corpus. |
 | AR-003 | complete (`72e73c2`) | Required trace/artifact evidence bundle | FOUND-002; CONV-001; OPS-004 | One shared validator rejects missing, malformed, mixed-run, duplicate, out-of-order, identity-mismatched, or unsafe trace/artifact evidence and accepts a conforming positive control. |
-| AR-004 | queued | Symmetric run integrity and complete run identity | CONV-002; CONV-009; OPS-012 | Baseline, treatment, smoke, targeted, regression, full, and noise inputs use the same integrity policy; identity binds resolved content, code, environment, verifier, browser, model, and accepted base. |
-| AR-005 | queued | Candidate activation and executed-tree binding | CONV-001; OPS-003 | Treatment runs use an immutable materialization of the accepted candidate commit, reject ignored/untracked payloads, and prove candidate/component activation in the trace. |
-| AR-006 | queued | Exact causal commit and component-diff enforcement | CONV-007; CONV-008; OPS-001 | Exactly one non-merge, non-empty child commit is accepted; safe in-component delete/rename works; trusted cluster/task/evidence references are conductor-resolved. |
-| AR-007 | queued | Trusted Git import boundary | OPS-001 | Optimizer cannot mutate common Git administration; conductor imports and validates a standalone patch/bundle into owner-controlled Git. |
-| AR-008 | queued | Candidate sandbox and hard live-site deny | OPS-002; OPS-005 | Candidate runs under a distinct constrained boundary with allowlisted environment/mounts/network/processes; live/destructive transport is denied until ADR-0006 authorization exists. |
-| AR-009 | queued | Verifier bundle identity, admission, and revocation | FOUND-007; CONV-004 | Admission binds executable, dependencies, command, environment, task config, and version; any repair/change revokes it; six probes must pass before reuse. |
-| AR-010 | queued | Safe store namespace, permissions, and locks | FOUND-008; OPS-007; OPS-008 | Safe campaign IDs, no-follow containment, owner-only modes, per-campaign mutation locks, and per-environment leases prevent escape and races. |
-| AR-011 | queued | Journaled exactly-once iteration recovery | OPS-006 | A durable iteration UUID/journal/receipt and ref CAS recover every start/gate/accept failpoint to exactly one committed or aborted result without split brain. |
-| AR-012 | queued | Preventative lifecycle driver and operator health | OPS-009; OPS-010; OPS-013 | A persisted driver resumes safely, honors running/paused/stopped plus budgets/deadlines, cleans descendants, and `status` diagnoses reconciliation failures without exposing secrets. |
-| AR-013 | queued | Identity-bound transfer and failed-transfer pause | CONV-013; OPS-011 | Finite complete paired transfer evidence is bound to campaign/base/candidate/task/model/environment identities; rejection atomically pauses further starts. |
-| AR-014 | complete in reviewer-clean Milestone-E software checkpoint; uncommitted | Inconclusive outcomes and indivisible attribution | CONV-006; CONV-015 | Infrastructure invalidity is behaviorally inert and does not consume attempts; partial candidates never advance wholesale. |
-| AR-015 | complete in reviewer-clean Milestone-E software checkpoint; uncommitted | Repeated paired statistical acceptance | FOUND-006; CONV-003 | Prespecified paired/interleaved repeats, uncertainty, minimum effect, and campaign-level false-acceptance control reject a stochastic no-op and detect powered positive controls. |
-| AR-016 | complete in reviewer-clean Milestone-E software checkpoint; uncommitted | Durable regression and champion protection | CONV-010 | Repeatedly supported capabilities remain protected across transient misses, and cumulative degradation from the declared champion cannot random-walk through local noise. |
-| AR-017 | queued | Event-addressable Analyst, clusters, and learnings | CONV-011 | Benchmark campaigns reject the stub; clusters are trace-backed and trusted; completed causal learnings are required before the next packet. |
-| AR-018 | queued | Judge trust identity and quarantine routing | CONV-012 | T2 trust is scoped to exact prompt/model/provider/settings/evidence/corpus identity; only trusted judgments may route; untrusted outputs are state-inert. |
-| AR-019 | queued | Source-aware scheduling and auditable task dispositions | FOUND-008; FOUND-010 | Per-source concurrency/leases are enforced; every provisional task has one validated disposition; smoke/source/site/mechanism coverage is mechanically checked. |
-| AR-020 | queued | Generated commands, status prose, and decision metadata | FOUND-009; FOUND-012; CONV-016; OPS-014 | Packets invoke the real workflow; accepted-contract versus activation-pending text matches the decision register; executable documentation tests prevent drift. |
+| AR-004 | software-complete on founder fast path; external identities pending | Symmetric run integrity and complete run identity | CONV-002; CONV-009; OPS-012 | The D1/E/F path binds symmetric admitted run identities and the accepted/candidate apparatus. Real browser/runtime/model identities remain owner-supplied activation inputs. |
+| AR-005 | software-complete in D3/F offline path; external activation pending | Candidate activation and executed-tree binding | CONV-001; OPS-003 | Immutable D2/D3 materialization and conductor-observed harness/WARC-seam activation are exercised offline. No real browser or external WARC activation is claimed. |
+| AR-006 | software-complete in D2/D3 | Exact causal commit and component-diff enforcement | CONV-007; CONV-008; OPS-001 | The trusted Git boundary enforces one exact causal commit, frozen component surface, and conductor-resolved evidence relationships. |
+| AR-007 | software-complete in D2 | Trusted Git import boundary | OPS-001 | The conductor imports and validates the standalone bundle into owner-controlled Git without exposing common Git administration to the optimizer. |
+| AR-008 | founder-fast-path deferred; external confinement proof pending | Candidate sandbox and hard live-site deny | OPS-002; OPS-005 | Offline/live prevention remains fail closed. Distinct conductor/optimizer UIDs, inbox ownership, and live confinement must be proved during owner-supplied activation; no broader sandbox framework is claimed. |
+| AR-009 | software-complete admission path; external verifier admission pending | Verifier bundle identity, admission, and revocation | FOUND-007; CONV-004 | F implements closed verifier identity/checksum/admission and revocation checks. A real native verifier and successful admission remain external inputs. |
+| AR-010 | software-complete for the single-campaign fast path; multi-source leases deferred | Safe store namespace, permissions, and locks | FOUND-008; OPS-007; OPS-008 | Safe campaign storage and one existing campaign/materialization lock protect the bounded path. Multi-source scheduling and environment leases are outside this slice. |
+| AR-011 | software-complete in D3/G-I | Journaled exactly-once iteration recovery | OPS-006 | The one D3 publication intent/receipt plus existing repeated-arm/run directories and ref CAS recover accepted and non-advancing terminal outcomes without a second journal. |
+| AR-012 | software-complete in reviewer-clean G-I; ready for containing commit | Preventative lifecycle driver and operator health | OPS-009; OPS-010; OPS-013 | Persisted foreground run/resume/pause/stop, closed budgets/deadline, cleanup health, and fail-closed status are complete for one campaign. |
+| AR-013 | software-complete in committed E; real transfer evidence pending | Identity-bound transfer and failed-transfer pause | CONV-013; OPS-011 | E binds and evaluates the closed scheduled-transfer input. A real calibrated transfer result remains an activation input. |
+| AR-014 | software-complete in committed E (`527fbdb`) | Inconclusive outcomes and indivisible attribution | CONV-006; CONV-015 | Infrastructure invalidity is behaviorally inert and partial candidates never advance wholesale. |
+| AR-015 | software-complete in committed E (`527fbdb`) | Repeated paired statistical acceptance | FOUND-006; CONV-003 | The frozen four-valued repeated protocol is implemented; its values are not claimed calibrated for a real source. |
+| AR-016 | software-complete in committed E (`527fbdb`) | Durable regression and champion protection | CONV-010 | Durable regression, champion, and scheduled-transfer protections are implemented; real evidence remains pending. |
+| AR-017 | fast-path LearningRecord software-complete; real Analyst calibration deferred | Event-addressable Analyst, clusters, and learnings | CONV-011 | G-I requires one strict trace-cited LearningRecord before the next packet. Analyst remains `stub-0`; calibrated causal diagnosis waits for real retained traces. |
+| AR-018 | founder-fast-path deferred | Judge trust identity and quarantine routing | CONV-012 | Existing T1/quarantine behavior is preserved. No T2 council or calibrated judge-trust corpus is implemented or claimed. |
+| AR-019 | founder-fast-path deferred; source expansion pending | Source-aware scheduling and auditable task dispositions | FOUND-008; FOUND-010 | The fast path intentionally qualifies one WARC seam for one foreground campaign. All-five-source scheduling, leases, and all-140 execution follow external activation. |
+| AR-020 | software-complete in reviewer-clean G-I; ready for containing commit | Generated commands, status prose, and decision metadata | FOUND-009; FOUND-012; CONV-016; OPS-014 | Packets, status, and the executable operator documentation use the real offline workflow and preserve the activation/reportability boundary. |
 
 ## Current readiness execution order
 
-### Reviewer-clean milestone-E software checkpoint
+### Final milestones G-I vertical-slice closeout
+
+- **Frozen starting state:** exact clean HEAD
+  `527fbdb1a197f39bcd89340e963256129e78a12c` on
+  `codex/auto-research-readiness`.
+- **Final writer:** GPT-5.6 Sol medium session
+  `019f6af4-71be-7f20-bb31-6ea2aa227cd0` was the sole writable implementer.
+  This closeout ends that local writer; no implementation or review agent
+  remains active and no overlapping editor exists.
+- **Exact ownership:** the final minimal milestones G-I foreground,
+  single-campaign vertical slice only: persisted lifecycle requests/state,
+  closed iteration/attempt and wall-clock limits, reconciliation/status over
+  the existing pending-iteration and accepted-publication transaction, one
+  strict trace-cited LearningRecord consumed by the next packet, concise
+  operator documentation, and deterministic offline/adversarial proof at the
+  existing D3/F/E seams.
+- **Explicit exclusions:** no daemon, service manager, worker queue, scheduler,
+  database, second journal/recovery path, registry/plugin framework,
+  multi-campaign concurrency, live source/browser/model/campaign, asset fetch,
+  credential read, external spend, performance/reportability claim, or commit.
+- **State:** reviewer-clean, full-gate-green software candidate ready for its
+  containing coherent commit. Correctness reviewer session
+  `019f6b2e-a93f-7c63-8907-e147c3f4dbec` returned FIX on three retained-
+  integrity defects and, on the targeted corrected state, identified one
+  remaining real P1: terminal validation conflated retained-artifact integrity
+  with current campaign reconciliation. Final elegance/YAGNI/vision reviewer
+  session `019f6b2e-a9b4-7293-b6ad-96efc0fd2365` subsequently returned FIX on
+  one permissive, independently decoded CLI ledger summary. Those intermediate
+  findings are retained below as correction history and are superseded by the
+  final CLEAN reviews recorded in this closeout. The existing campaign lock,
+  pending iteration, D3 publication intent/receipt, repeated-arm directories,
+  and WARC cleanup remain the only execution/recovery authorities. The new
+  foreground commands persist `run`/`pause`/`stop`, require owner-chosen closed
+  iteration/attempt/deadline limits, meter each logical attempt once across
+  interruption replay, expose state/ref/publication/WARC/limit/cleanup health,
+  and block production when exact authorization or external metering is absent.
+  One canonical JSONL LearningRecord per terminal iteration binds the exact
+  campaign/base/candidate/protocol/decision/source disposition and rehashed
+  retained gate/trace/artifact citations; the next packet refuses missing or
+  invalid learning. Simulation records remain explicitly non-reportable.
+- **P1 correction:** the two independent reviews found four unique P1s. The
+  sole D3 publication intent/receipt now seals and idempotently reconciles
+  accepted and every non-advancing terminal outcome, including pivot and
+  cleanup replay; lifecycle requests acquire the existing campaign lock and
+  reload before saving; status and CLI routing use the conductor's canonical
+  publication loader; and LearningRecord source disposition contains only
+  source/execution facts, with invalid benchmark outcomes restricted to their
+  trusted gate citation and canonical non-reportable decision. No second
+  journal, recovery family, lock, scheduler, supervisor, or status schema was
+  added.
+- **Targeted rereview correction:** every CLI `run` and `resume` now persists
+  its request and selects start versus reconciliation from campaign state
+  reloaded under the existing lock; `run` cannot clear pause/stop while
+  `resume` can. Canonical read-only publication status now rejects a terminal
+  receipt whose retained ledger row or required LearningRecord is missing,
+  duplicated, or inconsistent. Learning execution disposition is derived from
+  conductor-retained gate run identity, never trace-file presence; an invalid
+  mocked benchmark result without that fact is gate-only with `executed=false`.
+  This is a narrow correction inside the existing lifecycle, publication, and
+  LearningRecord authorities; no new journal, decoder, registry, or flag was
+  added.
+- **Final targeted correction:** the conductor's canonical terminal validator
+  now layers immutable receipt/gate/snapshot/ledger/LearningRecord integrity
+  separately from current campaign-state/ref checks. Status and direct
+  `continue_campaign` routing always validate the retained artifacts, including
+  for historical iteration N while N+1 is pending; only cleanup reconciliation
+  of the current terminal receipt applies state/ref checks. A healthy historical
+  receipt remains healthy, while removed, duplicated, or corrupted historical
+  ledger/learning evidence blocks both `run` and `resume`. This reuses the same
+  loader, D3 receipt, lock, and cleanup/recovery functions. At that intermediate
+  checkpoint, targeted correctness rereview had not yet occurred.
+- **Terminal-history rereview correction:** correctness reviewer session
+  `019f6b2e-a93f-7c63-8907-e147c3f4dbec` found one remaining P1 in the
+  historical layer: retained ledger and manifest bytes were not checked against
+  every cross-artifact relationship enforced while the intent was pending. One
+  shared pending/terminal evidence-graph validator now enforces the closed
+  `LEDGER_ROW_FIELDS` shape; receipt/build/protocol/decision/advancement
+  identity; gate rungs, comparison, attribution, eligibility, and promotions;
+  frozen fixed variables; LearningRecord manifest identity; and the canonical
+  normal or rejected manifest-snapshot shape and applicable relationships.
+  Representative non-receipt ledger-field, extra-field, and manifest-snapshot
+  corruption now makes historical status malformed and blocks locked `run` or
+  `resume`. Historical/current layering and the sole D3 recovery authority are
+  unchanged. At that intermediate checkpoint, final rereview had not occurred.
+- **Reserved loop-gate correction:** the orchestrator's reserved source-tree
+  loop discovery exposed one P1 regression after the shared validator landed:
+  `test_committed_forbidden_edit_rejected` raised infrastructure invalidity
+  instead of completing its canonical non-advancing rejection. The shared
+  validator now distinguishes an admissible normal snapshot from the existing
+  canonical `rejected_submission` evidence produced for a trusted E0
+  diff/manifest rejection. Exact nonempty validation errors are derived from
+  and checked against the retained gate rung; original submission, verdict,
+  closed snapshot, ledger, LearningRecord, protocol, and receipt relationships
+  remain fail closed. The focused failing test plus five terminal-history/
+  routing/recovery tests pass, and complete loop discovery now runs 218 tests
+  with 217 passing and the one existing optional `jsonschema` skip. The
+  orchestrator-reported eval/WARC 68/68 and judge 28/28 passes were not rerun.
+  At that intermediate checkpoint, targeted rereview and the reserved full-gate
+  rerun had not occurred.
+- **Forbidden-rejection rereview correction:** correctness reviewer session
+  `019f6b2e-a93f-7c63-8907-e147c3f4dbec` found two remaining evidence-binding
+  P1s: rejected `original_submission` was self-authenticating, and rejection
+  errors were not closed to the immediate conductor-owned E0 failure. The sole
+  publication schema is now `0.4.0` under digest domain v3 and carries one
+  sealed `manifest_snapshot_digest` from pending intent through terminal
+  receipt; retained normal and rejected snapshots must match it exactly. The
+  one construction/validation helper now accepts only an immediate sole
+  `E0`/`fail` with either exact nonempty string `manifest_errors` or the exact
+  closed false `GuardReport` shape with typed lists and a real violation/dirty
+  entry. Malformed, mixed, partial, extra, later-rung, and unrelated failures
+  cannot mint `rejected_submission`. No sidecar, migration, second intent,
+  registry, or compatibility path was added. Nine focused rejection/status/
+  replay/history tests pass. The first complete loop run exposed only one stale
+  closed-shape test assertion for the new terminal field; its focused rerun
+  passed, and the final complete discovery ran 219 tests with 218 passing and
+  the existing optional skip. At that intermediate checkpoint, targeted
+  rereview and remaining full gates had not occurred.
+- **Final elegance correction:** one exact closed ledger-row authority now
+  lives in `opti_loop.ledger`. Its canonical reader uses duplicate-key-safe
+  strict JSON for every physical record and reports physical row numbers for
+  malformed, non-object, missing-field, and extra-field records. Conductor
+  publication validation and idempotent ledger persistence, next-packet
+  consumption, and CLI status all use that reader. Status performs canonical
+  operation/publication projection first; an invalid ledger adds a clear
+  blocker and omits `ledger_rows` and `last` instead of crashing or presenting
+  a normalized summary. Seven focused ledger/status/packet/terminal tests pass,
+  and complete loop discovery runs 221 tests with 220 passing and the existing
+  optional `jsonschema` skip. No new decoder, status shape, or ledger authority
+  was added. At that intermediate checkpoint, final targeted reviews and
+  reserved gates had not occurred.
+- **Final ledger-framing correction:** correctness reviewer session
+  `019f6b2e-a93f-7c63-8907-e147c3f4dbec` returned FIX on one remaining strict-
+  framing P1: the shared reader skipped blank records and used Unicode-aware
+  `splitlines()`. It now preserves raw newlines and uses the existing strict LF
+  JSONL splitter. A missing or exactly empty pre-iteration ledger remains
+  valid; LF, CRLF, and no final delimiter are accepted, while blank or
+  whitespace records, an extra trailing delimiter, raw CR, and U+2028/U+2029
+  record separators fail with physical record/row diagnostics. Four focused
+  ledger/status/packet tests and complete loop discovery (220 passed plus the
+  existing optional skip) are green. The contemporaneous elegance rereview was
+  CLEAN; final framing correctness/elegance review followed later. LearningRecord
+  framing and every publication/packet/status consumer are unchanged.
+- **Final independent reviews:** final framing correctness session
+  `019f6b2e-a93f-7c63-8907-e147c3f4dbec` returned CLEAN with no findings on
+  full dirty digest
+  `ee5ca8c64fe951a51e836458388f2717a5eca1e35860081ab99f7615a92545e4`.
+  Final framing elegance/YAGNI/vision session
+  `019f6b2e-a9b4-7293-b6ad-96efc0fd2365` also returned CLEAN with no findings
+  on that exact digest. These final results supersede the intermediate review
+  conclusions without erasing their correction history. No software task
+  remains in the authorized founder fast-path slice.
+- **Final current-byte evidence:** source eval/WARC passes 68/68; source judge
+  passes 28/28; source loop runs 221 tests with 220 passing and the one existing
+  optional `jsonschema` skip. Catalog validation passes 140 catalog/primary,
+  smoke/regression 20/20, and source counts 30/30/30/30/20. The cached offline
+  schema audit passes 531 documents with zero errors. Documentation passes 86
+  Markdown files, 176 local links, 18 ADRs, and 140 raw, normalized, and by-ID
+  tasks. Repository completeness passes 55 required files plus package,
+  catalog, and Git checks. The 394-file manifest, changed-Python Ruff, Python
+  compilation, and `git diff --check` pass.
+- **Clean-install evidence:** a working-tree copy passes under Python 3.14.5
+  and uv 0.11.6: exactly three pure-Python wheels; offline/no-index installation
+  of `opti-loop==0.1.0` and the exact eval/judge/loop dependency graph; the
+  missing-judge negative control; installed CLI help, eval validation, cwd
+  discovery, and pure transfer checks; and all three installed suites. It ran
+  no live backend and records `benchmark_evidence=false`.
+- **Offline evidence history:** corrected complete loop discovery ran 221 tests with
+  220 passing
+  and the existing optional `jsonschema` skip; the focused WARC evaluator suite
+  remains at its prior 21-test pass. The latest six focused regressions cover
+  locked stale-running/concurrent-pending routing, run-versus-resume owner
+  requests, malformed structural and retained-artifact receipt routing, valid
+  trusted execution disposition, and invalid benchmark gate-only learning.
+  Earlier focused P1 regressions continue to cover ordinary and pivot terminal
+  failpoint replay and cleanup retry. The final targeted pass ran only five
+  terminal status/routing/recovery tests; all five passed after the terminal-
+  history correction, covering healthy and corrupted historical receipts,
+  closed/full ledger and snapshot relationships, plus current accepted/non-
+  accepted cleanup.
+  Targeted Ruff, Python compilation, `git diff --check`, repository
+  completeness, and documentation checks pass. One exploratory repo-wide Ruff
+  invocation found six pre-existing style findings outside the changed
+  surfaces; repo-wide Ruff is not a defined repository gate and is not an
+  activation/readiness blocker. The standalone WARC
+  command was first invoked without `OPTI_BROWSER_REPO_ROOT` and produced 21
+  setup-only `KeyError`s; the corrected required invocation passed all 21.
+  No complete repository or clean-install gate was run, per the handoff scope.
+- **Activation boundary:** no live source/browser/model/campaign, external
+  asset, credential value, or paid request was accessed. External WACZ,
+  verifier/admission, provenance/license/checksums, pinned runtime/browser,
+  two-UID confinement/inbox, calibrated protocol/transfer evidence, approved
+  spend meter, credentials where required, and explicit campaign authorization
+  remain honest blockers.
+
+### Committed milestone-E software checkpoint
 
 - **Frozen starting state:** reviewer-clean milestone F is committed at
   `7c245e5402d03563f3ec98e067c612963c0a7725`.
-- **Active writer:** GPT-5.6 Sol medium session
-  `019f6aa3-ec13-70c1-a980-e661f21272aa` is the sole Milestone-E writer;
-  `/root` remains orchestrator; no overlapping editor exists.
+- **Commit state:** Milestone E is committed at
+  `527fbdb1a197f39bcd89340e963256129e78a12c`; its implementation/review agents
+  are no longer active.
 - **Implemented boundary:** the current consumer executes frozen repeated
   paired/interleaved development and regression arms with symmetric exact run
   identities/admission, four outcomes, prespecified stopping/budget/deadline,
@@ -81,20 +275,19 @@ findings, and only then may the package be committed and the next package start.
   findings and matching hashes. Writer evidence passes 17 identity, 15
   repeated, 36 unit, 45 evidence/admission, 21 offline WARC, 21 materialization,
   and 68 E2E tests; the broader loop suite ran 205 tests, with 204 passing and
-  one existing optional skip. This is reviewer-clean software ready to commit,
+  one existing optional skip. This is committed reviewer-clean software,
   not a performance or reportability claim. No calibrated real evidence,
   closed external transfer evidence, live WARC assets/runtime/credentials,
-  verifier admission, or campaign authorization exists; Milestone D and overall
-  operation readiness still depend on external activation and later G-I.
+  verifier admission, or campaign authorization exists; external operation
+  still depends on owner-supplied activation inputs.
 
-### Active milestone-F qualification slice
+### Committed milestone-F qualification slice
 
 - **Frozen starting state:** D3 is committed at
   `9d6b39c361b1c7c9616884a055f59eaa5ce571fd` (`9d6b39c`), and the milestone-F
   worktree was clean before this ledger update.
-- **Active writer:** session `019f6a00-be3a-7220-b4df-8b22c6da3f0c`, running
-  GPT-5.6 Sol at medium reasoning effort, is the sole bounded milestone-F
-  implementation writer. No overlapping editor exists.
+- **Writer state:** session `019f6a00-be3a-7220-b4df-8b22c6da3f0c` was the sole
+  bounded milestone-F writer; it is no longer active.
 - **Exact ownership:** one concrete `warc-bench-online-4` qualification path,
   including production code, focused deterministic tests, the minimum operator
   runbook/CLI surface, and the ledger/manifests needed by that slice.
@@ -147,22 +340,23 @@ findings, and only then may the package be committed and the next package start.
   WACZ, native-verifier, runtime/browser, license/provenance, credential, and
   exact executor inputs remain blockers until owner supplied and verified.
 
-AR-001 through AR-003 and AR-014 through AR-016 are complete as software
-readiness packages; the reviewer-clean Milestone-E checkpoint remains
-uncommitted. The other
-AR-004 through AR-020 packages remain queued. The
-active sequence is now governed jointly with
+The founder-authorized software fast path is complete through committed D3,
+F, and E plus the reviewer-clean G-I candidate. The AR table above distinguishes
+software-complete behavior from external qualification/evidence and
+founder-fast-path deferrals; it does not silently complete T2, all-five-source
+scheduling, private holdout, live confinement, or real calibration. The durable
+sequence is governed jointly with
 `docs/AUTO_RESEARCH_READINESS_EXECUTION.md`: milestone C is complete through
 code commit `9d0a7ab`, evidence commit `ef0da6b`, and the successful full
 portable-archive proof from that clean evidence commit. The minimal required ADR
 transition was proposed at `544750b` and accepted as ADR-0018 on 2026-07-15 by
 the owner-delegated coordinator acting under the founder's delegated
 architecture-decision authority: `Accept ADR-0018 as written.` D3 is committed
-at `9d6b39c`; milestone F is committed at `7c245e5`; and the Milestone-E
-candidate recorded above is active. No D/E/F implementation was included in
-the proposal or acceptance slice itself. Remaining queued packages are pulled
-only when their dependencies and review boundaries align; this ordering does
-not skip or silently supersede them.
+at `9d6b39c`; milestone F is committed at `7c245e5`; milestone E is committed
+at `527fbdb`; and G-I is reviewer-clean and full-gate green, ready for its
+containing coherent commit. No D/E/F implementation was included in the
+proposal or acceptance slice itself. Deferred work starts only when its real
+dependency and authorization exist.
 
 ## Required work deferred by real dependencies
 
@@ -193,7 +387,10 @@ less trustworthy, so they start only when their dependency is real.
 
 ## Completion definition
 
-The code-only queue is complete when AR-001 through AR-020 have independent
-review sign-off and the full repository verification is green. That still does
-not authorize auto-research. Activation additionally requires the EXT work,
-the real injection/fault rehearsal, and the project owner's explicit start.
+The founder-authorized fast-path software checkpoint is complete when its
+implemented AR dispositions have independent clean review and the defined
+repository gates are green. That condition is met by the current G-I candidate.
+Deferred AR/EXT work remains deferred rather than silently complete and does
+not block the offline checkpoint. External activation still requires the exact
+owner-supplied inputs, real qualification/calibration evidence, and explicit
+campaign authorization recorded in the readiness execution ledger.

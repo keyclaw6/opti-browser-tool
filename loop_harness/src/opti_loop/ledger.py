@@ -1,57 +1,79 @@
-"""Ledger and learnings: phase F (RECORD).
+"""Machine-readable decision ledger: phase F (RECORD).
 
-One JSONL row per iteration — machine-readable history (auto-harness's
-results.tsv, upgraded to carry attribution and gate evidence). One learnings
-entry per iteration, pass or fail — the optimizer's only persistent memory
-(auto-harness learnings.md; AHE evolution_history.md).
+One JSONL row per iteration. Canonical learning persistence lives in
+``learning.py`` and is cited into the next optimizer packet.
 """
 from __future__ import annotations
 
-import datetime as _dt
 import json
 from pathlib import Path
 from typing import Any
 
+from opti_eval.models import split_lf_jsonl_records, strict_json_loads
+
+LEDGER_ROW_FIELDS = frozenset({
+    "iteration",
+    "campaign",
+    "verdict",
+    "decision",
+    "evidence_class",
+    "advances_accepted_state",
+    "divergent",
+    "base_sha",
+    "candidate_sha",
+    "protocol_digest",
+    "hypothesis",
+    "target_component",
+    "cluster_ref",
+    "gate_rungs",
+    "comparison",
+    "attribution",
+    "eligibility",
+    "fixed_variables",
+    "promotion_candidates",
+})
+
+
+def _validate_row(row: object, *, row_number: int) -> dict[str, Any]:
+    if type(row) is not dict:
+        raise ValueError(f"ledger row {row_number} must be a JSON object")
+    missing = sorted(LEDGER_ROW_FIELDS - set(row))
+    extra = sorted(set(row) - LEDGER_ROW_FIELDS)
+    if missing or extra:
+        details = []
+        if missing:
+            details.append("missing fields: " + ", ".join(missing))
+        if extra:
+            details.append("extra fields: " + ", ".join(extra))
+        raise ValueError(
+            f"ledger row {row_number} has an invalid closed shape; "
+            + "; ".join(details)
+        )
+    return row
+
 
 def append_row(ledger_path: Path, row: dict[str, Any]) -> None:
-    row = dict(row)
-    row.setdefault("recorded_at", _dt.datetime.now(_dt.timezone.utc).isoformat())
+    existing = read_rows(ledger_path)
+    checked = _validate_row(row, row_number=len(existing) + 1)
     with ledger_path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(row, sort_keys=True) + "\n")
+        handle.write(json.dumps(checked, sort_keys=True) + "\n")
 
 
 def read_rows(ledger_path: Path) -> list[dict[str, Any]]:
     if not ledger_path.is_file():
         return []
-    return [
-        json.loads(line)
-        for line in ledger_path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
-
-
-def learnings_template(
-    *,
-    iteration: int,
-    verdict: str,
-    hypothesis: str,
-    target_component: str,
-    cluster_ref: str,
-    divergent: bool,
-) -> str:
-    stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    kind = "divergent (exploration)" if divergent else "cluster-targeted"
-    return (
-        f"\n## Iteration {iteration:04d} — {verdict} — {stamp}\n\n"
-        f"- Kind: {kind}\n"
-        f"- Cluster: `{cluster_ref}` · Component: `{target_component}`\n"
-        f"- Hypothesis: {hypothesis}\n"
-        f"- What the evidence showed: <fill in — required even on failure>\n"
-        f"- Why the prediction was right/wrong: <fill in before any retry>\n"
-        f"- Needs from human: <or 'none'>\n"
-    )
-
-
-def append_learnings(learnings_path: Path, entry: str) -> None:
-    with learnings_path.open("a", encoding="utf-8") as handle:
-        handle.write(entry)
+    with ledger_path.open("r", encoding="utf-8", newline="") as handle:
+        text = handle.read()
+    if text == "":
+        return []
+    records = split_lf_jsonl_records(text, field_name="ledger JSONL")
+    rows: list[dict[str, Any]] = []
+    for line_number, record in enumerate(records, start=1):
+        try:
+            parsed = strict_json_loads(
+                record, field_name=f"ledger row {line_number}"
+            )
+        except ValueError as exc:
+            raise ValueError(f"ledger row {line_number} is invalid: {exc}") from exc
+        rows.append(_validate_row(parsed, row_number=line_number))
+    return rows

@@ -34,16 +34,17 @@ remain separate inputs.
 | **Pre-D architecture transition** | **Complete; Accepted** | Proposal commit `544750b` passed separate correctness and elegance/YAGNI/vision re-reviews. On 2026-07-15 the owner-delegated coordinator, acting under the founder's delegated architecture-decision authority, approved it exactly: `Accept ADR-0018 as written.` ADR-0018 now binds the minimal repeated-decision, identity/activation, candidate-boundary, indivisible-build, atomic-publication, and reversible WARC/BrowserGym/Playwright qualification transition while ADR-0002/0003 remain Open. |
 | **D — exact identity and trusted activation** | **D3 committed at `9d6b39c`; fixture-backed checkpoint only** | D3 connects static-bundle import, D2 materialized execution, immutable treatment identity, conductor-observed harness-fixture activation through E1-E5, and recoverable accepted publication. It is the frozen milestone-F starting point, not browser activation, reportability, or operation readiness. |
 | **F — WARC `online.4` qualification** | **Committed at `7c245e5`; software qualification checkpoint only** | The reviewer-clean software checkpoint is frozen in commit `7c245e5402d03563f3ec98e067c612963c0a7725`. No external WACZ/verifier/runtime/license/credential input or live/reportable qualification has been supplied or run; milestone F external completion and operation readiness remain incomplete. |
-| **E — repeated decision and champion protection** | **Reviewer-clean software checkpoint; ready to commit** | Sole writer GPT-5.6 Sol medium session `019f6aa3-ec13-70c1-a980-e661f21272aa` and `/root` orchestrator started from exact HEAD `7c245e5402d03563f3ec98e067c612963c0a7725`. Final correctness and elegance/YAGNI/vision reviews are CLEAN; external activation and operation readiness remain incomplete. |
+| **E — repeated decision and champion protection** | **Committed at `527fbdb`; reviewer-clean software checkpoint** | Milestone E is contained in exact HEAD `527fbdb1a197f39bcd89340e963256129e78a12c`. Its final correctness and elegance/YAGNI/vision reviews are CLEAN. The four-valued repeated decision and champion/transfer protections are software-complete; real calibration and transfer evidence remain external activation inputs. |
+| **G-I — lifecycle, learning, and operator integration** | **Reviewer-clean and full-gate green; ready for containing coherent commit** | Sole writer GPT-5.6 Sol medium session `019f6af4-71be-7f20-bb31-6ea2aa227cd0` completed the bounded slice from exact HEAD `527fbdb1a197f39bcd89340e963256129e78a12c`. Final framing correctness session `019f6b2e-a93f-7c63-8907-e147c3f4dbec` and final framing elegance/YAGNI/vision session `019f6b2e-a9b4-7293-b6ad-96efc0fd2365` both returned CLEAN with no findings on frozen full dirty digest `ee5ca8c64fe951a51e836458388f2717a5eca1e35860081ab99f7615a92545e4`. These supersede the retained intermediate FIX/CLEAN history. Defined current-byte gates are green. No implementation or review agent remains active; the local writer ends with this documentation closeout and no overlapping editor exists. |
 
-The authorized remaining dependency order has reached milestone E repeated
-decision and champion protection after committed milestone F `7c245e5`, then
-milestones G-I lifecycle, learning/operator, and final integration work.
-Numeric milestone labels do not override that dependency order.
+The founder-authorized fast-path software sequence is complete through committed
+D3 (`9d6b39c`), committed F (`7c245e5`), committed E (`527fbdb`), and the
+reviewer-clean G-I candidate. Numeric milestone labels do not override that
+dependency order. Remaining work is deliberately external or deferred.
 
-### Founder fast path for the remaining work
+### Founder fast path disposition
 
-The remaining readiness work is organized into four vertical slices: **A** is
+The completed readiness software work is organized into four vertical slices: **A** is
 D2 immutable Git-backed materialization followed by D3 trusted activation;
 **B** is milestone F concrete WARC-Bench `online.4` source/backend
 qualification; **C** is milestone E repeated decision and champion protection;
@@ -54,8 +55,38 @@ independent reviewers: one correctness reviewer and one
 elegance/YAGNI/vision reviewer. Focused tests run during editing, one broader
 suite runs when a checkpoint becomes a review candidate, and complete
 repository gates run once per coherent milestone or final release candidate.
-After both reviewers are clean, the checkpoint is committed promptly on this
-branch without push or merge.
+The G-I slice is now clean and ready for its containing coherent commit. This
+ledger closeout does not itself commit, push, or merge.
+
+## Final readiness report
+
+- **Software checkpoint: READY TO OPERATE OFFLINE and READY FOR OWNER-SUPPLIED
+  ACTIVATION INPUTS.** The deterministic path covers initialization; exact
+  accepted/candidate Git identity; immutable materialization; observed harness
+  and local WARC-seam activation; fail-closed evidence; repeated four-valued
+  decisions; regression, champion, and transfer protection; exactly-once
+  terminal publication for accepted and non-advancing outcomes; atomic
+  accepted-state CAS; one strict trace-cited LearningRecord; foreground
+  run/resume/pause/stop/status; interruption recovery; closed budgets and
+  deadlines; and explicit nonreportability of fixtures/local fakes.
+- **External activation: BLOCKED, deliberately.** The exact operating commands
+  and boundary are in the <a href="AUTO_RESEARCH_OPERATOR_RUNBOOK.md">operator
+  runbook</a>, and the source-specific contract is in the
+  <a href="WARC_ONLINE4_QUALIFICATION.md">WARC `online.4` qualification
+  document</a>.
+  Passing the offline path is not real browser activation, external WARC
+  qualification, benchmark reportability, or campaign authorization.
+- **Required activation inputs:** owner-supplied WACZ plus provenance, license,
+  and checksum; native verifier plus checksum and successful admission; pinned
+  BrowserGym, Playwright, browser, WARC, and runtime identities; provider/model
+  settings and named credentials where required; an approved external meter;
+  distinct conductor/optimizer UIDs, inbox ownership, and confinement proof;
+  real reset/oracle/noise/calibration/difficulty/transfer evidence; a genuine
+  private holdout and ADR-0003 owner decision where required; and explicit
+  campaign authorization.
+- All-140 execution follows activation under ADR-0014 and was not run. No
+  benchmark performance is known or claimed; fixture and local-fake results are
+  simulated and nonreportable.
 
 Every **new** worker must be launched with local
 `codex exec -m gpt-5.6-sol -c 'model_reasoning_effort="medium"' -c
@@ -97,7 +128,7 @@ review's proposed rewrite or timing.
 | Replace single-treatment/noise-envelope acceptance with a prespecified repeated paired/interleaved protocol | R1/R2/R3 | **Accept and implement** | Current E5 runs one treatment and can accept luck. The protocol must bind arm order, matched identities, repeats/stopping, missing/invalid handling, estimator/uncertainty, minimum effect, regression/transfer conditions, and multiplicity policy before treatment results. A predicted flip remains a diagnostic causal check, not sufficient evidence by itself. |
 | Adopt R2's universal `12` valid pairs, `p <= 0.05`, and `>= 0.25` effect as permanent thresholds | R2 | **Defer numeric selection; keep as a candidate first-source protocol** | ADR-0005 requires thresholds from measured real variance. Deterministic simulations can exercise an exact paired protocol, but fixture behavior must not calibrate production thresholds. The configured protocol must fail preflight until real identity-bound values are supplied. |
 | Add explicit `inconclusive` and keep invalid evidence behaviorally inert | R1/R2/R3 | **Accept and implement** | `Verdict` currently exposes only accepted/rejected/invalid although the charter and manifest name four outcomes. Valid but insufficient evidence is not rejection; infrastructure/integrity failure is not behavioral evidence and must not consume promotion evidence. |
-| Make observed activation a trusted dynamic fact rather than optimizer-authored prose or E1 `pending` | R1/R2/R3 | **Accept and implement** | D3 qualified the conductor-observed harness-fixture seam; the active milestone-F candidate reuses that authority for only WARC `online.4`. Other adapters fail closed. Treatment evidence binds the executed candidate/build, frozen surface, run identity, trusted result metrics, and baseline observation. Missing, baseline-build, wrong-build, wrong-path/surface, or unconsumed observation is invalid; behavior-neutral output remains valid activation and proceeds to the efficacy decision. No generic instrumentation plugin system is needed. |
+| Make observed activation a trusted dynamic fact rather than optimizer-authored prose or E1 `pending` | R1/R2/R3 | **Accept and implement** | D3 qualified the conductor-observed harness-fixture seam; committed milestone F reuses that authority for only WARC `online.4`. Other adapters fail closed. Treatment evidence binds the executed candidate/build, frozen surface, run identity, trusted result metrics, and baseline observation. Missing, baseline-build, wrong-build, wrong-path/surface, or unconsumed observation is invalid; behavior-neutral output remains valid activation and proceeds to the efficacy decision. No generic instrumentation plugin system is needed. |
 | Retain T0/T1, verifier admission, quarantine, and no-score-override behavior; remove the generalized quarantine/admission state | R1/R3 | **Keep current machinery; defer only uncalibrated T2 use** | Existing evidence, T1, quarantine, and verifier code closes real evaluator-disagreement paths and has adversarial coverage. Do not delete it for conceptual neatness. Simplify only if concrete source integration exposes a correctness or operability cost. No LLM judge becomes trusted before identity-bound real-corpus calibration. |
 | Simplify trace/event/schema rules and shrink the cross-surface adversarial corpus | R1/R3 | **Reject now** | Exact framing, identity, ordering, terminal verifier, final-state adjacency, visibility, containment, and digest rules protect decisions and are the point of AR-003. Source-specific extensions may be added, but no guarantee is relaxed merely because a smaller greenfield envelope is imaginable. Delete tests only after replacement coverage proves the same invariant. |
 | Use SQLite or another database as the accepted-state transaction boundary | R1 | **Reject** | The current single-host scope does not justify a new database. Extend the existing owner-controlled filesystem store with safe paths, permissions, locks, staging, receipts/journal, and atomic compare-and-swap advancement only as needed for recoverable operation. |
@@ -600,10 +631,40 @@ the milestone is complete.
 | `e6866e0` | Original Git-backed D2 materialization checkpoint and its earlier six correction dispositions. The narrow retry reports were clean for those six only. |
 | `c23d645` | Final D2 review-follow-up correction. The settled code passed final correctness and elegance/YAGNI/vision re-reviews, each returning exactly CLEAN. |
 | `497a492` | D2 documentation/evidence closeout from the frozen final D2 code; its verification gates passed. |
+| `9d6b39c` | D3 trusted fixture-backed activation and the sole recoverable publication transaction checkpoint. |
+| `7c245e5` | F reversible WARC `online.4` software qualification path; external assets and live qualification remain absent. |
+| `527fbdb` | E four-valued repeated decision plus durable regression, champion, and scheduled-transfer protection. |
 
 Current branch: `codex/auto-research-readiness`.
 
 ## Verification evidence
+
+### Final G-I current-byte gates
+
+- source eval/WARC: 68/68 passed;
+- source judge: 28/28 passed;
+- source loop: 221 run, 220 passed, and one existing optional `jsonschema`
+  skip;
+- eval catalog validation: PASS with 140 catalog/primary tasks,
+  smoke/regression 20/20, and source counts 30/30/30/30/20;
+- cached offline `jsonschema` audit: 531 documents and zero errors;
+- documentation: PASS for 86 Markdown files, 176 local links, 18 ADRs, and 140
+  raw, normalized, and by-ID tasks;
+- repository completeness: PASS for 55 required files plus package, catalog,
+  and Git checks;
+- file manifest: PASS for 394 files; changed Python surfaces pass Ruff; Python
+  compilation and `git diff --check` pass; and
+- clean-install working-tree copy: PASS with Python 3.14.5 and uv 0.11.6,
+  exactly three pure-Python wheels, offline/no-index installation of
+  `opti-loop==0.1.0` and the exact eval/judge/loop dependency graph, the
+  missing-judge negative control, installed CLI help/eval validation/cwd
+  discovery/pure transfer checks, and all three installed suites. No live
+  backend ran and the proof records `benchmark_evidence=false`.
+
+An exploratory repo-wide Ruff invocation found six pre-existing style findings
+outside the changed surfaces. Repo-wide Ruff is not a defined repository gate,
+so this observation does not expand the closeout scope or create an activation
+or readiness blocker.
 
 The milestone-A/B/C closure state has current verification:
 
@@ -849,8 +910,8 @@ local verification evidence; none is live/reportable qualification evidence:
 - no live source, browser task, external benchmark asset, credential value,
   model/API budget, fetch, or network access was used.
 
-The active uncommitted milestone-E candidate adds the prespecified repeated
-decision authority directly to the existing conductor:
+Committed milestone E adds the prespecified repeated decision authority
+directly to the existing conductor:
 
 - E0-E4 remain fail-fast scheduling/screens; E5 now executes frozen
   paired/interleaved baseline and treatment arms for development and regression
@@ -877,7 +938,7 @@ decision authority directly to the existing conductor:
   matching hashes. Writer evidence passes 17 identity, 15 repeated, 36 unit,
   45 evidence/admission, 21 offline WARC, 21 materialization, and 68 E2E tests;
   the broader loop suite ran 205 tests, with 204 passing and one existing
-  optional skip. This is a reviewer-clean software checkpoint ready to commit,
+  optional skip. This is a committed reviewer-clean software checkpoint,
   not calibrated real, live, performance, reportability, or operation-readiness
   evidence; and
 - no asset was fetched, credential read, model/browser/live-source task run,
@@ -892,70 +953,52 @@ decision authority directly to the existing conductor:
   milestone D. This does not clear any external activation blocker or authorize
   a live campaign.
 
-### Software blockers to close in milestones D-I
+### Software checkpoint boundary
 
-- `harness/` remains a scaffold with no executable browser harness. At committed
-  D3, the loop could construct only fixture, harness-fixture, and non-reportable
-  command adapters. The milestone-F candidate adds only the WARC `online.4`
-  qualification path described below; it is reviewer-clean software, its local fake is
-  non-reportable, and its external inputs and live qualification remain absent.
-- D1 supplies closed protocol and run-context identity. The rejected five-file
-  D2a0 attempt did not derive candidate identity from trusted Git objects; it
-  was discarded without commit, is absent from the current tree, and must not
-  be resurrected. The bounded D3 closeout connects the settled D2
-  materialization to immutable harness-fixture execution, activation, and
-  recoverable publication. It remains fixture-backed infrastructure only and
-  does not complete milestone D or establish a reportable browser path.
-- The milestone-F software candidate now contains one source-specific WARC
-  `online.4` adapter, repository-owned lifecycle, closed preflight, strict
-  verifier-admission gate, standard BrowserGym reset/step/close, a fixed
-  OpenCode Go messages request, verifier/final-state/trace/artifact/cleanup
-  contracts, deterministic local boundary fake, D3 activation integration,
-  and an operator flow. The final correctness and elegance/YAGNI/vision
-  rereviews returned CLEAN on the frozen candidate; the containing commit
-  records the reviewer-clean checkpoint.
-  Production activation is blocked on the external inputs below. Passing the
-  local fake cannot complete milestone F.
-- The reviewer-clean Milestone-E software checkpoint is ready to commit but
-  remains uncommitted. Real activation still lacks calibrated evidence, a
-  closed external transfer result, live WARC assets/runtime/credentials,
-  verifier admission, and campaign authorization. Milestone D and overall
-  operation readiness still depend on those inputs and later milestones G-I.
-- Interrupted-iteration recovery, atomic state/receipt advancement, minimal
-  locks/permissions, budgets/deadlines, and operator status are not yet at the
-  requested single-host readiness boundary.
-- The Analyst is explicitly `stub-0`; trace-linked learning, trusted judge
-  identity/routing where used, source dispositions, and executable operator
-  workflow remain incomplete.
+- No software task remains in the founder-authorized D3/F/E/G-I fast path.
+  D3 remains the fixture-backed infrastructure checkpoint at `9d6b39c`; F is
+  committed at `7c245e5`; E is committed at `527fbdb`; and G-I is independently
+  reviewer-clean and full-gate green, ready for its containing coherent commit.
+- D3 plus F now exercises exact immutable Git materialization and observed
+  activation through the concrete local WARC seam in offline tests. This is not
+  real browser activation, external WARC qualification, reportability, known
+  performance, or live readiness.
+- G-I reuses the one D3 publication/recovery authority for accepted and
+  non-advancing terminal outcomes, and adds the bounded foreground lifecycle,
+  status, limits, LearningRecord, and operator flow. Final correctness session
+  `019f6b2e-a93f-7c63-8907-e147c3f4dbec` and final elegance/YAGNI/vision session
+  `019f6b2e-a9b4-7293-b6ad-96efc0fd2365` both returned CLEAN with no findings
+  on digest
+  `ee5ca8c64fe951a51e836458388f2717a5eca1e35860081ab99f7615a92545e4`.
+- Founder-fast-path deferrals remain explicit: Analyst is `stub-0`; no T2
+  council, all-five-source scheduler, private holdout contents, multi-campaign
+  machinery, live confinement proof, native-verifier admission, or real
+  calibration/transfer evidence is claimed.
 
 ### External activation inputs that must remain honest blockers
 
-- Exact credentials/subscription authentication, provider/model identifiers,
-  snapshots/settings, quota and data-retention policy.
-- Pinned WARC WACZ/runtime assets (or another explicitly approved source),
-  browser/runtime binaries, license/provenance confirmation, and any required
-  account/environment access.
-- Real reset/oracle/probe-kit evidence, verifier admission, source capacity,
-  real variance/noise calibration, and task-level difficulty calibration.
-- A genuinely private disjoint holdout under owner-only control; public or
-  fixture tasks cannot substitute for it.
-- Platform-specific permissions and explicit authorization for any live,
-  destructive, externally visible, paid, or unattended campaign action.
+- Owner-supplied WACZ with provenance, license, and checksum.
+- Native verifier with checksum and successful admission.
+- Pinned BrowserGym, Playwright, browser, WARC, and runtime identities.
+- Provider/model settings and named credentials where required, plus an
+  approved external meter.
+- Distinct conductor/optimizer UIDs, correct inbox ownership, and confinement
+  proof.
+- Real reset/oracle/noise/calibration/difficulty/transfer evidence, a genuine
+  private holdout, and the ADR-0003 owner decision where required.
+- Explicit campaign authorization. All-140 execution follows activation under
+  ADR-0014 and was not run.
 
 ## Next steps
 
 1. Preserve committed D3 (`9d6b39c`) as fixture-backed trusted
    activation/publication infrastructure; do not infer browser reportability
    or operation readiness from it.
-2. Preserve the reviewer-clean milestone-F WARC `online.4` software checkpoint
-   in its containing commit. Keep production execution blocked until the exact external
-   inputs and explicit owner authorization exist; only offline/local fixture
-   integration is currently qualified.
-3. Commit the reviewer-clean Milestone-E software checkpoint without treating
-   its simulations as calibration, benchmark, performance, or reportable evidence.
-4. Then finish milestones G-I: single-host lifecycle, analyst/learning, source
-   dispositions, status/operator commands, adversarial integration, manifest regeneration,
-   and final independent correctness plus elegance reviews.
-5. Stop at software readiness and publish the exact external activation
-   checklist. Do not run or imply a real campaign without owner-supplied inputs
-   and explicit authorization.
+2. Preserve committed F (`7c245e5`) and E (`527fbdb`) without treating their
+   offline simulations as calibration, benchmark, performance, or reportable
+   evidence.
+3. Commit the reviewer-clean, full-gate-green G-I candidate as one coherent
+   containing commit; this closeout intentionally does not commit it.
+4. Stop at software readiness. Do not run or imply a real campaign until every
+   external activation input above exists and the owner explicitly authorizes
+   the campaign.

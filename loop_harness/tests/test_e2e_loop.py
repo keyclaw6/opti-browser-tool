@@ -21,6 +21,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -40,22 +42,35 @@ from opti_eval.warc_online4_runtime import (
 )
 from opti_eval.warc_online4_runtime import run_lifecycle as run_warc_lifecycle
 from opti_loop.campaign import init_campaign, load_campaign
+from opti_loop.operation import (
+    accepted_ref_status,
+    blockers as operation_blockers,
+    operation_config,
+    request as lifecycle_request,
+    status as operation_status,
+)
+from opti_loop.learning import read_records
+from opti_loop.ledger import read_rows
+from opti_loop.packet import build_packet
 from opti_loop.cli import main as cli_main
 from opti_loop.conductor import (
     MAX_MANIFEST_BYTES,
     _copy_benchmark_bundle,
+    _manifest_snapshot_digest,
     _optimizer_bundle,
+    _publication_rejection_errors,
     _seal_publication_record,
     _validate_benchmark_handback_ownership,
     _read_manifest_snapshot,
     _load_accepted_run,
     compare_campaigns,
     measure_noise,
+    publication_status,
     run_iteration,
     start_iteration,
 )
 from opti_loop import gitutil
-from opti_loop.gates import GateReport
+from opti_loop.gates import GateReport, RungResult
 from opti_loop.materialization import (
     CampaignLock,
     MaterializationError,
@@ -345,6 +360,8 @@ class TransactionalLoopTest(unittest.TestCase):
 
     def _new_campaign(self, cid: str, adapter: dict, **thresholds):
         overrides = {"adapter": adapter,
+                     "operation": operation_config(max_iterations=20, max_attempts=40,
+                                                   deadline_seconds=3600),
                      "suites": {"dev": "smoke", "smoke": "smoke", "regression": "regression"},
                      "thresholds": {"smoke_min_pass_rate": 0.1, **thresholds},
                      "exploration": {"divergence_quota": 0, "plateau_force_after": 0, "pivot_after_failures": 2}}
@@ -468,6 +485,8 @@ class TransactionalLoopTest(unittest.TestCase):
                     "--adapter", "warc-online4",
                     "--warc-config", str(config_path),
                     "--dev-suite", "warc-online4-qualification",
+                    "--max-iterations", "20", "--max-attempts", "40",
+                    "--deadline-seconds", "3600",
                 ]),
                 0,
             )
@@ -485,6 +504,8 @@ class TransactionalLoopTest(unittest.TestCase):
                     "verifier_id": config["verifier"]["id"],
                     "verifier_checksum": verifier_sha,
                 },
+                "operation": operation_config(max_iterations=20, max_attempts=40,
+                                              deadline_seconds=3600),
                 "suites": {role: "warc-online4-qualification" for role in ("dev", "smoke", "regression")},
                 "identity": {
                     "evidence_mode": "simulated",
@@ -609,9 +630,92 @@ class TransactionalLoopTest(unittest.TestCase):
         _git(wt, "add", "-A")
         _git(wt, "commit", "-qm", "sneaky")  # ...committed (the F01 bypass)
         self._write_manifest(wt, predicted=self.flipping[:1])
+        submitted = json.loads((wt / "manifest.json").read_text())
         result = run_iteration(campaign)
         self.assertEqual(result["decision"], "rejected")
         self.assertFalse(result["advanced_accepted_state"])
+        receipt = json.loads(
+            (campaign.store.campaign_dir / "accepted-publication.json").read_text()
+        )
+        self.assertEqual(receipt["status"], "complete")
+        ledger = json.loads(campaign.ledger_path.read_text())
+        self.assertEqual(ledger["decision"], "rejected")
+        learning = read_records(
+            campaign.learnings_path, campaign_root=campaign.store.campaign_dir
+        )
+        self.assertEqual(len(learning), 1)
+        self.assertEqual(learning[0]["decision"]["decision"], "rejected")
+        snapshot_path = campaign.iteration_dir(1) / "manifest.snapshot.json"
+        snapshot = json.loads(snapshot_path.read_text())
+        self.assertEqual(snapshot["record_type"], "rejected_submission")
+        self.assertEqual(snapshot["original_submission"], submitted)
+        self.assertTrue(snapshot["validation_errors"])
+        self.assertTrue(any(
+            "outside optimizer surface" in error
+            for error in snapshot["validation_errors"]
+        ))
+        self.assertEqual(publication_status(campaign)["status"], "complete")
+        self.assertEqual(run_iteration(campaign), result)
+
+        snapshot["original_submission"]["hypothesis"] = "forged submission"
+        snapshot_path.write_text(json.dumps(snapshot, indent=2, sort_keys=True) + "\n")
+        self.assertEqual(publication_status(campaign)["status"], "malformed")
+        with self.assertRaisesRegex(RuntimeError, "manifest snapshot digest"):
+            run_iteration(campaign)
+
+    def test_rejected_snapshot_requires_exact_immediate_e0_admissibility_detail(self) -> None:
+        def gate(detail, *, rung="E0", status="fail", trailing=None):
+            rungs = [{"rung": rung, "status": status, "detail": detail}]
+            if trailing is not None:
+                rungs.append(trailing)
+            return {"rungs": rungs}
+
+        self.assertEqual(
+            _publication_rejection_errors(
+                gate({"manifest_errors": ["missing required field: hypothesis"]})
+            ),
+            ["missing required field: hypothesis"],
+        )
+        guard = {
+            "changed": ["evals/plane.txt"],
+            "violations": ["path outside optimizer surface: evals/plane.txt"],
+            "dirty_worktree": [],
+            "ok": False,
+        }
+        self.assertEqual(
+            _publication_rejection_errors(gate(guard)),
+            ["path outside optimizer surface: evals/plane.txt"],
+        )
+        malformed = {
+            "extra": {"manifest_errors": ["bad"], "unexpected": True},
+            "malformed": {"manifest_errors": ["bad", 7]},
+            "mixed": {"manifest_errors": ["bad"], **guard},
+            "partial guard": {"changed": [], "violations": ["bad"], "ok": False},
+        }
+        for label, detail in malformed.items():
+            with self.subTest(label=label), self.assertRaisesRegex(
+                RuntimeError, "E0"
+            ):
+                _publication_rejection_errors(gate(detail))
+        self.assertEqual(
+            _publication_rejection_errors(
+                gate({"manifest_errors": ["unrelated"]}, rung="E1")
+            ),
+            [],
+        )
+        self.assertEqual(
+            _publication_rejection_errors(
+                gate(
+                    {"manifest_errors": ["not immediate"]},
+                    trailing={"rung": "E1", "status": "fail", "detail": {}},
+                )
+            ),
+            [],
+        )
+        self.assertEqual(
+            _publication_rejection_errors(gate({"generality_lint": []})),
+            [],
+        )
 
     # ── F02: a forged gate report cannot cause acceptance ────────────────
     def test_forged_gate_report_is_ignored(self) -> None:
@@ -937,6 +1041,13 @@ class TransactionalLoopTest(unittest.TestCase):
                 reloaded.state["pending_repeated_started_at"] = state_before[
                     "pending_repeated_started_at"
                 ]
+                state_before["operation_attempts"] += 1
+                state_before["active_attempt_iteration"] = 1
+                state_before["lifecycle"] = {
+                    "schema_version": "0.1.0",
+                    "state": "running",
+                    "request": "run",
+                }
                 self.assertEqual(reloaded.state, state_before)
                 self.assertEqual(campaign.ledger_path.read_bytes(), ledger_before)
                 self.assertFalse(
@@ -1698,6 +1809,7 @@ class TransactionalLoopTest(unittest.TestCase):
                 "candidate_tree",
                 "staging_ref",
                 "expected_ref",
+                "manifest_snapshot_digest",
                 "intent_digest",
                 "result_summary",
                 "record_digest",
@@ -1876,12 +1988,16 @@ class TransactionalLoopTest(unittest.TestCase):
                 self.assertEqual(gate, intent_record["gate_report"])
                 self.assertEqual(snapshot, intent_record["manifest_snapshot"])
                 self.assertEqual(ledger, [intent_record["ledger_row"]])
+                self.assertEqual(campaign.state["operation_attempts"], 1)
                 self.assertEqual(
                     json.loads(campaign.clusters_path.read_text()),
                     intent_record["cluster_register"],
                 )
                 self.assertEqual(
-                    campaign.learnings_path.read_text().count("## Iteration 0001"),
+                    len(read_records(
+                        campaign.learnings_path,
+                        campaign_root=campaign.store.campaign_dir,
+                    )),
                     1,
                 )
                 self.assertIsNone(
@@ -1903,6 +2019,7 @@ class TransactionalLoopTest(unittest.TestCase):
                         "candidate_tree",
                         "staging_ref",
                         "expected_ref",
+                        "manifest_snapshot_digest",
                         "intent_digest",
                         "result_summary",
                         "record_digest",
@@ -1912,6 +2029,162 @@ class TransactionalLoopTest(unittest.TestCase):
                 self.assertNotIn("final_state", completed)
                 self.assertEqual(completed["result_summary"], recovered)
                 self.assertEqual(run_iteration(campaign), recovered)
+
+    def test_nonaccepted_publication_recovers_every_terminal_boundary(self) -> None:
+        boundaries = (
+            "intent",
+            "gate-report",
+            "manifest-snapshot",
+            "ledger",
+            "learnings",
+            "campaign-state",
+            "complete-receipt",
+        )
+        for boundary in boundaries:
+            with self.subTest(boundary=boundary):
+                campaign = self._new_campaign(
+                    f"reject-recover-{boundary}",
+                    {"kind": "harness-fixture", "file": QUALITY_REL,
+                     "default_pass_rate": 0.55, "seed": 0},
+                )
+                worktree = Path(start_iteration(campaign)["worktree"])
+                self._commit_quality(worktree, "0.00\n")
+                self._write_manifest(worktree, predicted=self.flipping[:1])
+                injected = False
+
+                def interrupt(current):
+                    nonlocal injected
+                    if current == boundary and not injected:
+                        injected = True
+                        raise OSError(f"interrupt after {boundary}")
+
+                with (
+                    mock.patch(
+                        "opti_loop.conductor._publication_checkpoint",
+                        side_effect=interrupt,
+                    ),
+                    self.assertRaisesRegex(OSError, f"interrupt after {boundary}"),
+                ):
+                    run_iteration(campaign)
+
+                receipt = json.loads(
+                    (campaign.store.campaign_dir / "accepted-publication.json").read_text()
+                )
+                self.assertEqual(
+                    receipt["status"],
+                    "complete" if boundary == "complete-receipt" else "pending",
+                )
+                recovered = run_iteration(campaign)
+                self.assertEqual(recovered["decision"], "rejected")
+                self.assertFalse(recovered["advanced_accepted_state"])
+                self.assertEqual(len(campaign.ledger_path.read_text().splitlines()), 1)
+                self.assertEqual(
+                    len(read_records(
+                        campaign.learnings_path,
+                        campaign_root=campaign.store.campaign_dir,
+                    )),
+                    1,
+                )
+                self.assertFalse(campaign.worktree_path.exists())
+                self.assertEqual(run_iteration(campaign), recovered)
+
+    def test_pivot_publication_recovers_every_terminal_boundary(self) -> None:
+        boundaries = (
+            "intent", "gate-report", "manifest-snapshot", "ledger",
+            "learnings", "campaign-state", "complete-receipt",
+        )
+        for boundary in boundaries:
+            with self.subTest(boundary=boundary):
+                campaign = self._new_campaign(
+                    f"pivot-recover-{boundary}", self._command_adapter()
+                )
+                campaign.state["failed_attempts"][
+                    "stub/real_v1/failed::policy"
+                ] = 2
+                campaign.save_state()
+                worktree = Path(start_iteration(campaign)["worktree"])
+                self._commit_quality(worktree, "0.70\n")
+                self._write_manifest(worktree, predicted=self.flipping[:1])
+                injected = False
+
+                def interrupt(current):
+                    nonlocal injected
+                    if current == boundary and not injected:
+                        injected = True
+                        raise OSError(f"interrupt after {boundary}")
+
+                with (
+                    mock.patch(
+                        "opti_loop.conductor._publication_checkpoint",
+                        side_effect=interrupt,
+                    ),
+                    self.assertRaisesRegex(OSError, f"interrupt after {boundary}"),
+                ):
+                    run_iteration(campaign)
+                recovered = run_iteration(campaign)
+                self.assertEqual(recovered["verdict"], "simulated:rejected")
+                self.assertEqual(len(campaign.ledger_path.read_text().splitlines()), 1)
+                self.assertEqual(
+                    len(read_records(
+                        campaign.learnings_path,
+                        campaign_root=campaign.store.campaign_dir,
+                    )),
+                    1,
+                )
+                self.assertFalse(campaign.worktree_path.exists())
+
+    def test_nonaccepted_terminal_cleanup_failure_replays_receipt(self) -> None:
+        campaign = self._new_campaign(
+            "reject-cleanup-replay",
+            {"kind": "harness-fixture", "file": QUALITY_REL,
+             "default_pass_rate": 0.55, "seed": 0},
+        )
+        worktree = Path(start_iteration(campaign)["worktree"])
+        self._commit_quality(worktree, "0.00\n")
+        self._write_manifest(worktree, predicted=self.flipping[:1])
+        real_remove = gitutil.worktree_remove
+        injected = False
+
+        def fail_once(repo, path):
+            nonlocal injected
+            if not injected:
+                injected = True
+                raise gitutil.GitError("terminal rejection cleanup failed")
+            return real_remove(repo, path)
+
+        with (
+            mock.patch(
+                "opti_loop.conductor.gitutil.worktree_remove", side_effect=fail_once
+            ),
+            self.assertRaisesRegex(gitutil.GitError, "rejection cleanup failed"),
+        ):
+            run_iteration(campaign)
+        receipt = json.loads(
+            (campaign.store.campaign_dir / "accepted-publication.json").read_text()
+        )
+        self.assertEqual(receipt["status"], "complete")
+        reloaded = load_campaign(
+            self.repo, campaign.campaign_id, store_root=self.store
+        )
+        self.assertIn(
+            "terminal rejection cleanup failed",
+            reloaded.state["cleanup_health"]["detail"],
+        )
+        self.assertTrue(any(
+            "terminal rejection cleanup failed" in blocker
+            for blocker in operation_status(reloaded)["blockers"]
+        ))
+        recovered = run_iteration(campaign)
+        self.assertEqual(recovered["decision"], "rejected")
+        self.assertEqual(len(campaign.ledger_path.read_text().splitlines()), 1)
+        self.assertEqual(
+            len(read_records(
+                campaign.learnings_path, campaign_root=campaign.store.campaign_dir
+            )),
+            1,
+        )
+        self.assertFalse(campaign.worktree_path.exists())
+        self.assertEqual(campaign.state["cleanup_health"]["status"], "clean")
 
     def test_terminal_staging_cleanup_git_error_replays_accepted_receipt(self) -> None:
         campaign = self._new_campaign(
@@ -2065,9 +2338,7 @@ class TransactionalLoopTest(unittest.TestCase):
             record["cluster_register"]["clusters"]["forged"] = {}
 
         def tamper_learnings(record: dict) -> None:
-            record["learnings_entry"] = record["learnings_entry"].replace(
-                "raise policy quality", "resealed substitution"
-            )
+            record["learning_record"]["hypothesis"] = "resealed substitution"
 
         def tamper_version(record: dict) -> None:
             record["schema_version"] = "0.1.0"
@@ -2169,6 +2440,16 @@ class TransactionalLoopTest(unittest.TestCase):
             campaign, "complete-receipt"
         )
         staging_ref = f"refs/opti/import/{candidate_sha}"
+        receipt = json.loads(
+            (campaign.store.campaign_dir / "accepted-publication.json").read_text()
+        )
+        accepted_snapshot = json.loads(
+            (campaign.iteration_dir(1) / "manifest.snapshot.json").read_text()
+        )
+        self.assertEqual(
+            receipt["manifest_snapshot_digest"],
+            _manifest_snapshot_digest(accepted_snapshot),
+        )
         self.assertEqual(gitutil.try_rev_parse(self.repo, staging_ref), candidate_sha)
         self.assertTrue(campaign.worktree_path.exists())
 
@@ -2666,12 +2947,15 @@ class TransactionalLoopTest(unittest.TestCase):
         gate = self._assert_rejected_transaction(campaign, run_iteration(campaign))
         self.assertIn("pivot_rule", gate["rungs"][0]["detail"])
         after = campaign.learnings_path.read_text(encoding="utf-8")
-        appended = after[len(before):]
-        self.assertEqual(appended.count("## Iteration 0001"), 1)
-        self.assertIn("simulated:rejected", appended)
-        self.assertIn("raise policy quality", appended)
-        self.assertIn("stub/real_v1/failed", appended)
-        self.assertIn("`policy`", appended)
+        self.assertNotEqual(after, before)
+        records = read_records(
+            campaign.learnings_path, campaign_root=campaign.store.campaign_dir
+        )
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["decision"]["label"], "simulated:rejected")
+        self.assertEqual(records[0]["hypothesis"], "raise policy quality")
+        self.assertEqual(records[0]["cluster_ref"], "stub/real_v1/failed")
+        self.assertEqual(records[0]["target_component"], "policy")
         self.assertEqual(campaign.state["iterations_since_accept"], 7)
         self.assertEqual(campaign.state["iterations_since_divergent"], 9)
         self.assertEqual(
@@ -3012,6 +3296,445 @@ class TransactionalLoopTest(unittest.TestCase):
         self.assertEqual(campaign.current_iteration, 0)
         self.assertFalse(campaign.worktree_path.exists())
         self.assertFalse((campaign.iteration_dir(1) / "eval/dev_baseline").exists())
+
+    def test_foreground_lifecycle_pause_resume_and_status_use_existing_transaction(self) -> None:
+        campaign = self._new_campaign(
+            "foreground-lifecycle",
+            {"kind": "harness-fixture", "file": QUALITY_REL,
+             "default_pass_rate": 0.55, "seed": 0},
+        )
+        self.assertEqual(operation_status(campaign)["blockers"], [])
+        lifecycle_request(campaign, "pause")
+        with self.assertRaisesRegex(RuntimeError, "campaign is paused.*resume"):
+            start_iteration(campaign)
+        with self.assertRaisesRegex(RuntimeError, "use `opti-loop resume`"):
+            lifecycle_request(campaign, "run")
+        lifecycle_request(campaign, "run", resume=True)
+        worktree = Path(start_iteration(campaign)["worktree"])
+        lifecycle_request(campaign, "pause")
+        with self.assertRaisesRegex(RuntimeError, "campaign is paused.*resume"):
+            run_iteration(campaign)
+        lifecycle_request(campaign, "run", resume=True)
+        self._commit_quality(worktree, "0.56\n")
+        self._write_manifest(worktree, predicted=self.flipping[:1])
+        result = run_iteration(campaign)
+        self.assertFalse(result["advanced_accepted_state"])
+        report = operation_status(campaign)
+        self.assertEqual(report["pending_iteration"], 0)
+        self.assertEqual(report["attempts_started"], 1)
+        record = read_records(
+            campaign.learnings_path, campaign_root=campaign.store.campaign_dir
+        )[-1]
+        self.assertEqual(record["decision"]["evidence_class"], "simulated")
+        self.assertEqual(set(record["source_disposition"]), {"sources", "executed"})
+        self.assertTrue(record["source_disposition"]["executed"])
+        lifecycle_request(campaign, "stop")
+        with self.assertRaisesRegex(RuntimeError, "use `opti-loop resume`"):
+            lifecycle_request(campaign, "run")
+        self.assertEqual(
+            lifecycle_request(campaign, "run", resume=True)["state"], "running"
+        )
+
+    def test_lifecycle_request_reloads_state_after_campaign_lock(self) -> None:
+        stale = self._new_campaign(
+            "lifecycle-stale", {"kind": "fixture", "seed": 0}
+        )
+        concurrent = load_campaign(
+            self.repo, stale.campaign_id, store_root=self.store
+        )
+        concurrent.state["operation_attempts"] = 7
+        concurrent.state["cleanup_health"] = {
+            "status": "failed", "detail": "conductor cleanup checkpoint"
+        }
+        concurrent.save_state()
+
+        lifecycle_request(stale, "pause")
+        reloaded = load_campaign(
+            self.repo, stale.campaign_id, store_root=self.store
+        )
+        self.assertEqual(reloaded.state["operation_attempts"], 7)
+        self.assertEqual(
+            reloaded.state["cleanup_health"]["detail"],
+            "conductor cleanup checkpoint",
+        )
+        self.assertEqual(reloaded.state["lifecycle"]["request"], "pause")
+
+    def test_canonical_publication_status_blocks_malformed_cli_routing(self) -> None:
+        campaign = self._new_campaign(
+            "malformed-routing", {"kind": "fixture", "seed": 0}
+        )
+        malformed = _seal_publication_record({
+            "schema_version": "0.4.0",
+            "record_type": "accepted-publication",
+            "campaign_id": campaign.campaign_id,
+            "status": "pending",
+        })
+        (campaign.store.campaign_dir / "accepted-publication.json").write_text(
+            json.dumps(malformed, indent=2, sort_keys=True) + "\n"
+        )
+        projected = publication_status(campaign)
+        self.assertEqual(projected["status"], "malformed")
+        self.assertIn("invalid closed shape", projected["error"])
+        self.assertTrue(any(
+            "publication record is malformed" in blocker
+            for blocker in operation_status(campaign)["blockers"]
+        ))
+        stderr = StringIO()
+        with redirect_stderr(stderr):
+            code = cli_main([
+                "--repo-root", str(self.repo),
+                "--store-root", str(self.store),
+                "run", "--campaign", campaign.campaign_id,
+            ])
+        self.assertEqual(code, 2)
+        self.assertIn("publication record is malformed", stderr.getvalue())
+
+    def test_cli_run_reloads_locked_state_before_routing_concurrent_pending_work(self) -> None:
+        campaign = self._new_campaign(
+            "concurrent-cli-route",
+            {"kind": "harness-fixture", "file": QUALITY_REL,
+             "default_pass_rate": 0.55, "seed": 0},
+        )
+        lifecycle_request(campaign, "run")
+        real_request = lifecycle_request
+
+        def request_then_open_iteration(current, value, *, resume=False):
+            lifecycle = real_request(current, value, resume=resume)
+            concurrent = load_campaign(
+                self.repo, current.campaign_id, store_root=self.store
+            )
+            worktree = Path(start_iteration(concurrent)["worktree"])
+            self._commit_quality(worktree, "0.56\n")
+            self._write_manifest(worktree, predicted=self.flipping[:1])
+            return lifecycle
+
+        with mock.patch("opti_loop.cli.request", side_effect=request_then_open_iteration):
+            code = cli_main([
+                "--repo-root", str(self.repo),
+                "--store-root", str(self.store),
+                "run", "--campaign", campaign.campaign_id,
+            ])
+        self.assertEqual(code, 0)
+        reloaded = load_campaign(self.repo, campaign.campaign_id, store_root=self.store)
+        self.assertEqual(reloaded.current_iteration, 1)
+        self.assertEqual(reloaded.state["pending_iteration"], 0)
+        self.assertEqual(len(reloaded.ledger_path.read_text().splitlines()), 1)
+
+    def test_terminal_publication_status_requires_retained_authoritative_artifacts(self) -> None:
+        campaign = self._new_campaign(
+            "terminal-status-artifacts",
+            {"kind": "harness-fixture", "file": QUALITY_REL,
+             "default_pass_rate": 0.55, "seed": 0},
+        )
+        worktree = Path(start_iteration(campaign)["worktree"])
+        self._commit_quality(worktree, "0.56\n")
+        self._write_manifest(worktree, predicted=self.flipping[:1])
+        run_iteration(campaign)
+        self.assertEqual(publication_status(campaign)["status"], "complete")
+        ledger = campaign.ledger_path.read_text()
+        learning = campaign.learnings_path.read_text()
+        snapshot_path = campaign.iteration_dir(1) / "manifest.snapshot.json"
+        snapshot = snapshot_path.read_text()
+        next_iteration = start_iteration(campaign)
+        self.assertEqual(next_iteration["iteration"], 2)
+        self.assertEqual(campaign.state["pending_iteration"], 2)
+        historical = publication_status(campaign)
+        self.assertEqual(historical["status"], "complete")
+        self.assertEqual(historical["iteration"], 1)
+
+        ledger_row = json.loads(ledger)
+        altered_ledger = {**ledger_row, "hypothesis": "corrupted hypothesis"}
+        expanded_ledger = {**ledger_row, "unexpected": "not canonical"}
+        altered_snapshot = json.loads(snapshot)
+        altered_snapshot["target_component"] = "actions"
+        mutations = {
+            "missing ledger": ("", learning, snapshot, "run"),
+            "duplicate learning": (ledger, learning + learning, snapshot, "resume"),
+            "inconsistent learning": (
+                ledger,
+                learning.replace('"campaign_id": "terminal-status-artifacts"',
+                                 '"campaign_id": "other"'),
+                snapshot,
+                "run",
+            ),
+            "non-receipt ledger field": (
+                json.dumps(altered_ledger, sort_keys=True) + "\n",
+                learning,
+                snapshot,
+                "run",
+            ),
+            "ledger closed shape": (
+                json.dumps(expanded_ledger, sort_keys=True) + "\n",
+                learning,
+                snapshot,
+                "resume",
+            ),
+            "manifest snapshot field": (
+                ledger,
+                learning,
+                json.dumps(altered_snapshot, indent=2, sort_keys=True) + "\n",
+                "resume",
+            ),
+        }
+        for label, (ledger_bytes, learning_bytes, snapshot_bytes, command) in (
+            mutations.items()
+        ):
+            with self.subTest(label=label):
+                campaign.ledger_path.write_text(ledger_bytes)
+                campaign.learnings_path.write_text(learning_bytes)
+                snapshot_path.write_text(snapshot_bytes)
+                projected = publication_status(campaign)
+                self.assertEqual(projected["status"], "malformed")
+                self.assertTrue(projected["recovery_required"])
+                stderr = StringIO()
+                with redirect_stderr(stderr):
+                    code = cli_main([
+                        "--repo-root", str(self.repo),
+                        "--store-root", str(self.store),
+                        command, "--campaign", campaign.campaign_id,
+                    ])
+                self.assertEqual(code, 2)
+                self.assertIn("publication record is malformed", stderr.getvalue())
+        campaign.ledger_path.write_text(ledger)
+        campaign.learnings_path.write_text(learning)
+        snapshot_path.write_text(snapshot)
+        self.assertEqual(publication_status(campaign)["status"], "complete")
+
+    def test_canonical_ledger_reader_rejects_invalid_jsonl_rows(self) -> None:
+        campaign = self._new_campaign(
+            "strict-ledger-reader",
+            {"kind": "harness-fixture", "file": QUALITY_REL,
+             "default_pass_rate": 0.55, "seed": 0},
+        )
+        worktree = Path(start_iteration(campaign)["worktree"])
+        self._commit_quality(worktree, "0.56\n")
+        self._write_manifest(worktree, predicted=self.flipping[:1])
+        run_iteration(campaign)
+        valid = campaign.ledger_path.read_text()
+        valid_record = valid.removesuffix("\n")
+        row = json.loads(valid)
+        missing = dict(row)
+        missing.pop("hypothesis")
+        extra = {**row, "unexpected": True}
+        duplicate = valid.replace(
+            '"iteration": 1', '"iteration": 1, "iteration": 1', 1
+        )
+        cases = {
+            "malformed JSON": "{\n",
+            "duplicate key": duplicate,
+            "non-object": "[]\n",
+            "missing field": json.dumps(missing) + "\n",
+            "extra field": json.dumps(extra) + "\n",
+        }
+        for label, contents in cases.items():
+            with self.subTest(label=label):
+                campaign.ledger_path.write_text(contents)
+                with self.assertRaisesRegex(ValueError, "ledger row 1"):
+                    read_rows(campaign.ledger_path)
+        campaign.ledger_path.write_text(valid)
+        self.assertEqual(len(read_rows(campaign.ledger_path)), 1)
+
+        campaign.ledger_path.write_bytes(b"")
+        self.assertEqual(read_rows(campaign.ledger_path), [])
+        for label, contents in {
+            "LF": valid_record + "\n",
+            "CRLF": valid_record + "\r\n",
+            "no final delimiter": valid_record,
+        }.items():
+            with self.subTest(valid_framing=label):
+                campaign.ledger_path.write_bytes(contents.encode())
+                self.assertEqual(len(read_rows(campaign.ledger_path)), 1)
+
+        framing_cases = {
+            "blank physical row": (
+                valid_record + "\n\n" + valid_record,
+                "ledger JSONL record 2",
+            ),
+            "whitespace physical row": (
+                valid_record + "\n \t\n" + valid_record,
+                "ledger JSONL record 2",
+            ),
+            "extra trailing delimiter": (
+                valid_record + "\n\n",
+                "ledger JSONL record 2",
+            ),
+            "raw carriage return": (
+                valid_record + "\r" + valid_record,
+                "ledger JSONL record 1",
+            ),
+            "Unicode line separator": (
+                valid_record + "\u2028" + valid_record,
+                "ledger row 1",
+            ),
+            "Unicode paragraph separator": (
+                valid_record + "\u2029" + valid_record,
+                "ledger row 1",
+            ),
+        }
+        for label, (contents, diagnostic) in framing_cases.items():
+            with self.subTest(invalid_framing=label):
+                campaign.ledger_path.write_bytes(contents.encode())
+                with self.assertRaisesRegex(ValueError, diagnostic):
+                    read_rows(campaign.ledger_path)
+        campaign.ledger_path.write_text(valid)
+
+    def test_status_publication_and_packet_fail_closed_on_invalid_ledger(self) -> None:
+        campaign = self._new_campaign(
+            "invalid-ledger-consumers",
+            {"kind": "harness-fixture", "file": QUALITY_REL,
+             "default_pass_rate": 0.55, "seed": 0},
+        )
+        worktree = Path(start_iteration(campaign)["worktree"])
+        self._commit_quality(worktree, "0.56\n")
+        self._write_manifest(worktree, predicted=self.flipping[:1])
+        run_iteration(campaign)
+        valid = campaign.ledger_path.read_text()
+        campaign.ledger_path.write_text(
+            valid.replace('"iteration": 1', '"iteration": 1, "iteration": 1', 1)
+        )
+
+        publication = publication_status(campaign)
+        self.assertEqual(publication["status"], "malformed")
+        self.assertIn("ledger row 1", publication["error"])
+        stdout = StringIO()
+        with redirect_stdout(stdout):
+            code = cli_main([
+                "--repo-root", str(self.repo),
+                "--store-root", str(self.store),
+                "status", "--campaign", campaign.campaign_id,
+            ])
+        self.assertEqual(code, 0)
+        status = json.loads(stdout.getvalue())
+        self.assertNotIn("ledger_rows", status)
+        self.assertNotIn("last", status)
+        blockers = status["operation"]["blockers"]
+        self.assertTrue(any("publication record is malformed" in item for item in blockers))
+        self.assertTrue(any("ledger row 1" in item for item in blockers))
+
+        packet_dir = campaign.store.campaign_dir / "invalid-ledger-packet"
+        packet_dir.mkdir()
+        with self.assertRaisesRegex(ValueError, "ledger row 1"):
+            build_packet(
+                iteration_dir=packet_dir,
+                iteration=2,
+                campaign_id=campaign.campaign_id,
+                divergent=False,
+                ranked_clusters=[],
+                ledger_path=campaign.ledger_path,
+                baseline_summary={},
+                candidate_allowlist=["harness/components/"],
+                latest_learning_record=None,
+            )
+        self.assertFalse((packet_dir / "packet.json").exists())
+        campaign.ledger_path.write_text(valid)
+
+    def test_status_exposes_ref_split_failed_cleanup_and_external_meter_blockers(self) -> None:
+        campaign = self._new_campaign("status-blockers", {"kind": "fixture", "seed": 0})
+        campaign.state["accepted_iterations"] = [1]
+        campaign.state["cleanup_health"] = {
+            "status": "failed", "detail": "WARC lifecycle cleanup failed: worker not reaped"
+        }
+        campaign.config["operation"]["external_metering"] = "unavailable"
+        campaign.save_state()
+        campaign.save_config()
+        self.assertFalse(accepted_ref_status(campaign)["ok"])
+        found = operation_status(campaign)["blockers"]
+        self.assertTrue(any("accepted-ref" in item for item in found))
+        self.assertTrue(any("worker not reaped" in item for item in found))
+        self.assertTrue(any("external spend/token metering" in item for item in found))
+        with self.assertRaisesRegex(RuntimeError, "worker not reaped"):
+            start_iteration(campaign)
+
+    def test_malformed_or_exhausted_closed_limits_fail_before_advancement(self) -> None:
+        campaign = self._new_campaign("bad-limits", {"kind": "fixture", "seed": 0})
+        campaign.config["operation"].pop("max_attempts")
+        campaign.save_config()
+        self.assertIn("invalid closed shape", operation_blockers(campaign, action="start")[0])
+        with self.assertRaisesRegex(RuntimeError, "invalid closed shape"):
+            start_iteration(campaign)
+
+        campaign = self._new_campaign("spent-limits", {"kind": "fixture", "seed": 0})
+        campaign.config["operation"]["max_iterations"] = 1
+        campaign.state["current_iteration"] = 1
+        campaign.save_config()
+        campaign.save_state()
+        with self.assertRaisesRegex(RuntimeError, "iteration limit is exhausted"):
+            start_iteration(campaign)
+
+        campaign = self._new_campaign("spent-attempts", {"kind": "fixture", "seed": 0})
+        start_iteration(campaign)
+        campaign.config["operation"]["max_attempts"] = 1
+        campaign.state["operation_attempts"] = 1
+        campaign.save_config()
+        campaign.save_state()
+        with self.assertRaisesRegex(RuntimeError, "attempt limit is exhausted"):
+            run_iteration(campaign)
+
+        campaign = self._new_campaign("bad-lifecycle", {"kind": "fixture", "seed": 0})
+        campaign.state["lifecycle"]["state"] = "mystery"
+        campaign.save_state()
+        self.assertIn(
+            "lifecycle state is invalid",
+            operation_status(campaign)["blockers"][0],
+        )
+
+    def test_invalid_learning_citation_blocks_the_next_optimizer_packet(self) -> None:
+        campaign = self._new_campaign(
+            "learning-citation",
+            {"kind": "harness-fixture", "file": QUALITY_REL,
+             "default_pass_rate": 0.55, "seed": 0},
+        )
+        worktree = Path(start_iteration(campaign)["worktree"])
+        self._commit_quality(worktree, "0.56\n")
+        self._write_manifest(worktree, predicted=self.flipping[:1])
+        run_iteration(campaign)
+        row = json.loads(campaign.learnings_path.read_text().strip())
+        row["citations"][0]["sha256"] = "0" * 64
+        campaign.learnings_path.write_text(json.dumps(row) + "\n")
+        with self.assertRaisesRegex(ValueError, "citation checksum mismatch"):
+            start_iteration(campaign)
+
+    def test_invalid_benchmark_learning_is_gate_only_and_nonreportable(self) -> None:
+        campaign = self._new_campaign(
+            "invalid-benchmark-learning",
+            {"kind": "harness-fixture", "file": QUALITY_REL,
+             "default_pass_rate": 0.55, "seed": 0},
+        )
+        worktree = Path(start_iteration(campaign)["worktree"])
+        self._commit_quality(worktree, "0.70\n")
+        self._write_manifest(worktree, predicted=self.flipping[:1])
+        bundle, sidecar = self._static_handback(campaign, worktree)
+        invalid = GateReport(iteration=1)
+        invalid.verdict = Verdict("invalid", "benchmark")
+        invalid.rungs.append(
+            RungResult("E1", "invalid", {"error": "trace admission failed"})
+        )
+        with (
+            mock.patch("opti_loop.conductor._benchmark_handback_required", return_value=True),
+            mock.patch(
+                "opti_loop.conductor._validate_benchmark_handback_ownership",
+                return_value=os.getuid(),
+            ),
+            mock.patch("opti_loop.conductor.run_gate", return_value=invalid),
+        ):
+            result = run_iteration(
+                campaign, candidate_bundle=bundle, candidate_manifest=sidecar
+            )
+        self.assertEqual(result["decision"], "invalid")
+        self.assertEqual(result["evidence_class"], "benchmark")
+        record = read_records(
+            campaign.learnings_path, campaign_root=campaign.store.campaign_dir
+        )[0]
+        self.assertEqual(record["decision"]["decision"], "invalid")
+        self.assertEqual(record["decision"]["evidence_class"], "benchmark")
+        self.assertEqual(set(record["source_disposition"]), {"sources", "executed"})
+        self.assertFalse(record["source_disposition"]["executed"])
+        self.assertEqual([citation["kind"] for citation in record["citations"]], ["gate"])
+        started = start_iteration(campaign)
+        packet = json.loads(
+            (campaign.iteration_dir(started["iteration"]) / "packet.json").read_text()
+        )
+        self.assertEqual(packet["latest_learning_record"], record)
 
 
 if __name__ == "__main__":

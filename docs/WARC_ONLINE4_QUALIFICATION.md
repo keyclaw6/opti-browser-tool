@@ -164,7 +164,12 @@ opti-loop --repo-root /path/to/opti-browser-tool \
   init --campaign warc-online4-qualification \
   --adapter warc-online4 \
   --warc-config /owner-only/warc-online4.json \
-  --dev-suite warc-online4-qualification
+  --dev-suite warc-online4-qualification \
+  --max-iterations OWNER_CHOSEN_INTEGER \
+  --max-attempts OWNER_CHOSEN_INTEGER \
+  --deadline-seconds OWNER_CHOSEN_INTEGER \
+  --external-metering-id OWNER_APPROVED_METER_IDENTITY \
+  --authorize-production-campaign
 ```
 
 Start creates the accepted-build baseline through the normal conductor path:

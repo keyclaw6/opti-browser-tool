@@ -94,6 +94,20 @@ class RepoRootDiscoveryTest(unittest.TestCase):
             self.assertEqual(code, 2)
             self.assertIn("--harness-file required", stderr.getvalue())
 
+    def test_init_requires_closed_campaign_limits_with_exact_remediation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = _seed_repo(Path(tmp))
+            stderr = StringIO()
+            with redirect_stderr(stderr):
+                code = main([
+                    "--repo-root", str(repo), "init", "--campaign", "no-limits",
+                ])
+            self.assertEqual(code, 2)
+            self.assertIn(
+                "--max-iterations, --max-attempts, and --deadline-seconds are required",
+                stderr.getvalue(),
+            )
+
     def test_warc_admission_preflight_blocks_campaign_initialization(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = _seed_repo(Path(tmp))
@@ -132,6 +146,8 @@ class RepoRootDiscoveryTest(unittest.TestCase):
                     "--repo-root", str(repo), "init", "--campaign", "fixture",
                     "--adapter", "harness-fixture", "--harness-file",
                     "harness/components/policy/quality.txt",
+                    "--max-iterations", "3", "--max-attempts", "6",
+                    "--deadline-seconds", "3600",
                 ])
             self.assertEqual(code, 0)
             self.assertEqual(
@@ -244,13 +260,31 @@ class RepoRootDiscoveryTest(unittest.TestCase):
                     "init", "--campaign", "offline", "--adapter",
                     "harness-fixture", "--harness-file",
                     "harness/components/policy/quality.txt",
+                    "--max-iterations", "3", "--max-attempts", "6",
+                    "--deadline-seconds", "3600",
                 ])
             self.assertEqual(init_code, 0, init_output.getvalue())
+            with redirect_stdout(StringIO()):
+                self.assertEqual(main([
+                    "--repo-root", str(repo), "--store-root", str(store),
+                    "preflight", "--campaign", "offline",
+                ]), 0)
+                self.assertEqual(main([
+                    "--repo-root", str(repo), "--store-root", str(store),
+                    "pause", "--campaign", "offline",
+                ]), 0)
+            paused_stderr = StringIO()
+            with redirect_stderr(paused_stderr):
+                self.assertEqual(main([
+                    "--repo-root", str(repo), "--store-root", str(store),
+                    "run", "--campaign", "offline",
+                ]), 2)
+            self.assertIn("campaign is paused", paused_stderr.getvalue())
             start_output = StringIO()
             with redirect_stdout(start_output):
                 start_code = main([
                     "--repo-root", str(repo), "--store-root", str(store),
-                    "start", "--campaign", "offline",
+                    "resume", "--campaign", "offline",
                 ])
             self.assertEqual(start_code, 0, start_output.getvalue())
             campaign = load_campaign(repo, "offline", store_root=store)

@@ -90,7 +90,7 @@ class TrustedStore:
 
     @property
     def learnings_path(self) -> Path:
-        return self.campaign_dir / "LEARNINGS.md"
+        return self.campaign_dir / "learning-records.jsonl"
 
     @property
     def clusters_path(self) -> Path:

@@ -56,9 +56,14 @@ Minimum content: trace evidence (run and event IDs) → suspected root cause →
 8. Respect the safety invariant: no live-site actions exist in the loop until [ADR-0006](docs/adr/0006-live-site-testing-policy.md) is settled; destructive-action interlocks in middleware must not be weakened to gain speed.
 9. When blocked (missing artifact, contradictory instruction, suspected instrument fault), **record the blockage in your learnings entry and stop**. Do not expand your own scope to work around it.
 
-## 6. Learnings ledger
+## 6. Learning records
 
-Append one entry per iteration: hypothesis, verdict, prediction accuracy, what you now believe and why. Meta-level learnings are unrestricted (memory regime 1). This ledger is your only persistent memory across iterations — write for your successor.
+The Conductor writes one closed, versioned, trace-cited `LearningRecord` per
+terminal iteration. It binds campaign, iteration, base/candidate/protocol,
+decision, source disposition, and retained gate/trace/artifact checksums. The
+next packet includes only the latest revalidated record. Missing, malformed, or
+stale citations block the next packet. Simulated records are explicitly
+`simulation-only` and never become benchmark learning or performance evidence.
 
 ## 7. Verification commands available today
 
@@ -79,6 +84,11 @@ Loop operator commands (conductor; see `loop_harness/README.md`):
 
 ```bash
 opti-loop --store-root PATH init --campaign <id>     # global flags precede the subcommand
+opti-loop preflight --campaign <id>                  # read-only actionable readiness
+opti-loop run --campaign <id>                        # one foreground start/resume step
+opti-loop pause --campaign <id>                      # preventative safe-boundary request
+opti-loop resume --campaign <id>                     # clear pause and advance one step
+opti-loop stop --campaign <id>                       # terminal owner request
 opti-loop measure-noise --campaign <id>              # owner artifact, identity-bound
 opti-loop start --campaign <id>                      # phase A+C: base worktree, baseline, packet
 opti-loop run-iteration --campaign <id>              # phases E+B+F as ONE transaction
