@@ -3445,6 +3445,190 @@ class TransactionalLoopTest(unittest.TestCase):
             self.assertEqual(code, 2)
             self.assertIn("publication receipt is missing", stderr.getvalue())
 
+    def test_baseline_preparation_exposes_only_prior_stable_publication(self) -> None:
+        from opti_loop import evaluate as evaluate_module
+
+        campaign = self._new_campaign(
+            "baseline-stable-publication",
+            {"kind": "harness-fixture", "file": QUALITY_REL,
+             "default_pass_rate": 0.55, "seed": 0},
+        )
+        observed: list[tuple[int, int, str, int | None]] = []
+        real_run_evaluation = evaluate_module.run_evaluation
+
+        def inspect_campaign_during_run_suite(**kwargs):
+            reloaded = load_campaign(
+                self.repo, campaign.campaign_id, store_root=self.store
+            )
+            publication = publication_status(reloaded)
+            observed.append((
+                reloaded.current_iteration,
+                reloaded.state["pending_iteration"],
+                publication["status"],
+                publication.get("iteration"),
+            ))
+            return real_run_evaluation(**kwargs)
+
+        with mock.patch(
+            "opti_loop.evaluate.run_evaluation",
+            side_effect=inspect_campaign_during_run_suite,
+        ):
+            first_worktree = Path(start_iteration(campaign)["worktree"])
+
+        self.assertEqual(observed, [(0, 0, "none", None)] * 2)
+        self.assertEqual(campaign.current_iteration, 1)
+        self.assertEqual(campaign.state["pending_iteration"], 1)
+
+        self._commit_quality(first_worktree, "0.00\n")
+        self._write_manifest(first_worktree, predicted=self.flipping[:1])
+        self.assertEqual(run_iteration(campaign)["decision"], "rejected")
+
+        observed.clear()
+        with mock.patch(
+            "opti_loop.evaluate.run_evaluation",
+            side_effect=inspect_campaign_during_run_suite,
+        ):
+            start_iteration(campaign)
+
+        self.assertEqual(observed, [(1, 0, "complete", 1)] * 2)
+        self.assertEqual(campaign.current_iteration, 2)
+        self.assertEqual(campaign.state["pending_iteration"], 2)
+
+    def test_all_start_preparation_failures_restore_and_retry_iteration(self) -> None:
+        from opti_loop.campaign import Campaign
+        from opti_loop.clusters import save_register as real_save_register
+
+        for failure in ("packet", "register", "state"):
+            with self.subTest(failure=failure):
+                campaign = self._new_campaign(
+                    f"start-preparation-{failure}",
+                    {"kind": "harness-fixture", "file": QUALITY_REL,
+                     "default_pass_rate": 0.55, "seed": 0},
+                )
+                first_worktree = Path(start_iteration(campaign)["worktree"])
+                self._commit_quality(first_worktree, "0.00\n")
+                self._write_manifest(first_worktree, predicted=self.flipping[:1])
+                self.assertEqual(run_iteration(campaign)["decision"], "rejected")
+                prior_publication = publication_status(campaign)
+                self.assertEqual(prior_publication["status"], "complete")
+                self.assertEqual(prior_publication["iteration"], 1)
+                self.assertFalse(prior_publication["recovery_required"])
+                state_before = campaign.store.state_path.read_bytes()
+                clusters_before = campaign.clusters_path.read_bytes()
+
+                if failure == "packet":
+                    fault = mock.patch(
+                        "opti_loop.conductor.build_packet",
+                        side_effect=OSError("injected packet failure"),
+                    )
+                else:
+                    if failure == "register":
+                        def persist_then_fail(path, register):
+                            real_save_register(path, register)
+                            raise OSError("injected register persistence failure")
+
+                        fault = mock.patch(
+                            "opti_loop.conductor.save_register",
+                            side_effect=persist_then_fail,
+                        )
+                    else:
+                        real_save_state = Campaign.save_state
+                        failed = False
+
+                        def persist_then_fail_once(current):
+                            nonlocal failed
+                            real_save_state(current)
+                            if current is campaign and not failed:
+                                failed = True
+                                raise OSError("injected state persistence failure")
+
+                        fault = mock.patch.object(
+                            Campaign,
+                            "save_state",
+                            autospec=True,
+                            side_effect=persist_then_fail_once,
+                        )
+
+                with fault, self.assertRaisesRegex(OSError, f"injected {failure}"):
+                    start_iteration(campaign)
+
+                reloaded = load_campaign(
+                    self.repo, campaign.campaign_id, store_root=self.store
+                )
+                self.assertEqual(reloaded.store.state_path.read_bytes(), state_before)
+                self.assertEqual(reloaded.clusters_path.read_bytes(), clusters_before)
+                self.assertFalse(reloaded.iteration_dir(2).exists())
+                self.assertFalse(reloaded.worktree_path.exists())
+                publication = publication_status(reloaded)
+                self.assertEqual(publication["status"], "complete")
+                self.assertEqual(publication["iteration"], 1)
+
+                retry = start_iteration(reloaded)
+                self.assertEqual(retry["iteration"], 2)
+                self.assertEqual(reloaded.current_iteration, 2)
+                self.assertEqual(reloaded.state["pending_iteration"], 2)
+
+    def test_state_rollback_persists_before_later_cleanup_failure(self) -> None:
+        from opti_loop.campaign import Campaign
+
+        campaign = self._new_campaign(
+            "start-state-before-cleanup",
+            {"kind": "harness-fixture", "file": QUALITY_REL,
+             "default_pass_rate": 0.55, "seed": 0},
+        )
+        first_worktree = Path(start_iteration(campaign)["worktree"])
+        self._commit_quality(first_worktree, "0.00\n")
+        self._write_manifest(first_worktree, predicted=self.flipping[:1])
+        self.assertEqual(run_iteration(campaign)["decision"], "rejected")
+        state_before = campaign.store.state_path.read_bytes()
+
+        real_save_state = Campaign.save_state
+        failed = False
+
+        def persist_then_fail_once(current):
+            nonlocal failed
+            real_save_state(current)
+            if current is campaign and not failed:
+                failed = True
+                raise OSError("injected final state persistence failure")
+
+        with (
+            mock.patch.object(
+                Campaign,
+                "save_state",
+                autospec=True,
+                side_effect=persist_then_fail_once,
+            ),
+            mock.patch(
+                "opti_loop.conductor.shutil.rmtree",
+                side_effect=OSError("injected later cleanup failure"),
+            ),
+            self.assertRaisesRegex(OSError, "injected later cleanup failure"),
+        ):
+            start_iteration(campaign)
+
+        reloaded = load_campaign(
+            self.repo, campaign.campaign_id, store_root=self.store
+        )
+        self.assertEqual(reloaded.store.state_path.read_bytes(), state_before)
+        self.assertEqual(reloaded.current_iteration, 1)
+        self.assertEqual(reloaded.state["pending_iteration"], 0)
+        publication = publication_status(reloaded)
+        self.assertEqual(publication["status"], "complete")
+        self.assertEqual(publication["iteration"], 1)
+        self.assertTrue(reloaded.iteration_dir(2).exists())
+
+        with self.assertRaisesRegex(
+            RuntimeError, "next iteration path already exists"
+        ):
+            start_iteration(reloaded)
+        routed = load_campaign(
+            self.repo, campaign.campaign_id, store_root=self.store
+        )
+        self.assertEqual(routed.current_iteration, 1)
+        self.assertEqual(routed.state["pending_iteration"], 0)
+        self.assertEqual(publication_status(routed)["iteration"], 1)
+
     def test_cli_run_reloads_locked_state_before_routing_concurrent_pending_work(self) -> None:
         campaign = self._new_campaign(
             "concurrent-cli-route",

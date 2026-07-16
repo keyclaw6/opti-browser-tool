@@ -80,7 +80,8 @@ file and remains simulated/nonreportable:
 ```bash
 opti-loop --store-root /safe/path init --campaign rehearsal \
   --adapter harness-fixture \
-  --harness-file harness/components/policy/quality.txt
+  --harness-file harness/components/policy/quality.txt \
+  --max-iterations 3 --max-attempts 6 --deadline-seconds 3600
 opti-loop --store-root /safe/path start --campaign rehearsal
 ```
 

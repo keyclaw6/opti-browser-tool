@@ -117,13 +117,6 @@ class Campaign:
     def current_iteration(self) -> int:
         return int(self.state.get("current_iteration", 0))
 
-    def open_iteration(self) -> int:
-        number = self.current_iteration + 1
-        self.state["current_iteration"] = number
-        self.iteration_dir(number).mkdir(parents=True, exist_ok=True)
-        self.save_state()
-        return number
-
 
 def _deep_merge(config: dict[str, Any], overrides: dict[str, Any]) -> None:
     for key, value in overrides.items():

@@ -19,8 +19,8 @@ from unittest import mock
 from opti_eval.adapters.base import AdapterExecutionContext
 from opti_eval.adapters.warc_online4 import (
     CONFIG_FIELDS,
-    RUNTIME_FIELDS,
     TASK_ID,
+    WARC_NESTED_REQUIRED_FIELDS,
     WarcOnline4Adapter,
     WarcOnline4Error,
     load_and_preflight_config,
@@ -213,19 +213,15 @@ class WarcOnline4Test(unittest.TestCase):
         self.assertEqual(set(template), CONFIG_FIELDS)
         self.assertEqual(template["schema_version"], "0.1.0")
         self.assertEqual(template["mode"], "production")
-        self.assertEqual(set(template["runtime"]), RUNTIME_FIELDS)
+        for path, required_fields in WARC_NESTED_REQUIRED_FIELDS.items():
+            value = template
+            for part in path.split("."):
+                value = value[part]
+            self.assertEqual(set(value), required_fields, path)
         self.assertEqual(template["credentials"], {"required_env": ["OPENCODE_API_KEY"]})
         self.assertEqual(
             set(template["confinement"]),
             {"single_host", "network", "filesystem", "optimizer_uid", "static_inbox"},
-        )
-        self.assertEqual(
-            set(template["protocol_identity"]["repeated_protocol"]),
-            {
-                "matched_blocks", "coverage", "repeats", "stopping",
-                "outcome_handling", "effect", "non_inferiority", "regression",
-                "champion", "transfer", "multiplicity", "limits", "calibration",
-            },
         )
         rendered = template_path.read_text(encoding="utf-8")
         for placeholder in (
@@ -270,6 +266,18 @@ class WarcOnline4Test(unittest.TestCase):
                 with self.assertRaises(WarcOnline4Error):
                     load_and_preflight_config(self.config_path)
                 self.config = original
+
+    def test_missing_repeated_protocol_leaf_has_exact_actionable_error(self) -> None:
+        self.config["protocol_identity"]["repeated_protocol"]["effect"].pop(
+            "minimum_effect"
+        )
+        self._write()
+        with self.assertRaisesRegex(
+            WarcOnline4Error,
+            r"^protocol_identity\.repeated_protocol\.effect fields are not "
+            r"closed: missing minimum_effect$",
+        ):
+            load_and_preflight_config(self.config_path)
 
     def test_missing_credentials_fail_without_storing_values(self) -> None:
         self.config["mode"] = "production"

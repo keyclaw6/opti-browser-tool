@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import contextmanager
@@ -73,15 +74,52 @@ def _seed_loop_repo(path: Path) -> Path:
 class RepoRootDiscoveryTest(unittest.TestCase):
     def test_rehearsal_commands_bind_closed_limits_and_package_graph(self) -> None:
         makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
-        readme = (REPO_ROOT / "loop_harness/README.md").read_text(encoding="utf-8")
+        readmes = [
+            (REPO_ROOT / "README.md").read_text(encoding="utf-8"),
+            (REPO_ROOT / "loop_harness/README.md").read_text(encoding="utf-8"),
+        ]
         limits = "--max-iterations 3 --max-attempts 6 --deadline-seconds 3600"
         self.assertIn(limits, makefile)
-        self.assertIn(limits, readme)
+        for readme in readmes:
+            self.assertIn(limits, readme)
         loop_path = next(
             line for line in makefile.splitlines() if line.startswith("LOOP_PYTHONPATH :=")
         )
         for package in ("eval_harness/src", "judge_harness/src", "loop_harness/src"):
             self.assertIn(package, loop_path)
+
+        package_path = os.pathsep.join(
+            str(REPO_ROOT / package)
+            for package in ("eval_harness/src", "judge_harness/src", "loop_harness/src")
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo = _seed_loop_repo(root)
+            for campaign, cwd in (
+                ("root-readme", REPO_ROOT),
+                ("loop-readme", REPO_ROOT / "loop_harness"),
+            ):
+                result = subprocess.run(
+                    [
+                        sys.executable, "-m", "opti_loop",
+                        "--repo-root", str(repo),
+                        "--store-root", str(root / "store"),
+                        "init", "--campaign", campaign,
+                        "--adapter", "harness-fixture",
+                        "--harness-file", "harness/components/policy/quality.txt",
+                        "--max-iterations", "3", "--max-attempts", "6",
+                        "--deadline-seconds", "3600",
+                    ],
+                    cwd=cwd,
+                    env={
+                        **os.environ,
+                        "OPTI_BROWSER_REPO_ROOT": str(repo),
+                        "PYTHONPATH": package_path,
+                    },
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_explicit_root(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

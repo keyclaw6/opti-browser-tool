@@ -902,6 +902,60 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
   final-gate-green, YAGNI-bounded candidate is ready to commit; it is not yet
   committed or pushed.
 
+### Sentinel readiness defects final review checkpoint
+
+- **Writer/base/review state:** writer session
+  `019f6bf0-e541-7952-9cb2-4aa547786a35` remains the sole writer on clean base
+  `d0162ea0f59e514e4a666852d610153ba1127c65`. This is one uncommitted dirty
+  implementation candidate pending the implementation commit. Frozen
+  implementation/test digest
+  `f53db249a45600168a45392efdd800cdb209dbf799798125f705b98ab05f2d75`
+  received final CLEAN from correctness reviewer session
+  `019f6bf7-deca-79a0-96b1-57c1df08e0b6` and elegance/YAGNI/vision reviewer
+  session `019f6bf7-df19-7070-b594-7c421a0e956c`.
+- **Implemented behavior:** iteration start now completes accepted-base
+  development and regression preparation before one campaign save publishes
+  `current_iteration=N` with `pending_iteration=N`. Reloaded status during both
+  first and later real suite execution therefore sees only the prior stable
+  publication state; existing rollback, recovery, receipt validation, sole
+  publication authority, and fail-closed missing-terminal-receipt behavior are
+  unchanged. That same rollback now covers distillation, packet creation,
+  delayed register persistence, and final paired-iteration state persistence.
+  Injected packet, register-after-write, and state-after-write failures restore
+  prior state/register bytes, remove iteration artifacts/worktrees, preserve
+  the prior healthy publication, and retry the same iteration. Rollback now
+  durably restores `state_before` immediately under the campaign lock before
+  fallible cluster/artifact/worktree cleanup. A combined state-write and later
+  cleanup fault retains prior current/pending numbering and publication
+  projection, then makes the next route fail closed. The obsolete unused
+  `Campaign.open_iteration()` early-save authority is deleted; no new journal
+  or recovery path exists. WARC preflight delegates the complete nested
+  repeated protocol to the evaluation identity validator, including an exact missing
+  `effect.minimum_effect` diagnostic; production-template drift coverage walks
+  shared required fields through representative verifier, runtime, limits,
+  source-runtime, and repeated-protocol leaves. Both root and loop-harness
+  rehearsal instructions now bind all closed limits and execute with the
+  dependency-complete three-package path.
+- **Final orchestrator evidence:** full eval passes 70/70; judge passes 28/28;
+  loop passes 227/227 with one expected skip. Catalog validation passes 140
+  candidates and 140 catalog tasks, with primary 140, smoke 20, and regression
+  20. Schema validation passes 531 documents, including the 180-case experiment
+  corpus and 195-case evidence corpus. Documentation passes 86 Markdown files
+  and 177 links; repository completeness passes 55 required files; the file
+  manifest verifies 395 entries. Changed-surface Ruff, `py_compile`, and
+  `git diff --check` pass.
+- **Clean-install evidence:** normal `scripts/verify_clean_install.py` passes
+  with Python 3.14.5 and uv 0.11.6: three wheels, offline/no-index resolution,
+  negative control, CLIs, and all suites. The same proof under `unshare -Urn`
+  also passes. Neither proof used a live backend, and both retain
+  `benchmark_evidence=false`.
+- **Boundary/blockers:** no live operation, external spend, merge, push,
+  performance, or reportability claim occurred. `benchmark_reportable` remains
+  false without admitted real evidence. External WACZ/verifier/license/runtime
+  identities and admission, confinement, calibrated protocol/transfer evidence,
+  metering, credentials, required ADR decisions, and explicit campaign
+  authorization remain blockers.
+
 The milestone-F software checkpoint committed at `7c245e5` has the following
 local verification evidence; none is live/reportable qualification evidence:
 

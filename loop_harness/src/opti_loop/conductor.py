@@ -508,6 +508,12 @@ def _start_iteration_locked(
             f"{iteration_dir}"
         )
     state_before = copy.deepcopy(campaign.state)
+    clusters_existed_before = campaign.clusters_path.is_file()
+    clusters_before = (
+        campaign.clusters_path.read_text(encoding="utf-8")
+        if clusters_existed_before
+        else None
+    )
     worktree_created = False
     try:
         gitutil.worktree_add(campaign.repo_root, worktree, base_sha)
@@ -518,9 +524,6 @@ def _start_iteration_locked(
             campaign, worktree, iteration=number, purpose="iteration"
         )
         freeze_protocol(iteration_dir, protocol)
-        opened_number = campaign.open_iteration()
-        if opened_number != number:
-            raise RuntimeError("campaign iteration changed during protocol preflight")
         execution = protocol["execution"]
         accepted_build = protocol["accepted_build"]
         seed = int(protocol["repeated_protocol"]["matched_blocks"]["seeds"][0])
@@ -583,67 +586,92 @@ def _start_iteration_locked(
             ),
             label="regression baseline",
         )
+
+        # Drift vs the previous accepted treatment.
+        drift = None
+        if previous_accepted is not None:
+            changed = sorted(
+                task_id
+                for task_id in baseline.statuses
+                if baseline.statuses.get(task_id)
+                != previous_accepted.statuses.get(task_id)
+            )
+            drift = {"tasks_changed_since_accepted_treatment": changed}
+            atomic_write_json(iteration_dir / "drift.json", drift)
+
+        # C — DISTILL (stub analyst until traces exist).
+        analyst = StubAnalyst()
+        analysis = analyst.distill(
+            iteration=number,
+            run=baseline,
+            task_sources=sources,
+            out_dir=iteration_dir / "analysis",
+        )
+        register = load_register(campaign.clusters_path)
+        register = update_after_iteration(
+            register,
+            iteration=number,
+            failed_by_cluster=analysis["failed_by_cluster"],
+            fixed_task_ids=set(),
+            analyst_version=analyst.version,
+        )
+
+        # Exploration decision (ADR-0015 §9).
+        quota = int(execution["exploration"].get("divergence_quota", 5))
+        force_after = int(execution["exploration"].get("plateau_force_after", 4))
+        since_div = int(campaign.state.get("iterations_since_divergent", 0))
+        since_acc = int(campaign.state.get("iterations_since_accept", 0))
+        divergent = (quota > 0 and since_div + 1 >= quota) or (
+            force_after > 0 and since_acc >= force_after
+        )
+
+        build_packet(
+            iteration_dir=iteration_dir,
+            iteration=number,
+            campaign_id=campaign.campaign_id,
+            divergent=divergent,
+            ranked_clusters=ranked_unresolved(register),
+            ledger_path=campaign.ledger_path,
+            baseline_summary=baseline.summary,
+            candidate_allowlist=protocol["candidate_allowlist"],
+            latest_learning_record=latest_learning,
+        )
+        save_register(campaign.clusters_path, register)
+
+        campaign.state["current_iteration"] = number
+        campaign.state["pending_iteration"] = number
+        campaign.state["pending_divergent"] = divergent
+        campaign.state["pending_base_sha"] = base_sha
+        campaign.state["pending_protocol_digest"] = protocol["protocol_digest"]
+        campaign.state["pending_baseline_run_digest"] = baseline_context["run_digest"]
+        campaign.state["pending_regression_baseline_run_digest"] = regression_context[
+            "run_digest"
+        ]
+        campaign.state["pending_baseline_admission_receipt"] = baseline_admission
+        campaign.state["pending_baseline_activation_observation"] = (
+            baseline.activation_observation
+        )
+        campaign.state[
+            "pending_regression_baseline_admission_receipt"
+        ] = regression_admission
+        campaign.state["lifecycle"] = {
+            "schema_version": LIFECYCLE_VERSION,
+            "state": "running",
+            "request": "run",
+        }
+        campaign.save_state()
     except Exception:
         campaign.state = state_before
         campaign.save_state()
+        if clusters_before is not None:
+            atomic_write_text(campaign.clusters_path, clusters_before)
+        elif not clusters_existed_before:
+            campaign.clusters_path.unlink(missing_ok=True)
         if iteration_dir.exists() and not iteration_dir.is_symlink():
             shutil.rmtree(iteration_dir)
         if worktree_created:
             gitutil.worktree_remove(campaign.repo_root, worktree)
         raise
-
-    # Drift vs the previous accepted treatment.
-    drift = None
-    if previous_accepted is not None:
-        changed = sorted(t for t in baseline.statuses
-                         if baseline.statuses.get(t) != previous_accepted.statuses.get(t))
-        drift = {"tasks_changed_since_accepted_treatment": changed}
-        atomic_write_json(iteration_dir / "drift.json", drift)
-
-    # C — DISTILL (stub analyst until traces exist).
-    analyst = StubAnalyst()
-    analysis = analyst.distill(iteration=number, run=baseline, task_sources=sources,
-                               out_dir=iteration_dir / "analysis")
-    register = load_register(campaign.clusters_path)
-    register = update_after_iteration(register, iteration=number,
-                                       failed_by_cluster=analysis["failed_by_cluster"],
-                                       fixed_task_ids=set(), analyst_version=analyst.version)
-    save_register(campaign.clusters_path, register)
-
-    # Exploration decision (ADR-0015 §9).
-    quota = int(execution["exploration"].get("divergence_quota", 5))
-    force_after = int(execution["exploration"].get("plateau_force_after", 4))
-    since_div = int(campaign.state.get("iterations_since_divergent", 0))
-    since_acc = int(campaign.state.get("iterations_since_accept", 0))
-    divergent = (quota > 0 and since_div + 1 >= quota) or (force_after > 0 and since_acc >= force_after)
-
-    build_packet(iteration_dir=iteration_dir, iteration=number, campaign_id=campaign.campaign_id,
-                 divergent=divergent, ranked_clusters=ranked_unresolved(register),
-                 ledger_path=campaign.ledger_path, baseline_summary=baseline.summary,
-                 candidate_allowlist=protocol["candidate_allowlist"],
-                 latest_learning_record=latest_learning)
-
-    campaign.state["pending_iteration"] = number
-    campaign.state["pending_divergent"] = divergent
-    campaign.state["pending_base_sha"] = base_sha
-    campaign.state["pending_protocol_digest"] = protocol["protocol_digest"]
-    campaign.state["pending_baseline_run_digest"] = baseline_context["run_digest"]
-    campaign.state["pending_regression_baseline_run_digest"] = regression_context[
-        "run_digest"
-    ]
-    campaign.state["pending_baseline_admission_receipt"] = baseline_admission
-    campaign.state["pending_baseline_activation_observation"] = (
-        baseline.activation_observation
-    )
-    campaign.state[
-        "pending_regression_baseline_admission_receipt"
-    ] = regression_admission
-    campaign.state["lifecycle"] = {
-        "schema_version": LIFECYCLE_VERSION,
-        "state": "running",
-        "request": "run",
-    }
-    campaign.save_state()
 
     result: dict[str, Any] = {
         "iteration": number,

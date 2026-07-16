@@ -18,7 +18,14 @@ from typing import Any
 
 from .base import Adapter, AdapterExecutionContext
 from ..admissions import require_verifier_admission
-from ..identity import digest_json
+from ..identity import (
+    REPEATED_PROTOCOL_FIELDS,
+    REPEATED_SECTION_FIELDS,
+    SOURCE_RUNTIME_FIELDS,
+    IdentityError,
+    digest_json,
+    validate_repeated_protocol,
+)
 from ..models import TaskResult, artifact_ref
 from ..util import atomic_write_json, read_json, read_jsonl, sha256_file, write_jsonl
 from ..warc_online4_runtime import (
@@ -53,6 +60,25 @@ RUNTIME_FIELDS = {
     "playwright", "playwright_driver", "browser", "sandbox", "cdp_port",
 }
 VERSIONED_FIELDS = {"path", "sha256", "version_command", "expected_version"}
+WARC_VERIFIER_FIELDS = {
+    "id", "path", "sha256", "admissions_path", "admissions_sha256",
+}
+WARC_LIMIT_FIELDS = {"timeout_seconds", "deadline_seconds", "action_budget"}
+PROTOCOL_IDENTITY_FIELDS = {
+    "source_runtime", "activation_instrumentation", "lane", "repeated_protocol",
+}
+WARC_NESTED_REQUIRED_FIELDS = {
+    "runtime": RUNTIME_FIELDS,
+    "verifier": WARC_VERIFIER_FIELDS,
+    "limits": WARC_LIMIT_FIELDS,
+    "protocol_identity": PROTOCOL_IDENTITY_FIELDS,
+    "protocol_identity.source_runtime": SOURCE_RUNTIME_FIELDS,
+    "protocol_identity.repeated_protocol": REPEATED_PROTOCOL_FIELDS,
+    **{
+        f"protocol_identity.repeated_protocol.{name}": fields
+        for name, fields in REPEATED_SECTION_FIELDS.items()
+    },
+}
 RUNTIME_LAUNCHER = Path(__file__).resolve().parents[1] / "warc_online4_runtime.py"
 
 
@@ -195,7 +221,7 @@ def load_and_preflight_config(config_path: Path) -> dict[str, Any]:
     wacz = _closed(raw["wacz"], {"path", "sha256", "start_url"}, "wacz")
     verifier = _closed(
         raw["verifier"],
-        {"id", "path", "sha256", "admissions_path", "admissions_sha256"},
+        WARC_VERIFIER_FIELDS,
         "verifier",
     )
     wacz_path = _absolute_file(wacz["path"], wacz["sha256"], "wacz")
@@ -350,7 +376,7 @@ def load_and_preflight_config(config_path: Path) -> dict[str, Any]:
     if raw["mode"] == "production" and os.geteuid() == optimizer_uid:
         raise WarcOnline4Error("production conductor UID must differ from optimizer_uid")
 
-    limits = _closed(raw["limits"], {"timeout_seconds", "deadline_seconds", "action_budget"}, "limits")
+    limits = _closed(raw["limits"], WARC_LIMIT_FIELDS, "limits")
     for name in ("timeout_seconds", "deadline_seconds", "action_budget"):
         if type(limits[name]) is not int or limits[name] < 1:
             raise WarcOnline4Error(f"limits.{name} must be an integer >= 1")
@@ -367,14 +393,14 @@ def load_and_preflight_config(config_path: Path) -> dict[str, Any]:
     checked["treatment_path"] = _safe_relative(raw["treatment_path"], "treatment_path")
     protocol_identity = _closed(
         raw["protocol_identity"],
-        {"source_runtime", "activation_instrumentation", "lane", "repeated_protocol"},
+        PROTOCOL_IDENTITY_FIELDS,
         "protocol_identity",
     )
     if any(type(protocol_identity[name]) is not dict for name in protocol_identity):
         raise WarcOnline4Error("protocol_identity values must be objects")
     source_runtime = _closed(
         protocol_identity["source_runtime"],
-        {"source_revision", "setup", "reset", "environment", "browser"},
+        SOURCE_RUNTIME_FIELDS,
         "protocol_identity.source_runtime",
     )
     _text(source_runtime["source_revision"], "protocol_identity.source_runtime.source_revision")
@@ -390,12 +416,17 @@ def load_and_preflight_config(config_path: Path) -> dict[str, Any]:
     _text(lane["id"], "protocol_identity.lane.id")
     _safe_relative(lane["config_path"], "protocol_identity.lane.config_path")
     repeated = protocol_identity["repeated_protocol"]
-    required_repeated = {
-        "matched_blocks", "coverage", "repeats", "stopping", "outcome_handling",
-        "effect", "non_inferiority", "regression", "champion", "transfer",
-        "multiplicity", "limits", "calibration",
-    }
-    _closed(repeated, required_repeated, "protocol_identity.repeated_protocol")
+    try:
+        validate_repeated_protocol(
+            repeated,
+            runtimes={SOURCE: source_runtime},
+            mode="benchmark" if raw["mode"] == "production" else "simulated",
+        )
+    except IdentityError as exc:
+        detail = str(exc).replace(
+            "repeated_protocol", "protocol_identity.repeated_protocol", 1
+        )
+        raise WarcOnline4Error(detail) from exc
     checked["config_digest"] = digest_json(checked, domain="opti.warc-online4-config.v1")
     return checked
 

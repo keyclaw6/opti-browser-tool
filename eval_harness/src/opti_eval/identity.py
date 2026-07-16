@@ -483,7 +483,7 @@ def _validate_component_identity(
     _digest(row["digest"], field_name=f"{field_name}.digest")
 
 
-def _validate_repeated_protocol(
+def validate_repeated_protocol(
     value: object, *, runtimes: dict[str, Any], mode: str
 ) -> tuple[dict[str, Any], list[int], list[str], int]:
     repeated = _require_fields(
@@ -757,7 +757,7 @@ def validate_protocol_snapshot(value: object) -> dict[str, Any]:
             + ", ".join(missing_sources)
         )
 
-    repeated, seeds, arm_order, _repeat_count = _validate_repeated_protocol(
+    repeated, seeds, arm_order, _repeat_count = validate_repeated_protocol(
         snapshot["repeated_protocol"], runtimes=runtimes, mode=mode
     )
     schedule_role = "dev" if "dev" in suites_by_role else suites[0]["role"]

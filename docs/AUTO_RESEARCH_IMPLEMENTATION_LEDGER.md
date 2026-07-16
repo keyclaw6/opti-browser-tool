@@ -304,6 +304,56 @@ findings, and only then may the package be committed and the next package start.
   final-gate-green, YAGNI-bounded candidate is ready to commit; it is not yet
   committed or pushed.
 
+### Sentinel readiness defects final review checkpoint
+
+- **Writer/base/review state:** writer session
+  `019f6bf0-e541-7952-9cb2-4aa547786a35` remains the sole writer on clean base
+  `d0162ea0f59e514e4a666852d610153ba1127c65`. The candidate is dirty and
+  uncommitted pending the implementation commit. Frozen implementation/test
+  digest
+  `f53db249a45600168a45392efdd800cdb209dbf799798125f705b98ab05f2d75`
+  received final CLEAN from correctness reviewer session
+  `019f6bf7-deca-79a0-96b1-57c1df08e0b6` and elegance/YAGNI/vision reviewer
+  session `019f6bf7-df19-7070-b594-7c421a0e956c`.
+- **Exact implementation:** baseline and regression preparation precede the one
+  campaign save that publishes equal current/pending iteration N; in-suite
+  reloads observe only the healthy prior publication. The canonical evaluation
+  identity validator now directly governs WARC nested repeated-protocol
+  preflight, while shared required-field definitions drive recursive production
+  template drift checks. Root and loop-harness rehearsal initialization both
+  carry the three required limits and execute through the dependency-complete
+  eval/judge/loop package path. The sole publication record, rollback/recovery,
+  retained receipt checks, and deletion fail-close are preserved. The existing
+  start rollback now spans distillation, packet creation, delayed register
+  persistence, and the final paired-iteration state save; packet, register, and
+  state-save faults restore prior state/register bytes, remove iteration
+  artifacts/worktrees, preserve the prior publication, and retry the same
+  iteration. Rollback now durably restores `state_before` immediately under the
+  campaign lock before any fallible cluster/artifact/worktree cleanup. A
+  combined state-write and later-cleanup fault retains prior current/pending
+  numbering and publication projection, then makes the next route fail closed.
+  The unused `Campaign.open_iteration()` early-save authority is deleted; no
+  journal or recovery path was added.
+- **Final orchestrator evidence:** full eval passes 70/70; judge passes 28/28;
+  loop passes 227/227 with one expected skip. Catalog validation passes 140
+  candidates and 140 catalog tasks, with primary 140, smoke 20, and regression
+  20. Schema validation passes 531 documents, including the 180-case experiment
+  corpus and 195-case evidence corpus. Documentation passes 86 Markdown files
+  and 177 links; repository completeness passes 55 required files; the file
+  manifest verifies 395 entries. Changed-surface Ruff, `py_compile`, and
+  `git diff --check` pass.
+- **Clean-install evidence:** normal `scripts/verify_clean_install.py` passes
+  with Python 3.14.5 and uv 0.11.6: three wheels, offline/no-index resolution,
+  negative control, CLIs, and all suites. The same proof under `unshare -Urn`
+  also passes. Neither proof used a live backend, and both retain
+  `benchmark_evidence=false`.
+- **Honest boundary/blockers:** no live operation, external spend, merge, push,
+  performance, or reportability claim occurred. `benchmark_reportable=false`
+  remains the boundary.
+  External assets and identities, verifier admission, confinement, calibration,
+  metering, credentials, required owner decisions, and explicit campaign
+  authorization remain blockers.
+
 ### Committed milestone-E software checkpoint
 
 - **Frozen starting state:** reviewer-clean milestone F is committed at
