@@ -1190,10 +1190,11 @@ directly to the existing conductor:
   push, or live operation is claimed; the existing external activation
   blockers remain exact.
 
-### Post-materialization start interruption — uncommitted reviewer-clean commit candidate
+### Post-materialization start interruption — implementation committed
 
-- **Frozen reviewed state:** writer GPT-5.6 Sol medium session
-  `019f6c9c-4e0d-7c60-b23e-b1100d26ba2f`; base
+- **Committed and frozen reviewed state:** implementation commit
+  `5fdcadab25de7cc273952f8e2fdc1c162ea89e2a`; writer GPT-5.6 Sol medium
+  session `019f6c9c-4e0d-7c60-b23e-b1100d26ba2f`; base
   `82447c39e366abd43033be575f3cc0aa7eb5fb52` plus binary diff SHA-256
   `b7a886661a51369cad5fcfaf67446a039602a9607fe564812442c1a096112e3f`.
   Production/test SHA-256 values are
@@ -1203,6 +1204,7 @@ directly to the existing conductor:
   idempotent best-effort `worktree_remove`, retains the path-or-symlink
   postcondition, and removes the obsolete `worktree_created` flag. One
   regression interrupts after the real add helper materializes the worktree.
+  The writer's six focused tests passed in 5.271s.
 - **Correctness review:** GPT-5.6 Sol medium session
   `019f6ca0-7d20-7231-997c-6074978f3eb4` returned CLEAN with no findings. Its
   six focused tests passed in 5.205s, proving harmless retry after real
@@ -1216,11 +1218,26 @@ directly to the existing conductor:
   truthful historical `82447c3` ledger correction, and no helper, marker,
   journal, or recovery machinery. Correctness supplied the dynamic proof.
 - **Full gates:** eval 70/70; judge 28/28; loop ran 231 and passed 230 with one
-  documented optional `jsonschema` skip; catalog 140/140 with primary 140,
-  smoke 20, and regression 20; schema passed 531 documents, experiment corpus
-  180, and evidence corpus 195; docs passed 86 Markdown files, 177 links, and
-  18 ADRs; completeness passed 55; Ruff, `py_compile`, and `git diff --check`
-  passed. Clean-install proofs await the exact implementation commit.
-- **Boundary:** this remains an uncommitted reviewer-clean commit candidate.
+  documented optional `jsonschema` skip; catalog passed 140; schema experiment
+  corpus 180 and evidence corpus 195; docs passed 86 Markdown files, 177 links,
+  and 18 ADRs; completeness passed 55; manifest verified 395 entries; Ruff,
+  `py_compile`, and `git diff --check` passed.
+- **Clean-install evidence:** normal verification passed with
+  `TMPDIR=/home/kab/.cache/opti-postadd-clean-normal python scripts/verify_clean_install.py --repo-root "$PWD"`;
+  network-isolated verification passed with
+  `TMPDIR=/home/kab/.cache/opti-postadd-clean-unshare unshare -Urn python scripts/verify_clean_install.py --repo-root "$PWD"`.
+  Both proved offline/no-index installation, used no live backend, and retained
+  `benchmark_evidence=false`.
+- **Independent docs review:** sole reviewer GPT-5.6 Sol session
+  `019f6cb2-dbe2-7493-8829-2d2fbc816069` returned CLEAN with no findings on
+  reviewed two-ledger binary diff SHA-256
+  `7ea25005f9b0b37bd5c3e9272ed6bee179ec50f886b4abfe4f6eec39415e6106`.
+  It independently reproduced docs 86, links 177, ADRs 18, completeness 55,
+  committed manifest 395 with zero mismatches, exact HEAD/file hashes/diff,
+  historical `82447c3` wording, committed `5fdcada` status, and the external
+  boundaries. Its read-only sandbox could not rerun dynamic tests; those remain
+  linked to the writer and correctness evidence above.
+- **Boundary:** the implementation and evidence-only closeout are independently
+  reviewer-clean.
   No live readiness, reportability, performance, merge, push, or live operation
   is claimed; existing external activation blockers remain exact.
