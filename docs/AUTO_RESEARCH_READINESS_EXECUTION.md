@@ -844,71 +844,21 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
 
 ### Sentinel missing-publication readiness correction
 
-- **Ownership and review state:** session
-  `019f6ba2-925f-7200-adc0-66ad45a83e8d` is the sole implementation writer for
-  this bounded correction. Implementation is complete in the dirty worktree;
-  correctness review first found two documentation issues, then one targeted P2
-  wording issue. After those corrections, final targeted correctness review
-  returned CLEAN on canonical tracked diff `c674888d...` and template
-  `fa77ef18...`; the independent elegance/YAGNI/vision review was CLEAN. The
-  orchestrator's final current-byte gates passed. The candidate is ready to
-  commit, but is not committed or pushed.
-- **Fail-closed publication boundary:** the conductor now has one shared
-  projection of the existing `accepted-publication.json` against campaign
-  iteration state. A fresh campaign and opened iteration 1 before publication
-  intent may have no receipt. A terminal/current completed iteration or any
-  later iteration without its required current/historical receipt is malformed.
-  Status, start, run, resume, `continue_campaign`, pending recovery, and the
-  locked lower start/run seams use that authority. The campaign lock, accepted-
-  ref CAS, terminal cleanup, historical artifact validation, one record, and
-  one recovery transaction are unchanged.
-- **Operator/source correction:** loop rehearsal commands now carry all three
-  closed limits and the Make target imports eval, judge, and loop packages. The
-  static `evals/warc-online4.production.template.json` exposes every closed
-  owner-supplied asset/checksum/runtime/protocol/credential-name/confinement
-  input; metering and authorization remain in the existing campaign-init
-  authority. Production source preflight now always emits
-  `benchmark_reportable=false` and separately labels only potential benchmark
-  eligibility. It authorizes nothing and performs no task lifecycle,
-  browser/model campaign, admission, or performance evaluation, while bounded
-  side-effect-free version commands may verify runtime identity. The campaign
-  authorization flag records an explicit prior owner decision and removes the
-  production start blocker; it does not originate authorization.
-- **Final current-byte evidence:** focused touched WARC, CLI, and E2E modules
-  pass; source eval passes 69/69; source judge passes 28/28; source loop runs
-  224 tests with 223 passing and the existing optional-`jsonschema` skip.
-  Catalog validation passes 140/140 primary, 20/20 smoke/regression, and source
-  counts 30/30/30/30/20. Cached offline schema validation passes 531 documents,
-  180 experiment cases, and 195 evidence cases. Documentation passes 86
-  Markdown files and 177 local links; repository completeness passes 55
-  required files plus package, catalog, documentation, and Git checks. The
-  regenerated inventory covers 394 files and the manifest verifies all 395
-  entries including the inventory. Changed-surface Ruff, source compilation,
-  touched-test `py_compile`, and `git diff --check` pass.
-- **Clean-install evidence:** the isolated working-tree copy passes under a
-  home-backed `TMPDIR` with Python 3.14.5 and uv 0.11.6: three wheels,
-  offline/no-index dependency graph, missing-judge negative control, installed
-  CLI checks, and all three installed suites. It ran no live backend and records
-  `benchmark_evidence=false`. An earlier accidentally overlapping duplicate
-  clean-install attempt was discarded after tmpfs disk-quota errors; the
-  duplicate was terminated, and the single isolated rerun is the passing
-  authority.
-- **External boundary and gate state:** no live source/browser/model/campaign,
-  external asset, credential value, paid request, or all-140 run occurred.
-  WACZ/verifier/license/checksum/runtime identities, verifier admission,
-  distinct-UID confinement, calibrated protocol/transfer evidence, approved
-  metering, credentials, ADR-0003 decisions where required, and explicit owner
-  campaign authorization remain blockers. The reviewer-clean,
-  final-gate-green, YAGNI-bounded candidate is ready to commit; it is not yet
-  committed or pushed.
+- **Final state:** this correction and its later readiness fixes are included in
+  implementation commit `04ca532b078d31a1ad0959c7bcf94302e7362abb` by writer
+  session `019f6bf0-e541-7952-9cb2-4aa547786a35`. Correctness reviewer session
+  `019f6bf7-deca-79a0-96b1-57c1df08e0b6` and elegance/YAGNI/vision reviewer
+  session `019f6bf7-df19-7070-b594-7c421a0e956c` both returned CLEAN on frozen
+  production/test digest
+  `f53db249a45600168a45392efdd800cdb209dbf799798125f705b98ab05f2d75`.
+  The complete gate and external-boundary evidence is recorded in the final
+  checkpoint below.
 
 ### Sentinel readiness defects final review checkpoint
 
 - **Writer/base/review state:** writer session
-  `019f6bf0-e541-7952-9cb2-4aa547786a35` remains the sole writer on clean base
-  `d0162ea0f59e514e4a666852d610153ba1127c65`. This is one uncommitted dirty
-  implementation candidate pending the implementation commit. Frozen
-  implementation/test digest
+  `019f6bf0-e541-7952-9cb2-4aa547786a35` produced exact implementation commit
+  `04ca532b078d31a1ad0959c7bcf94302e7362abb`. Frozen implementation/test digest
   `f53db249a45600168a45392efdd800cdb209dbf799798125f705b98ab05f2d75`
   received final CLEAN from correctness reviewer session
   `019f6bf7-deca-79a0-96b1-57c1df08e0b6` and elegance/YAGNI/vision reviewer
@@ -930,8 +880,9 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
   projection, then makes the next route fail closed. The obsolete unused
   `Campaign.open_iteration()` early-save authority is deleted; no new journal
   or recovery path exists. WARC preflight delegates the complete nested
-  repeated protocol to the evaluation identity validator, including an exact missing
-  `effect.minimum_effect` diagnostic; production-template drift coverage walks
+  repeated protocol to the evaluation identity validator, including an exact
+  missing `effect.minimum_effect` diagnostic; production-template drift
+  coverage walks
   shared required fields through representative verifier, runtime, limits,
   source-runtime, and repeated-protocol leaves. Both root and loop-harness
   rehearsal instructions now bind all closed limits and execute with the
@@ -951,10 +902,14 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
   `benchmark_evidence=false`.
 - **Boundary/blockers:** no live operation, external spend, merge, push,
   performance, or reportability claim occurred. `benchmark_reportable` remains
-  false without admitted real evidence. External WACZ/verifier/license/runtime
-  identities and admission, confinement, calibrated protocol/transfer evidence,
-  metering, credentials, required ADR decisions, and explicit campaign
-  authorization remain blockers.
+  false without admitted real evidence. Remaining external activation inputs
+  are owner-supplied WACZ and checksum with provenance and license; native
+  verifier executable identity/checksum and positive admission; exact
+  BrowserGym, Playwright, browser/runtime, and model-transport identities;
+  credentials only if the selected source requires them; optimizer UID, inbox,
+  and runtime confinement; real reset/final-state/trace/artifact evidence;
+  calibration, transfer, and holdout evidence; metering and owner decisions;
+  and explicit campaign authorization.
 
 The milestone-F software checkpoint committed at `7c245e5` has the following
 local verification evidence; none is live/reportable qualification evidence:

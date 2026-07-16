@@ -248,69 +248,21 @@ findings, and only then may the package be committed and the next package start.
 
 ### Sentinel missing-publication readiness correction
 
-- **Writer and state:** session `019f6ba2-925f-7200-adc0-66ad45a83e8d` is the
-  sole writer. The bounded implementation is complete in one dirty diff;
-  correctness review first found two documentation issues, then one targeted P2
-  wording issue. After those corrections, final targeted correctness review
-  returned CLEAN on canonical tracked diff `c674888d...` and template
-  `fa77ef18...`; the independent elegance/YAGNI/vision review was CLEAN. The
-  orchestrator's final current-byte gates passed. The candidate is ready to
-  commit, but is not committed or pushed.
-- **Implemented ownership:** one conductor-owned projection validates the sole
-  `accepted-publication.json` presence and iteration against campaign state for
-  status, start, run, resume, `continue_campaign`, recovery, and locked lower
-  iteration routing. Only the fresh campaign and initial opened iteration 1
-  pre-intent states may lack a receipt. Deleting the normal terminal rejected
-  receipt now makes status malformed and blocks every route without opening
-  iteration 2. Existing pending/terminal recovery, historical evidence graph,
-  current cleanup, campaign lock, accepted-ref CAS, and single record remain
-  the only authorities.
-- **Operator and WARC surface:** rehearsal initialization has mandatory closed
-  limits and dependency-complete eval/judge/loop `PYTHONPATH`. One static
-  production `online.4` template at the direct `evals` config seam contains
-  explicit owner placeholders for all external assets, checksums, identities,
-  credential names, confinement, and calibrated protocol fields. Existing
-  campaign CLI fields remain the sole metering/authorization authority.
-  Preflight runs no task lifecycle, browser/model campaign, admission, or
-  performance evaluation, though it may run configured bounded side-effect-free
-  runtime identity probes. It authorizes nothing and always reports
-  `benchmark_reportable=false`; production mode exposes only separately named
-  potential eligibility. The authorization flag records a prior explicit owner
-  decision and removes the production start blocker; it does not create that
-  authority.
-- **Final current-byte evidence:** focused touched WARC, CLI, and E2E modules
-  pass; source eval passes 69/69; source judge passes 28/28; source loop runs
-  224 tests with 223 passing and the existing optional-`jsonschema` skip.
-  Catalog validation passes 140/140 primary, 20/20 smoke/regression, and source
-  counts 30/30/30/30/20. Cached offline schema validation passes 531 documents,
-  180 experiment cases, and 195 evidence cases. Documentation passes 86
-  Markdown files and 177 links; repository completeness passes 55 required
-  files; the regenerated inventory covers 394 files and the manifest verifies
-  395 entries. Changed-surface Ruff, compilation, touched-test `py_compile`, and
-  `git diff --check` pass.
-- **Clean-install evidence:** the isolated working-tree copy passes under a
-  home-backed `TMPDIR` with Python 3.14.5 and uv 0.11.6: three wheels,
-  offline/no-index dependency graph, missing-judge negative control, installed
-  CLI checks, and all three installed suites. It ran no live backend and records
-  `benchmark_evidence=false`. An earlier accidentally overlapping duplicate
-  clean-install attempt was discarded after tmpfs disk-quota errors; the
-  duplicate was terminated, and the single isolated rerun is the passing
-  authority.
-- **Honest blockers and gate state:** no external WACZ/verifier/license/runtime
-  bytes, credential values, live source/browser/model/campaign, paid request,
-  or all-140 execution was used. External identity/admission, confinement,
-  calibrated evidence, metering, credentials, ADR-0003 decisions where needed,
-  and explicit campaign authorization remain blockers. The reviewer-clean,
-  final-gate-green, YAGNI-bounded candidate is ready to commit; it is not yet
-  committed or pushed.
+- **Final state:** this correction and its later readiness fixes are included in
+  implementation commit `04ca532b078d31a1ad0959c7bcf94302e7362abb` by writer
+  session `019f6bf0-e541-7952-9cb2-4aa547786a35`. Correctness reviewer session
+  `019f6bf7-deca-79a0-96b1-57c1df08e0b6` and elegance/YAGNI/vision reviewer
+  session `019f6bf7-df19-7070-b594-7c421a0e956c` both returned CLEAN on frozen
+  production/test digest
+  `f53db249a45600168a45392efdd800cdb209dbf799798125f705b98ab05f2d75`.
+  The complete gate and external-boundary evidence is recorded in the final
+  checkpoint below.
 
 ### Sentinel readiness defects final review checkpoint
 
 - **Writer/base/review state:** writer session
-  `019f6bf0-e541-7952-9cb2-4aa547786a35` remains the sole writer on clean base
-  `d0162ea0f59e514e4a666852d610153ba1127c65`. The candidate is dirty and
-  uncommitted pending the implementation commit. Frozen implementation/test
-  digest
+  `019f6bf0-e541-7952-9cb2-4aa547786a35` produced exact implementation commit
+  `04ca532b078d31a1ad0959c7bcf94302e7362abb`. Frozen implementation/test digest
   `f53db249a45600168a45392efdd800cdb209dbf799798125f705b98ab05f2d75`
   received final CLEAN from correctness reviewer session
   `019f6bf7-deca-79a0-96b1-57c1df08e0b6` and elegance/YAGNI/vision reviewer
@@ -349,10 +301,14 @@ findings, and only then may the package be committed and the next package start.
   `benchmark_evidence=false`.
 - **Honest boundary/blockers:** no live operation, external spend, merge, push,
   performance, or reportability claim occurred. `benchmark_reportable=false`
-  remains the boundary.
-  External assets and identities, verifier admission, confinement, calibration,
-  metering, credentials, required owner decisions, and explicit campaign
-  authorization remain blockers.
+  remains the boundary. Remaining external activation inputs are owner-supplied
+  WACZ and checksum with provenance and license; native verifier executable
+  identity/checksum and positive admission; exact BrowserGym, Playwright,
+  browser/runtime, and model-transport identities; credentials only if the
+  selected source requires them; optimizer UID, inbox, and runtime confinement;
+  real reset/final-state/trace/artifact evidence; calibration, transfer, and
+  holdout evidence; metering and owner decisions; and explicit campaign
+  authorization.
 
 ### Committed milestone-E software checkpoint
 

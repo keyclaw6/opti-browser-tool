@@ -2,11 +2,17 @@
 
 Status: reversible milestone-F software qualification checkpoint. Its bounded
 software qualification was independently reviewed and committed at `7c245e5`;
-this Sentinel readiness correction is implemented and locally verified, with
-new independent correctness and elegance reviews pending. No live run or
-external-asset qualification has been performed, no fixture or preflight output
-is reportable or performance evidence, no campaign is authorized, and ADR-0003
-remains Open.
+the final Sentinel readiness correction is committed at
+`04ca532b078d31a1ad0959c7bcf94302e7362abb` by writer session
+`019f6bf0-e541-7952-9cb2-4aa547786a35`. Correctness reviewer session
+`019f6bf7-deca-79a0-96b1-57c1df08e0b6` and elegance/YAGNI/vision reviewer
+session `019f6bf7-df19-7070-b594-7c421a0e956c` both returned CLEAN on frozen
+production/test digest
+`f53db249a45600168a45392efdd800cdb209dbf799798125f705b98ab05f2d75`.
+This remains a software checkpoint, not live qualification: no live operation,
+external spend, merge, push, reportability claim, or campaign authorization has
+occurred, and ADR-0003 remains Open. `benchmark_reportable=false` and
+`benchmark_evidence=false` remain binding.
 
 ## What exists
 
@@ -228,22 +234,15 @@ performance evidence.
 
 ## Current blockers
 
-- exact WACZ bytes and SHA-256;
-- exact native JavaScript verifier bytes/SHA-256 and completed admission
-  evidence;
-- pinned WARC handler/manifest/replay files, resolved BrowserGym environment,
-  Gymnasium, Playwright facade/driver, browser binary/revision, Python, Node,
-  and bubblewrap files with version
-  outputs/checksums;
-- exact production executor provider/model/settings/tool
-  schema and required credential environment variables;
-- provenance origins, license ID, acknowledged license evidence, retention
-  policy, and permission to retain the resulting artifacts;
-- deployed separate conductor/optimizer UIDs, static inbox ownership, and
-  verified single-host network/filesystem confinement;
-- real reset/oracle/verifier probes, task calibration, runtime/noise evidence,
-  and milestone-E decision calibration;
-- explicit owner authorization for any live, paid, or externally sourced run.
+- owner-supplied WACZ and checksum, with provenance and license evidence;
+- native verifier executable identity and checksum with positive admission;
+- exact BrowserGym, Playwright, browser/runtime, and model-transport identities;
+- credentials only if the selected source requires them;
+- optimizer UID, inbox ownership, and runtime confinement;
+- real reset, final-state, trace, and artifact evidence;
+- real calibration, transfer, and holdout evidence;
+- metering and required owner decisions; and
+- explicit campaign authorization.
 
 The deterministic test fake creates none of these claims. It substitutes only
 the replay, BrowserGym, and executor primitives while traversing the same
