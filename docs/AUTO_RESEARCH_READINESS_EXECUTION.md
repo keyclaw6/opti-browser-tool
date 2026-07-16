@@ -35,12 +35,13 @@ remain separate inputs.
 | **D — exact identity and trusted activation** | **D3 committed at `9d6b39c`; fixture-backed checkpoint only** | D3 connects static-bundle import, D2 materialized execution, immutable treatment identity, conductor-observed harness-fixture activation through E1-E5, and recoverable accepted publication. It is the frozen milestone-F starting point, not browser activation, reportability, or operation readiness. |
 | **F — WARC `online.4` qualification** | **Committed at `7c245e5`; software qualification checkpoint only** | The reviewer-clean software checkpoint is frozen in commit `7c245e5402d03563f3ec98e067c612963c0a7725`. No external WACZ/verifier/runtime/license/credential input or live/reportable qualification has been supplied or run; milestone F external completion and operation readiness remain incomplete. |
 | **E — repeated decision and champion protection** | **Committed at `527fbdb`; reviewer-clean software checkpoint** | Milestone E is contained in exact HEAD `527fbdb1a197f39bcd89340e963256129e78a12c`. Its final correctness and elegance/YAGNI/vision reviews are CLEAN. The four-valued repeated decision and champion/transfer protections are software-complete; real calibration and transfer evidence remain external activation inputs. |
-| **G-I — lifecycle, learning, and operator integration** | **Reviewer-clean and full-gate green; ready for containing coherent commit** | Sole writer GPT-5.6 Sol medium session `019f6af4-71be-7f20-bb31-6ea2aa227cd0` completed the bounded slice from exact HEAD `527fbdb1a197f39bcd89340e963256129e78a12c`. Final framing correctness session `019f6b2e-a93f-7c63-8907-e147c3f4dbec` and final framing elegance/YAGNI/vision session `019f6b2e-a9b4-7293-b6ad-96efc0fd2365` both returned CLEAN with no findings on frozen full dirty digest `ee5ca8c64fe951a51e836458388f2717a5eca1e35860081ab99f7615a92545e4`. These supersede the retained intermediate FIX/CLEAN history. Defined current-byte gates are green. No implementation or review agent remains active; the local writer ends with this documentation closeout and no overlapping editor exists. |
+| **G-I — lifecycle, learning, and operator integration** | **Committed at `ec197f7`; reviewer-clean and full-gate green** | The coherent G-I software readiness slice is committed exactly at `ec197f72997e957f5c3c8a731c6cb87487a5296f`. Sole writer GPT-5.6 Sol medium session `019f6af4-71be-7f20-bb31-6ea2aa227cd0` completed the bounded slice from exact HEAD `527fbdb1a197f39bcd89340e963256129e78a12c`. Final framing correctness session `019f6b2e-a93f-7c63-8907-e147c3f4dbec` and final framing elegance/YAGNI/vision session `019f6b2e-a9b4-7293-b6ad-96efc0fd2365` both returned CLEAN with no findings on frozen full dirty digest `ee5ca8c64fe951a51e836458388f2717a5eca1e35860081ab99f7615a92545e4`. These supersede the retained intermediate FIX/CLEAN history. Defined current-byte gates are green. No implementation or review agent remains active after this closeout, and no overlapping editor exists. |
 
-The founder-authorized fast-path software sequence is complete through committed
-D3 (`9d6b39c`), committed F (`7c245e5`), committed E (`527fbdb`), and the
-reviewer-clean G-I candidate. Numeric milestone labels do not override that
-dependency order. Remaining work is deliberately external or deferred.
+The founder-authorized fast-path software sequence is committed and offline-ready
+through D3 (`9d6b39c`), F (`7c245e5`), E (`527fbdb`), and G-I
+(`ec197f72997e957f5c3c8a731c6cb87487a5296f`). Numeric milestone labels do not
+override that dependency order. Remaining work is deliberately external or
+deferred.
 
 ### Founder fast path disposition
 
@@ -55,8 +56,9 @@ independent reviewers: one correctness reviewer and one
 elegance/YAGNI/vision reviewer. Focused tests run during editing, one broader
 suite runs when a checkpoint becomes a review candidate, and complete
 repository gates run once per coherent milestone or final release candidate.
-The G-I slice is now clean and ready for its containing coherent commit. This
-ledger closeout does not itself commit, push, or merge.
+The clean G-I slice is contained in exact commit
+`ec197f72997e957f5c3c8a731c6cb87487a5296f`. This ledger closeout does not
+commit, push, or merge.
 
 ## Final readiness report
 
@@ -634,6 +636,7 @@ the milestone is complete.
 | `9d6b39c` | D3 trusted fixture-backed activation and the sole recoverable publication transaction checkpoint. |
 | `7c245e5` | F reversible WARC `online.4` software qualification path; external assets and live qualification remain absent. |
 | `527fbdb` | E four-valued repeated decision plus durable regression, champion, and scheduled-transfer protection. |
+| `ec197f72997e957f5c3c8a731c6cb87487a5296f` | G-I lifecycle, learning, operator integration, and coherent software-readiness checkpoint. |
 
 Current branch: `codex/auto-research-readiness`.
 
@@ -957,8 +960,9 @@ directly to the existing conductor:
 
 - No software task remains in the founder-authorized D3/F/E/G-I fast path.
   D3 remains the fixture-backed infrastructure checkpoint at `9d6b39c`; F is
-  committed at `7c245e5`; E is committed at `527fbdb`; and G-I is independently
-  reviewer-clean and full-gate green, ready for its containing coherent commit.
+  committed at `7c245e5`; E is committed at `527fbdb`; and reviewer-clean,
+  full-gate-green G-I is committed exactly at
+  `ec197f72997e957f5c3c8a731c6cb87487a5296f`.
 - D3 plus F now exercises exact immutable Git materialization and observed
   activation through the concrete local WARC seam in offline tests. This is not
   real browser activation, external WARC qualification, reportability, known
@@ -994,11 +998,11 @@ directly to the existing conductor:
 1. Preserve committed D3 (`9d6b39c`) as fixture-backed trusted
    activation/publication infrastructure; do not infer browser reportability
    or operation readiness from it.
-2. Preserve committed F (`7c245e5`) and E (`527fbdb`) without treating their
-   offline simulations as calibration, benchmark, performance, or reportable
-   evidence.
-3. Commit the reviewer-clean, full-gate-green G-I candidate as one coherent
-   containing commit; this closeout intentionally does not commit it.
-4. Stop at software readiness. Do not run or imply a real campaign until every
-   external activation input above exists and the owner explicitly authorizes
-   the campaign.
+2. Preserve committed F (`7c245e5`), E (`527fbdb`), and G-I
+   (`ec197f72997e957f5c3c8a731c6cb87487a5296f`) without treating offline
+   simulation as calibration, benchmark, performance, reportability, external
+   qualification, or live-run evidence.
+3. Stop at software readiness. External owners must supply and verify the
+   required browser/source assets, credentials, identities, confinement,
+   metering, verifier admission, calibration evidence, and ADR-0003 decisions
+   where required before explicitly authorizing any campaign.

@@ -40,7 +40,7 @@ findings, and only then may the package be committed and the next package start.
 | AR-009 | software-complete admission path; external verifier admission pending | Verifier bundle identity, admission, and revocation | FOUND-007; CONV-004 | F implements closed verifier identity/checksum/admission and revocation checks. A real native verifier and successful admission remain external inputs. |
 | AR-010 | software-complete for the single-campaign fast path; multi-source leases deferred | Safe store namespace, permissions, and locks | FOUND-008; OPS-007; OPS-008 | Safe campaign storage and one existing campaign/materialization lock protect the bounded path. Multi-source scheduling and environment leases are outside this slice. |
 | AR-011 | software-complete in D3/G-I | Journaled exactly-once iteration recovery | OPS-006 | The one D3 publication intent/receipt plus existing repeated-arm/run directories and ref CAS recover accepted and non-advancing terminal outcomes without a second journal. |
-| AR-012 | software-complete in reviewer-clean G-I; ready for containing commit | Preventative lifecycle driver and operator health | OPS-009; OPS-010; OPS-013 | Persisted foreground run/resume/pause/stop, closed budgets/deadline, cleanup health, and fail-closed status are complete for one campaign. |
+| AR-012 | software-complete in committed G-I (`ec197f7`) | Preventative lifecycle driver and operator health | OPS-009; OPS-010; OPS-013 | Persisted foreground run/resume/pause/stop, closed budgets/deadline, cleanup health, and fail-closed status are complete for one campaign. |
 | AR-013 | software-complete in committed E; real transfer evidence pending | Identity-bound transfer and failed-transfer pause | CONV-013; OPS-011 | E binds and evaluates the closed scheduled-transfer input. A real calibrated transfer result remains an activation input. |
 | AR-014 | software-complete in committed E (`527fbdb`) | Inconclusive outcomes and indivisible attribution | CONV-006; CONV-015 | Infrastructure invalidity is behaviorally inert and partial candidates never advance wholesale. |
 | AR-015 | software-complete in committed E (`527fbdb`) | Repeated paired statistical acceptance | FOUND-006; CONV-003 | The frozen four-valued repeated protocol is implemented; its values are not claimed calibrated for a real source. |
@@ -48,7 +48,7 @@ findings, and only then may the package be committed and the next package start.
 | AR-017 | fast-path LearningRecord software-complete; real Analyst calibration deferred | Event-addressable Analyst, clusters, and learnings | CONV-011 | G-I requires one strict trace-cited LearningRecord before the next packet. Analyst remains `stub-0`; calibrated causal diagnosis waits for real retained traces. |
 | AR-018 | founder-fast-path deferred | Judge trust identity and quarantine routing | CONV-012 | Existing T1/quarantine behavior is preserved. No T2 council or calibrated judge-trust corpus is implemented or claimed. |
 | AR-019 | founder-fast-path deferred; source expansion pending | Source-aware scheduling and auditable task dispositions | FOUND-008; FOUND-010 | The fast path intentionally qualifies one WARC seam for one foreground campaign. All-five-source scheduling, leases, and all-140 execution follow external activation. |
-| AR-020 | software-complete in reviewer-clean G-I; ready for containing commit | Generated commands, status prose, and decision metadata | FOUND-009; FOUND-012; CONV-016; OPS-014 | Packets, status, and the executable operator documentation use the real offline workflow and preserve the activation/reportability boundary. |
+| AR-020 | software-complete in committed G-I (`ec197f7`) | Generated commands, status prose, and decision metadata | FOUND-009; FOUND-012; CONV-016; OPS-014 | Packets, status, and the executable operator documentation use the real offline workflow and preserve the activation/reportability boundary. |
 
 ## Current readiness execution order
 
@@ -59,8 +59,8 @@ findings, and only then may the package be committed and the next package start.
   `codex/auto-research-readiness`.
 - **Final writer:** GPT-5.6 Sol medium session
   `019f6af4-71be-7f20-bb31-6ea2aa227cd0` was the sole writable implementer.
-  This closeout ends that local writer; no implementation or review agent
-  remains active and no overlapping editor exists.
+  That local writer has ended; no implementation or review agent remains active
+  after this closeout, and no overlapping editor exists.
 - **Exact ownership:** the final minimal milestones G-I foreground,
   single-campaign vertical slice only: persisted lifecycle requests/state,
   closed iteration/attempt and wall-clock limits, reconciliation/status over
@@ -71,9 +71,9 @@ findings, and only then may the package be committed and the next package start.
 - **Explicit exclusions:** no daemon, service manager, worker queue, scheduler,
   database, second journal/recovery path, registry/plugin framework,
   multi-campaign concurrency, live source/browser/model/campaign, asset fetch,
-  credential read, external spend, performance/reportability claim, or commit.
-- **State:** reviewer-clean, full-gate-green software candidate ready for its
-  containing coherent commit. Correctness reviewer session
+  credential read, external spend, or performance/reportability claim.
+- **State:** reviewer-clean, full-gate-green software is committed exactly at
+  `ec197f72997e957f5c3c8a731c6cb87487a5296f`. Correctness reviewer session
   `019f6b2e-a93f-7c63-8907-e147c3f4dbec` returned FIX on three retained-
   integrity defects and, on the targeted corrected state, identified one
   remaining real P1: terminal validation conflated retained-artifact integrity
@@ -340,8 +340,9 @@ findings, and only then may the package be committed and the next package start.
   WACZ, native-verifier, runtime/browser, license/provenance, credential, and
   exact executor inputs remain blockers until owner supplied and verified.
 
-The founder-authorized software fast path is complete through committed D3,
-F, and E plus the reviewer-clean G-I candidate. The AR table above distinguishes
+The founder-authorized D3/F/E/G-I software fast path is committed and
+offline-ready through exact G-I checkpoint
+`ec197f72997e957f5c3c8a731c6cb87487a5296f`. The AR table above distinguishes
 software-complete behavior from external qualification/evidence and
 founder-fast-path deferrals; it does not silently complete T2, all-five-source
 scheduling, private holdout, live confinement, or real calibration. The durable
@@ -353,8 +354,11 @@ transition was proposed at `544750b` and accepted as ADR-0018 on 2026-07-15 by
 the owner-delegated coordinator acting under the founder's delegated
 architecture-decision authority: `Accept ADR-0018 as written.` D3 is committed
 at `9d6b39c`; milestone F is committed at `7c245e5`; milestone E is committed
-at `527fbdb`; and G-I is reviewer-clean and full-gate green, ready for its
-containing coherent commit. No D/E/F implementation was included in the
+at `527fbdb`; and reviewer-clean, full-gate-green G-I is committed exactly at
+`ec197f72997e957f5c3c8a731c6cb87487a5296f`. Real browser/source qualification,
+reportability, calibration, external assets, credentials, runtime identities,
+confinement, metering, ADR-0003 decisions where required, and explicit campaign
+authorization remain blockers. No D/E/F implementation was included in the
 proposal or acceptance slice itself. Deferred work starts only when its real
 dependency and authorization exist.
 
@@ -389,8 +393,9 @@ less trustworthy, so they start only when their dependency is real.
 
 The founder-authorized fast-path software checkpoint is complete when its
 implemented AR dispositions have independent clean review and the defined
-repository gates are green. That condition is met by the current G-I candidate.
-Deferred AR/EXT work remains deferred rather than silently complete and does
-not block the offline checkpoint. External activation still requires the exact
-owner-supplied inputs, real qualification/calibration evidence, and explicit
-campaign authorization recorded in the readiness execution ledger.
+repository gates are green. That condition is met by committed G-I checkpoint
+`ec197f72997e957f5c3c8a731c6cb87487a5296f`. Deferred AR/EXT work remains
+deferred rather than silently complete and does not block the offline
+checkpoint. External activation still requires the exact owner-supplied inputs,
+real qualification/calibration evidence, and explicit campaign authorization
+recorded in the readiness execution ledger.
