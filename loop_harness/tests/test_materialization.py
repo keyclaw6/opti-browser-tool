@@ -92,6 +92,9 @@ class GitMaterializationTest(unittest.TestCase):
             role="accepted",
             candidate_allowlist=ALLOWLIST,
         )
+        self.protocol["execution"]["accepted_protection"].update(
+            champion_sha=self.base,
+        )
         for field in (
             "calibration_binding_digest",
             "comparison_apparatus_digest",
@@ -171,6 +174,7 @@ class GitMaterializationTest(unittest.TestCase):
         snapshot = deepcopy(self.protocol)
         if expected_base is not None:
             snapshot["accepted_build"]["commit_sha"] = expected_base
+            snapshot["execution"]["accepted_protection"]["champion_sha"] = expected_base
         snapshot["candidate_allowlist"] = allowlist
         for field in (
             "calibration_binding_digest",

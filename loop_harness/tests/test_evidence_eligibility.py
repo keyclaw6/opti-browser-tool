@@ -208,10 +208,13 @@ def _benchmark_identity(
         "materialized_digest": hashlib.sha256(b"accepted-build").hexdigest(),
         "immutable": True,
     }
+    protocol["execution"]["accepted_protection"].update(
+        champion_sha="a" * 40,
+    )
     protocol["repeated_protocol"]["repeats"]["count"] = repeat_count
     protocol["repeated_protocol"]["stopping"]["valid_after"] = repeat_count
     protocol["repeated_protocol"]["limits"]["max_runs"] = max(
-        repeat_count,
+        repeat_count * 2,
         protocol["repeated_protocol"]["limits"]["max_runs"],
     )
     protocol.pop("calibration_binding_digest", None)
@@ -1014,7 +1017,7 @@ class EvidenceEligibilityTest(unittest.TestCase):
                     campaign, NoiseBand.from_dict(band.to_dict()), current_protocol
                 )
 
-    def test_gate_rejects_real_noise_band_without_fresh_revalidation(self) -> None:
+    def test_legacy_noise_band_cannot_override_e0(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             campaign, current_protocol, band, samples = (
@@ -1030,7 +1033,9 @@ class EvidenceEligibilityTest(unittest.TestCase):
                 eval_root=root / "gate",
                 baseline_dev=samples[0].run,
                 manifest={},
-                manifest_report=None,
+                manifest_report=SimpleNamespace(
+                    ok=False, errors=["injected E0 failure"], warnings=[]
+                ),
                 adapter_config={},
                 suites={},
                 thresholds={},
@@ -1044,11 +1049,9 @@ class EvidenceEligibilityTest(unittest.TestCase):
                 quarantine_path=campaign.store.quarantine_path,
                 treatment_build=current_protocol["accepted_build"],
             )
-            self.assertEqual(report.verdict.decision, "invalid")
-            self.assertIn(
-                "lacks fresh AR-003 sample revalidation",
-                report.rungs[0].detail["reason"],
-            )
+            self.assertEqual(report.verdict.decision, "rejected")
+            self.assertEqual((report.rungs[0].rung, report.rungs[0].status),
+                             ("E0", "fail"))
 
     def test_gate_rejects_unadmitted_benchmark_baseline_before_decision(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1614,8 +1617,16 @@ class EvidenceEligibilityTest(unittest.TestCase):
                 repeat_index=0,
                 seed=0,
             )
-            runs = iter([diagnostic, diagnostic, bundle.run])
-            comparison = SimpleNamespace(eligible=True, to_dict=lambda: {})
+            runs = iter([diagnostic] * 6)
+            comparison = SimpleNamespace(
+                eligible=True,
+                compared_task_count=1,
+                baseline_success=0.0,
+                treatment_success=1.0,
+                fixed=["task-a"],
+                regressed=[],
+                to_dict=lambda: {},
+            )
             with (
                 mock.patch(
                     "opti_loop.gates.fileguard.check_candidate",
@@ -1648,8 +1659,9 @@ class EvidenceEligibilityTest(unittest.TestCase):
                     "opti_loop.gates.verify_runtime_bindings",
                 ) as verify_runtime,
                 mock.patch(
-                    "opti_loop.gates.compare_runs", return_value=comparison
+                    "opti_loop.repeated.compare_runs", return_value=comparison
                 ) as compare,
+                mock.patch("opti_loop.repeated.validate_paired_contexts"),
                 mock.patch.object(
                     EvalRun,
                     "benchmark_admitted",
@@ -1658,11 +1670,7 @@ class EvidenceEligibilityTest(unittest.TestCase):
                 ),
                 mock.patch(
                     "opti_loop.gates.assess",
-                    side_effect=[
-                        _admitted_gate_result(),
-                        _admitted_gate_result(),
-                        bundle.evaluate(),
-                    ],
+                    side_effect=[_admitted_gate_result()] * 6,
                 ),
             ):
                 report = run_gate(
@@ -1705,15 +1713,12 @@ class EvidenceEligibilityTest(unittest.TestCase):
                     quarantine_path=bundle.quarantine,
                     treatment_build=bundle.candidate_build,
                 )
+            self.assertTrue(compare.called, report.to_dict())
             self.assertTrue(
-                report.eligibility["acceptance_eligible"],
-                report.to_dict(),
+                all(call.kwargs["quarantined"] == set() for call in compare.call_args_list)
             )
-            self.assertEqual(compare.call_args.kwargs["quarantined"], set())
-            self.assertEqual(
-                report.rungs[-1].detail["reason"], "noise band unmeasured"
-            )
-            self.assertEqual(verify_runtime.call_count, 5)
+            self.assertIn("predicted flip", report.rungs[-1].detail["reason"])
+            self.assertGreaterEqual(verify_runtime.call_count, 5)
 
     def test_gate_stops_when_runtime_binding_drifts_between_runs(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2290,7 +2295,12 @@ class EvidenceEligibilityTest(unittest.TestCase):
                 )
             self.assertEqual(report.rungs[-1].rung, "E5")
             self.assertEqual(report.rungs[-1].status, "invalid")
-            self.assertEqual(report.eligibility["integrity_status"], "invalid")
+            self.assertIn(
+                "trace",
+                " ".join(
+                    report.eligibility["repeated_protocol"]["integrity_errors"]
+                ),
+            )
             self.assertEqual(report.verdict.decision, "invalid")
             self.assertFalse(report.verdict.advances_accepted_state)
 

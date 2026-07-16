@@ -16,22 +16,24 @@ LLM participates (ADR-0015 §5.3). Rewritten after the adversarial review:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import hashlib
 from pathlib import Path
+import time
 from typing import Any
 
 from opti_eval.errors import OptiEvalError
-from opti_eval.identity import (
-    IdentityError,
-    expected_live_run_receipt,
-    validate_paired_contexts,
-)
+from opti_eval.identity import expected_live_run_receipt
+from opti_eval.models import canonical_json
 
 from . import fileguard, lint, registration
-from .attribution import attribute
-from .compare import NoiseBand, compare_runs
+from .attribution import Attribution
+from .compare import NoiseBand
 from .eligibility import Eligibility, assess
 from .evaluate import (
     EvalRun,
+    build_adapter,
+    load_run,
+    reconstruct_warc_online4_activation,
     run_suite,
     validate_harness_fixture_activation,
     validate_warc_online4_activation,
@@ -39,9 +41,11 @@ from .evaluate import (
 from .manifest import ManifestReport, predicted_task_ids
 from .protocol import (
     ProtocolError,
+    build_identity,
     run_context as make_run_context,
     verify_runtime_bindings,
 )
+from .repeated import ArmEvidence, execute_repeated_protocol
 from .verdict import Verdict
 
 
@@ -107,28 +111,19 @@ def run_gate(
     quarantine_path: Path,
     noise_band_error: str | None = None,
     treatment_build: dict[str, Any],
+    baseline_root: Path | None = None,
+    deadline_at: float = float("inf"),
+    now: Any = time.time,
+    transfer_status: str = "not_due",
 ) -> GateReport:
     """Run the ladder. ``manifest``/``manifest_report`` are pre-validated by the
     conductor (which owns manifest ingestion from the untrusted worktree)."""
     report = GateReport(iteration=iteration)
-    if noise_band_error:
-        report.rungs.append(
-            RungResult(
-                "E5",
-                "invalid",
-                {"reason": f"noise-band evidence preflight failed: {noise_band_error}"},
-            )
-        )
-        return _finish(report, "invalid")
-    if noise_band is not None and not noise_band.synthetic and not noise_band.anchors_validated:
-        report.rungs.append(
-            RungResult(
-                "E5",
-                "invalid",
-                {"reason": "real noise band lacks fresh AR-003 sample revalidation"},
-            )
-        )
-        return _finish(report, "invalid")
+    legacy_noise_diagnostic = {
+        "status": "error" if noise_band_error else ("present" if noise_band else "absent"),
+        "error": noise_band_error,
+        "note": "diagnostic only; never repeated-protocol acceptance authority",
+    }
     seed = int(protocol_snapshot["repeated_protocol"]["matched_blocks"]["seeds"][0])
 
     frozen_tasks = {
@@ -377,7 +372,7 @@ def run_gate(
     regression_context = treatment_context("regression")
     try:
         regression = run_suite(repo_root=candidate_root, suite_name=suites["regression"], adapter_config=adapter_config,
-                               output_dir=eval_root / "regression_treatment",
+                               output_dir=eval_root / "regression_screen",
                                protocol_snapshot=protocol_snapshot,
                                run_context=regression_context)
     except (OptiEvalError, OSError, ValueError) as exc:
@@ -385,9 +380,9 @@ def run_gate(
             RungResult("E4", "invalid", {"error": f"regression evaluation failed: {exc}"})
         )
         return _finish(report, "invalid")
-    report.run_digests["regression_treatment"] = regression_context["run_digest"]
+    report.run_digests["regression_screen"] = regression_context["run_digest"]
     regression_eligibility = admit_decision_run(
-        "regression_treatment", regression, regression_context
+        "regression_screen", regression, regression_context
     )
     if error := admission_error(regression_eligibility):
         report.rungs.append(RungResult("E4", "invalid", error))
@@ -409,110 +404,185 @@ def run_gate(
         return _finish(report, "rejected", regression_eligibility.evidence_class)
     report.rungs.append(RungResult("E4", "pass", e4_detail))
 
-    # ── E5: paired development evaluation ─────────────────────────────────
+    # ── E5: prespecified repeated paired/interleaved decision ─────────────
     if drift := runtime_drift():
         report.rungs.append(RungResult("E5", "invalid", {"error": drift}))
         return _finish(report, "invalid")
-    treatment_context_record = treatment_context("dev")
+
+    accepted_build = protocol_snapshot["accepted_build"]
+
+    def arm_context(role: str, arm: str, repeat_index: int, repeat_seed: int) -> dict[str, Any]:
+        return make_run_context(
+            protocol_snapshot,
+            accepted_build if arm == "baseline" else treatment_build,
+            arm=arm,
+            suite_role=role,
+            task_ids=frozen_tasks[role],
+            repeat_index=repeat_index,
+            seed=repeat_seed,
+            run_id=(
+                f"run-{protocol_snapshot['protocol_digest'][:16]}-{role}-"
+                f"{repeat_index}-{repeat_seed}-{arm}"
+            ),
+        )
+
+    def arm_output(
+        role: str,
+        arm: str,
+        repeat_index: int,
+        repeat_seed: int,
+        is_final: bool,
+    ) -> Path:
+        if arm == "treatment" and is_final:
+            return eval_root / ("dev_treatment" if role == "dev" else "regression_treatment")
+        return eval_root / "repeated" / role / f"repeat-{repeat_index:04d}" / f"seed-{repeat_seed}" / arm
+
+    def restore_simulated_activation(run: EvalRun, root: Path) -> None:
+        if run.activation_observation is not None:
+            return
+        if adapter_kind == "warc-online4":
+            run.activation_observation = reconstruct_warc_online4_activation(run)
+            return
+        if adapter_kind == "harness-fixture":
+            adapter = build_adapter(adapter_config, repo_root=root)
+            observation = getattr(adapter, "activation_observation", None)
+        else:
+            observation = None
+        if type(observation) is dict:
+            run.activation_observation = {
+                **observation,
+                "run_artifact": {
+                    "path": "run.json",
+                    "sha256": hashlib.sha256((run.output_dir / "run.json").read_bytes()).hexdigest(),
+                },
+            }
+
+    def run_arm(
+        role: str, arm: str, repeat_index: int, repeat_seed: int, is_final: bool
+    ) -> ArmEvidence:
+        if drift := runtime_drift():
+            raise ProtocolError(drift)
+        context = arm_context(role, arm, repeat_index, repeat_seed)
+        output = arm_output(role, arm, repeat_index, repeat_seed, is_final)
+        receipt = expected_live_run_receipt(
+            protocol_snapshot, run_digest=context["run_digest"]
+        )
+        root = (baseline_root or repo_root) if arm == "baseline" else candidate_root
+        if arm == "baseline" and baseline_root is not None:
+            observed = build_identity(
+                root,
+                commit_sha=base_sha,
+                role="accepted",
+                candidate_allowlist=protocol_snapshot["candidate_allowlist"],
+                immutable=bool(accepted_build["immutable"]),
+            )
+            if canonical_json(observed) != canonical_json(accepted_build):
+                raise ProtocolError("repeated baseline root differs from the frozen accepted build")
+        if output.is_dir():
+            run = load_run(output, suites[role], expected_receipt=receipt)
+            restore_simulated_activation(run, root)
+        else:
+            run = run_suite(
+                repo_root=root,
+                suite_name=suites[role],
+                adapter_config=adapter_config,
+                output_dir=output,
+                protocol_snapshot=protocol_snapshot,
+                run_context=context,
+            )
+        if arm == "baseline" and baseline_root is not None:
+            observed_after = build_identity(
+                root,
+                commit_sha=base_sha,
+                role="accepted",
+                candidate_allowlist=protocol_snapshot["candidate_allowlist"],
+                immutable=bool(accepted_build["immutable"]),
+            )
+            if canonical_json(observed_after) != canonical_json(accepted_build):
+                raise ProtocolError("repeated baseline build changed during execution")
+        eligibility = assess(
+            run=run,
+            run_dir=run.output_dir,
+            expected_receipt=receipt,
+            task_records=run.task_records,
+            admissions_path=admissions_path,
+            quarantine_path=quarantine_path,
+        )
+        return ArmEvidence(run=run, context=context, eligibility=eligibility)
+
+    def validate_activation(
+        _role: str, baseline_arm: ArmEvidence, treatment_arm: ArmEvidence
+    ) -> list[str]:
+        _activation, errors = activation_validator(
+            treatment_arm.run,
+            baseline_run=baseline_arm.run,
+            trusted_repo=repo_root,
+            base_sha=base_sha,
+            candidate_root=candidate_root,
+            candidate_build=treatment_build,
+            candidate_allowlist=protocol_snapshot["candidate_allowlist"],
+            changed_files=candidate_guard.changed,
+            configured_path=(
+                adapter_config.get("treatment_path")
+                if adapter_kind == "warc-online4"
+                else adapter_config.get("file")
+            ),
+        )
+        return errors
+
     try:
-        treatment = run_suite(repo_root=candidate_root, suite_name=suites["dev"], adapter_config=adapter_config,
-                              output_dir=eval_root / "dev_treatment",
-                              protocol_snapshot=protocol_snapshot,
-                              run_context=treatment_context_record)
-    except (OptiEvalError, OSError, ValueError) as exc:
+        repeated_result = execute_repeated_protocol(
+            protocol=protocol_snapshot,
+            task_sources=task_sources,
+            predicted_task_ids=predicted_set,
+            run_arm=run_arm,
+            validate_activation=validate_activation,
+            deadline_at=deadline_at,
+            now=now,
+            transfer_status=transfer_status,
+            accepted_protection=protocol_snapshot["execution"]["accepted_protection"],
+            validity_policy=str(thresholds.get("validity_policy", "strict")),
+            min_prediction_precision=float(
+                thresholds.get("min_prediction_precision", 0.1)
+            ),
+        )
+    except (OptiEvalError, OSError, ValueError, ProtocolError) as exc:
         report.rungs.append(
-            RungResult("E5", "invalid", {"error": f"development evaluation failed: {exc}"})
+            RungResult("E5", "invalid", {"error": f"repeated evaluation failed: {exc}"})
         )
         return _finish(report, "invalid")
-    report.run_digests["dev_treatment"] = treatment_context_record["run_digest"]
-    try:
-        validate_paired_contexts(
-            baseline_dev.run_context,
-            treatment.run_context,
-            protocol_snapshot=protocol_snapshot,
-        )
-    except IdentityError as exc:
-        report.rungs.append(
-            RungResult("E5", "invalid", {"reason": f"paired run identity mismatch: {exc}"})
-        )
-        return _finish(report, "invalid")
-    if drift := runtime_drift():
-        report.rungs.append(RungResult("E5", "invalid", {"error": drift}))
-        return _finish(report, "invalid")
-    eligibility = admit_decision_run(
-        "dev_treatment", treatment, treatment_context_record
-    )
-    report.eligibility = eligibility.to_dict()
-    evidence_class = eligibility.evidence_class
 
-    if eligibility.integrity_status == "invalid":
-        report.rungs.append(RungResult("E5", "invalid", {
-            "reason": "evidence integrity invalid",
-            "task_errors": eligibility.integrity_errors,
-        }))
-        return _finish(report, "invalid", evidence_class)
-    if eligibility.integrity_status == "valid" and not eligibility.acceptance_eligible:
-        report.rungs.append(RungResult("E5", "invalid", {
-            "reason": "validated evidence has unresolved exact-run T1 quarantine",
-            "quarantined_tasks": eligibility.quarantined_tasks,
-        }))
-        return _finish(report, "invalid", evidence_class)
-
-    # Any exact-run quarantine already returned above.  Keep the comparison's
-    # exclusion input exact-run scoped rather than importing task-only state.
-    quarantined = set(eligibility.quarantined_tasks)
-    comparison = compare_runs(
-        baseline_dev, treatment,
-        policy=str(thresholds.get("validity_policy", "strict")),
-        quorum_coverage_floor=float(thresholds.get("quorum_coverage_floor", 0.9)),
-        task_sources=task_sources, quarantined=quarantined,
-    )
-    report.comparison = comparison.to_dict()
-    if not comparison.eligible:
-        report.rungs.append(RungResult("E5", "invalid", {"reasons": comparison.reasons}))
-        return _finish(report, "invalid", evidence_class)
-
-    if noise_band is None:
-        report.rungs.append(RungResult("E5", "invalid", {"reason": "noise band unmeasured"}))
-        return _finish(report, "invalid", evidence_class)
-    if not noise_band.synthetic and not noise_band.matches_identity(run_identity):
-        report.rungs.append(RungResult("E5", "invalid", {
-            "reason": "noise band was not measured for this run identity",
-            "expected": run_identity, "band": noise_band.run_identity,
-        }))
-        return _finish(report, "invalid", evidence_class)
-    if evidence_class == "benchmark":
-        if noise_band.synthetic:
-            report.rungs.append(RungResult("E5", "invalid", {"reason": "benchmark run cannot use a synthetic noise band"}))
-            return _finish(report, "invalid", evidence_class)
-
-    attribution = attribute(manifest, comparison)
-    report.attribution = attribution.to_dict()
-
-    # Acceptance conditions — the flip must be verified in FULL E5 evidence.
-    verified_in_e5 = bool(attribution.verified_fixes)  # predicted ∩ E5.fixed
-    not_revert = attribution.verdict != "revert"
-    min_precision = float(thresholds.get("min_prediction_precision", 0.1))
-    precision_ok = (
-        attribution.predicted_count == 0
-        or (attribution.prediction_precision or 0.0) >= min_precision
-    )
-    regress_ok = len(comparison.regressed) <= noise_band.max_benign_flips
-    base = comparison.baseline_success or 0.0
-    treat = comparison.treatment_success or 0.0
-    non_inferior = treat >= base - noise_band.aggregate_margin
-
-    conditions = {
-        "predicted_flip_verified_in_E5": verified_in_e5,
-        "attribution_not_revert": not_revert,
-        "prediction_precision_ok": precision_ok,
-        "regressions_within_noise_band": regress_ok,
-        "aggregate_non_inferior": non_inferior,
+    report.admissions.update(repeated_result.admissions)
+    report.run_digests.update(repeated_result.run_digests)
+    for role in ("dev", "regression"):
+        key = f"{role}_treatment"
+        final = repeated_result.final_runs.get(key)
+        if final is not None:
+            alias = "dev_treatment" if role == "dev" else "regression_treatment"
+            report.run_digests[alias] = final.context["run_digest"]
+            report.admissions[alias] = final.eligibility.to_dict()
+    report.eligibility = {"repeated_protocol": repeated_result.detail}
+    report.comparison = {
+        "protocol": "prespecified-repeated-paired-interleaved",
+        "legacy_noise_envelope": legacy_noise_diagnostic,
+        **repeated_result.detail,
     }
-    accepted = all(conditions.values())
-    report.rungs.append(RungResult("E5", "pass" if accepted else "fail", {
-        "conditions": conditions,
-        "min_prediction_precision": min_precision,
-        "noise_band": noise_band.to_dict(),
-    }))
-    return _finish(report, "accepted" if accepted else "rejected", evidence_class)
+    fixed = set(repeated_result.detail.get("fixed", []))
+    regressed = set(repeated_result.detail.get("regressed", []))
+    predicted_all = predicted_task_ids(manifest)
+    verified = sorted(predicted_all & fixed)
+    report.attribution = Attribution(
+        verdict=("keep" if verified and not regressed else "partial" if verified else "revert"),
+        predicted_count=len(predicted_all),
+        verified_fixes=verified,
+        missed_predictions=sorted(predicted_all - fixed),
+        unpredicted_fixes=sorted(fixed - predicted_all),
+        materialized_regressions=sorted(regressed),
+        prediction_precision=(round(len(verified) / len(predicted_all), 4) if predicted_all else None),
+        flip_recall=(round(len(verified) / len(fixed), 4) if fixed else None),
+    ).to_dict()
+    status = "pass" if repeated_result.decision == "accepted" else (
+        "invalid" if repeated_result.decision == "invalid" else "fail"
+    )
+    report.rungs.append(RungResult("E5", status, repeated_result.detail))
+    return _finish(report, repeated_result.decision, repeated_result.evidence_class)

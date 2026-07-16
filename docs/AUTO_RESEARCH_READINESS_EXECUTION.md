@@ -33,13 +33,13 @@ remain separate inputs.
 | **C — clean installability** | **Complete** | Code commit `9d0a7ab` declares the actual package graph; evidence commit `ef0da6b` passes isolated source-to-wheel installation, transitive dependency, negative resolver, installed CLI/test, no-network-namespace, and full portable ZIP/bundle verification. The code and evidence slices have clean independent correctness and elegance/YAGNI reviews. |
 | **Pre-D architecture transition** | **Complete; Accepted** | Proposal commit `544750b` passed separate correctness and elegance/YAGNI/vision re-reviews. On 2026-07-15 the owner-delegated coordinator, acting under the founder's delegated architecture-decision authority, approved it exactly: `Accept ADR-0018 as written.` ADR-0018 now binds the minimal repeated-decision, identity/activation, candidate-boundary, indivisible-build, atomic-publication, and reversible WARC/BrowserGym/Playwright qualification transition while ADR-0002/0003 remain Open. |
 | **D — exact identity and trusted activation** | **D3 committed at `9d6b39c`; fixture-backed checkpoint only** | D3 connects static-bundle import, D2 materialized execution, immutable treatment identity, conductor-observed harness-fixture activation through E1-E5, and recoverable accepted publication. It is the frozen milestone-F starting point, not browser activation, reportability, or operation readiness. |
-| **F — WARC `online.4` qualification** | **Reviewer-clean software qualification checkpoint** | Final correctness session `019f6a8c-ecc7-79c1-9fe3-d0eec9e97ad0` and elegance/YAGNI/vision session `019f6a8c-ecb0-78e0-8db2-c2eee89f1d0c` returned CLEAN on frozen candidate digest `fe53a6c0e9ea405c0835e80cd090abefc620bae26a59381fc3bd7ea5583e3bc8`. The containing milestone-F commit will identify this reviewer-clean software checkpoint. No external WACZ/verifier/runtime/license/credential input or live/reportable qualification has been supplied or run; milestone F external completion and operation readiness remain incomplete. |
+| **F — WARC `online.4` qualification** | **Committed at `7c245e5`; software qualification checkpoint only** | The reviewer-clean software checkpoint is frozen in commit `7c245e5402d03563f3ec98e067c612963c0a7725`. No external WACZ/verifier/runtime/license/credential input or live/reportable qualification has been supplied or run; milestone F external completion and operation readiness remain incomplete. |
+| **E — repeated decision and champion protection** | **Reviewer-clean software checkpoint; ready to commit** | Sole writer GPT-5.6 Sol medium session `019f6aa3-ec13-70c1-a980-e661f21272aa` and `/root` orchestrator started from exact HEAD `7c245e5402d03563f3ec98e067c612963c0a7725`. Final correctness and elegance/YAGNI/vision reviews are CLEAN; external activation and operation readiness remain incomplete. |
 
-The authorized remaining dependency order is the committed D3 checkpoint,
-concrete milestone-F WARC-Bench `online.4` qualification, milestone E repeated decision
-and champion protection, then milestones G-I lifecycle, learning/operator, and
-final integration work. Numeric milestone labels do not override that
-dependency order.
+The authorized remaining dependency order has reached milestone E repeated
+decision and champion protection after committed milestone F `7c245e5`, then
+milestones G-I lifecycle, learning/operator, and final integration work.
+Numeric milestone labels do not override that dependency order.
 
 ### Founder fast path for the remaining work
 
@@ -778,8 +778,8 @@ credential, paid API, or external benchmark asset.
 Fixture and deterministic simulation results are plumbing evidence only and
 must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
 
-The active uncommitted milestone-F software candidate has the following local
-verification evidence; none is live/reportable qualification evidence:
+The milestone-F software checkpoint committed at `7c245e5` has the following
+local verification evidence; none is live/reportable qualification evidence:
 
 - **Bounded writer:** session `019f6a00-be3a-7220-b4df-8b22c6da3f0c`, GPT-5.6
   Sol medium, is the sole bounded milestone-F implementation writer with no
@@ -849,6 +849,40 @@ verification evidence; none is live/reportable qualification evidence:
 - no live source, browser task, external benchmark asset, credential value,
   model/API budget, fetch, or network access was used.
 
+The active uncommitted milestone-E candidate adds the prespecified repeated
+decision authority directly to the existing conductor:
+
+- E0-E4 remain fail-fast scheduling/screens; E5 now executes frozen
+  paired/interleaved baseline and treatment arms for development and regression
+  suites, with symmetric run-context identity, accepted/candidate build checks,
+  exact AR-003 admission, fixed dev/regression block-set stopping, budget,
+  pre/post-arm deadline enforcement, one supported
+  paired-mean/observed-range/all-blocks decision rule, protocol-owned quorum and
+  fixed policy identifiers, repeatedly supported predicted flips, durable
+  accepted-state regression and champion evidence, and canonically digested
+  protocol-bound transfer inputs evaluated by the existing transfer decision;
+- the deterministic decision has exactly `accepted`, `rejected`,
+  `inconclusive`, and `invalid`; the legacy noise envelope is recorded only as
+  a diagnostic and cannot decide acceptance;
+- deterministic run IDs and retained exact run directories resume completed
+  arms after interruption without re-execution; completed WARC arms reconstruct
+  and revalidate conductor-owned activation from existing closed run/trace
+  artifacts; the existing recoverable accepted-publication transaction remains
+  the only state-advance path, persists the minimal durable protection record,
+  and still advances only `(accepted, benchmark)`;
+- final correctness session `019f6ade-3396-7303-afe6-afbf3e4e6083` returned
+  CLEAN with no remaining P1, matching hashes, and nine focused read-only
+  checks. Final elegance/YAGNI/vision session
+  `019f6ade-3492-78a2-8226-24d39ee6c825` returned CLEAN with no findings and
+  matching hashes. Writer evidence passes 17 identity, 15 repeated, 36 unit,
+  45 evidence/admission, 21 offline WARC, 21 materialization, and 68 E2E tests;
+  the broader loop suite ran 205 tests, with 204 passing and one existing
+  optional skip. This is a reviewer-clean software checkpoint ready to commit,
+  not calibrated real, live, performance, reportability, or operation-readiness
+  evidence; and
+- no asset was fetched, credential read, model/browser/live-source task run,
+  external budget spent, or performance/reportability claim made.
+
 ## Blockers
 
 ### Cleared architecture decision gate
@@ -882,9 +916,11 @@ verification evidence; none is live/reportable qualification evidence:
   records the reviewer-clean checkpoint.
   Production activation is blocked on the external inputs below. Passing the
   local fake cannot complete milestone F.
-- After milestone-F qualification, milestone E remains blocked on its
-  four-valued repeated paired/interleaved protocol, durable champion/regression
-  protection, and deterministic positive/no-op/regression/invalid simulations.
+- The reviewer-clean Milestone-E software checkpoint is ready to commit but
+  remains uncommitted. Real activation still lacks calibrated evidence, a
+  closed external transfer result, live WARC assets/runtime/credentials,
+  verifier admission, and campaign authorization. Milestone D and overall
+  operation readiness still depend on those inputs and later milestones G-I.
 - Interrupted-iteration recovery, atomic state/receipt advancement, minimal
   locks/permissions, budgets/deadlines, and operator status are not yet at the
   requested single-host readiness boundary.
@@ -915,8 +951,8 @@ verification evidence; none is live/reportable qualification evidence:
    in its containing commit. Keep production execution blocked until the exact external
    inputs and explicit owner authorization exist; only offline/local fixture
    integration is currently qualified.
-3. After milestone F, implement the four-valued repeated protocol in milestone
-   E, with positive, no-op, regression, invalid, and interruption simulations.
+3. Commit the reviewer-clean Milestone-E software checkpoint without treating
+   its simulations as calibration, benchmark, performance, or reportable evidence.
 4. Then finish milestones G-I: single-host lifecycle, analyst/learning, source
    dispositions, status/operator commands, adversarial integration, manifest regeneration,
    and final independent correctness plus elegance reviews.

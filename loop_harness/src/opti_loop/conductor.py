@@ -26,6 +26,7 @@ import os
 import shutil
 import stat
 import sys
+import time
 from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
@@ -62,6 +63,7 @@ from .protocol import (
     verify_runtime_bindings,
 )
 from .store import append_jsonl, atomic_write_json, atomic_write_text
+from .transfer import evaluate_checkpoint
 from .verdict import Verdict
 
 DEV_BASELINE_DIR = "eval/dev_baseline"
@@ -145,6 +147,60 @@ LEDGER_ROW_FIELDS = {
 
 class _AcceptedRefContention(gitutil.GitError):
     """The accepted ref changed before this publication could own it."""
+
+
+def _frozen_transfer_status(
+    campaign: Campaign, protocol: dict[str, Any]
+) -> str:
+    """Map one protocol-bound checkpoint result onto the existing E5 seam."""
+    config = protocol["execution"]["transfer"]
+    checkpoint_every = int(config.get("checkpoint_every", 0))
+    prospective_accept = len(campaign.state.get("accepted_iterations", [])) + 1
+    if checkpoint_every <= 0 or prospective_accept % checkpoint_every:
+        return "not_due"
+    result = config.get("checkpoint_result")
+    fields = {
+        "campaign_id",
+        "accepted_sha",
+        "accepted_iterations",
+        "deltas_by_model",
+        "evidence_digest",
+    }
+    if type(result) is not dict or set(result) != fields:
+        return "missing"
+    if (
+        result["campaign_id"] != campaign.campaign_id
+        or result["accepted_sha"] != protocol["accepted_build"]["commit_sha"]
+        or result["accepted_iterations"]
+        != campaign.state.get("accepted_iterations", [])
+    ):
+        return "missing"
+    deltas = result["deltas_by_model"]
+    if (
+        type(deltas) is not dict
+        or not deltas
+        or any(
+            type(model) is not str
+            or not model
+            or type(delta) not in {int, float}
+            for model, delta in deltas.items()
+        )
+    ):
+        return "missing"
+    unsigned = {key: value for key, value in result.items() if key != "evidence_digest"}
+    try:
+        expected_digest = digest_json(
+            unsigned, domain="opti.transfer-checkpoint-evidence.v1"
+        )
+    except (TypeError, ValueError):
+        return "missing"
+    if result["evidence_digest"] != expected_digest:
+        return "missing"
+    decision = evaluate_checkpoint(deltas).get("decision")
+    return {
+        "transfer_supported": "supported",
+        "REJECT_TRANSFER_BET": "regressed",
+    }.get(decision, "missing")
 
 
 # ── helpers ───────────────────────────────────────────────────────────────
@@ -1057,6 +1113,7 @@ def _accepted_final_state(
     admission: dict[str, Any],
     divergent: bool,
     fingerprint: str,
+    comparison: dict[str, Any],
 ) -> dict[str, Any]:
     """Derive the only state transition an accepted intent may publish."""
     accepted_iterations = pre_state.get("accepted_iterations")
@@ -1079,6 +1136,40 @@ def _accepted_final_state(
         campaign.iteration_dir(iteration) / "eval" / "dev_treatment"
     )
     final_state["last_accepted_admission_receipt"] = copy.deepcopy(admission)
+    prior_protection = pre_state.get(
+        "accepted_protection",
+        {
+            "champion_sha": pre_state["accepted_base_sha"],
+            "protected_tasks": [],
+            "success_rates": {},
+        },
+    )
+    candidate_rates = comparison.get("candidate_success_rates")
+    candidate_protected = comparison.get("candidate_protected_tasks")
+    if (
+        type(prior_protection) is not dict
+        or type(candidate_rates) is not dict
+        or type(candidate_protected) is not list
+        or any(type(task_id) is not str for task_id in candidate_protected)
+    ):
+        raise RuntimeError("accepted publication protection evidence is malformed")
+    durable_rates = copy.deepcopy(prior_protection.get("success_rates"))
+    protected_tasks = set(prior_protection.get("protected_tasks", []))
+    if type(durable_rates) is not dict:
+        raise RuntimeError("accepted publication durable success rates are malformed")
+    for task_id in candidate_protected:
+        rate = candidate_rates.get(task_id)
+        if type(rate) not in {int, float} or not 0 <= rate <= 1:
+            raise RuntimeError("accepted publication candidate success rate is malformed")
+        protected_tasks.add(task_id)
+        durable_rates[task_id] = max(float(durable_rates.get(task_id, 0.0)), float(rate))
+    final_state["accepted_protection"] = {
+        "champion_sha": candidate_sha,
+        "protected_tasks": sorted(protected_tasks),
+        "success_rates": {
+            task_id: durable_rates[task_id] for task_id in sorted(protected_tasks)
+        },
+    }
     final_state["failed_attempts"].pop(fingerprint, None)
     final_state["iterations_since_divergent"] = (
         0 if divergent else iterations_since_divergent + 1
@@ -1093,6 +1184,7 @@ def _accepted_final_state(
         ("pending_baseline_admission_receipt", None),
         ("pending_baseline_activation_observation", None),
         ("pending_regression_baseline_admission_receipt", None),
+        ("pending_repeated_started_at", None),
     ):
         final_state[key] = value
     return final_state
@@ -1264,6 +1356,7 @@ def _validate_pending_publication(
         admission=admission,
         divergent=divergent,
         fingerprint=fingerprint,
+        comparison=gate["comparison"],
     )
     if final_state != expected_final_state:
         raise RuntimeError("publication final-state transition is inconsistent")
@@ -1302,6 +1395,16 @@ def _validate_pending_publication(
         "fixed_variables"
     ):
         raise RuntimeError("publication fixed variables conflict with frozen protocol")
+    expected_protection = pre_state.get(
+        "accepted_protection",
+        {
+            "champion_sha": pre_state["accepted_base_sha"],
+            "protected_tasks": [],
+            "success_rates": {},
+        },
+    )
+    if protocol.get("execution", {}).get("accepted_protection") != expected_protection:
+        raise RuntimeError("publication durable protection conflicts with frozen protocol")
     submitted_snapshot = copy.deepcopy(snapshot)
     submitted_snapshot.pop("attribution", None)
     submitted_snapshot["status"] = "proposed"
@@ -1673,8 +1776,7 @@ def _clear_pre_intent_attempt(
     for name in (
         "smoke_treatment",
         "targeted_screen",
-        "regression_treatment",
-        "dev_treatment",
+        "regression_screen",
     ):
         output = iteration_dir / "eval" / name
         if output.is_symlink() or output.is_file():
@@ -2031,6 +2133,22 @@ def _run_iteration_locked(
                 else:
                     # Gate code owns expected operational failures at their
                     # active rung. Its unexpected exceptions are never relabeled.
+                    started_at = campaign.state.get("pending_repeated_started_at")
+                    if started_at is None:
+                        started_at = time.time()
+                        campaign.state["pending_repeated_started_at"] = started_at
+                        campaign.save_state()
+                    if type(started_at) not in {int, float}:
+                        raise RuntimeError("pending repeated-protocol deadline is malformed")
+                    deadline_at = float(started_at) + int(
+                        protocol["repeated_protocol"]["limits"]["deadline_seconds"]
+                    )
+                    baseline_root = iteration_dir / "accepted-repeated-worktree"
+                    gitutil.worktree_add(campaign.repo_root, baseline_root, base_sha)
+                    resources.callback(
+                        gitutil.worktree_remove, campaign.repo_root, baseline_root
+                    )
+                    transfer_status = _frozen_transfer_status(campaign, protocol)
                     gate_completed = False
                     try:
                         report = run_gate(
@@ -2056,6 +2174,10 @@ def _run_iteration_locked(
                             admissions_path=campaign.store.admissions_path,
                             quarantine_path=campaign.store.quarantine_path,
                             treatment_build=treatment_build,
+                            baseline_root=baseline_root,
+                            deadline_at=deadline_at,
+                            now=time.time,
+                            transfer_status=transfer_status,
                         )
                         gate_completed = True
                     finally:
@@ -2159,6 +2281,7 @@ def _run_iteration_locked(
                 admission=accepted_admission,
                 divergent=divergent,
                 fingerprint=fingerprint,
+                comparison=report.comparison,
             )
             publication = _seal_publication_record(
                 {
@@ -2298,6 +2421,7 @@ def _run_iteration_locked(
     campaign.state["pending_baseline_admission_receipt"] = None
     campaign.state["pending_baseline_activation_observation"] = None
     campaign.state["pending_regression_baseline_admission_receipt"] = None
+    campaign.state["pending_repeated_started_at"] = None
     campaign.save_state()
     result = {
         "iteration": number,
@@ -2370,6 +2494,7 @@ def _reject_pivot(
     campaign.state["pending_baseline_admission_receipt"] = None
     campaign.state["pending_baseline_activation_observation"] = None
     campaign.state["pending_regression_baseline_admission_receipt"] = None
+    campaign.state["pending_repeated_started_at"] = None
     campaign.save_state()
     gitutil.worktree_remove(campaign.repo_root, campaign.worktree_path)
     return {"iteration": number, "verdict": verdict.label, "decision": "rejected",

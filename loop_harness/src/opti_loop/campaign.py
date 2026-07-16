@@ -60,7 +60,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "smoke_min_pass_rate": 0.5,
         "regression_max_new_failures": 0,
         "validity_policy": "strict",
-        "quorum_coverage_floor": 0.9,
         # Shotgun-prediction guard (F09): of the tasks a manifest predicts will
         # flip, at least this fraction must actually flip in E5.
         "min_prediction_precision": 0.1,
@@ -72,6 +71,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "transfer": {
         "checkpoint_every": 5,
         "reject_bet_if": "median per-model transfer delta <= 0 on discovery-excluded tasks across the stronger-model panel",
+        "checkpoint_result": None,
     },
 }
 
@@ -161,7 +161,13 @@ def init_campaign(
         "pending_regression_baseline_run_digest": None,
         "pending_baseline_admission_receipt": None,
         "pending_regression_baseline_admission_receipt": None,
+        "pending_repeated_started_at": None,
         "last_accepted_admission_receipt": None,
+        "accepted_protection": {
+            "champion_sha": gitutil.head_sha(repo_root),
+            "protected_tasks": [],
+            "success_rates": {},
+        },
     }
     store.campaign_dir.mkdir(parents=True, exist_ok=True)
     campaign.save_config()

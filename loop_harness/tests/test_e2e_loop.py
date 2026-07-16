@@ -290,7 +290,11 @@ class TransactionalLoopTest(unittest.TestCase):
         report.admissions = {
             "dev_treatment": {"admission_receipt": {"receipt": "narrow mock"}}
         }
-        report.comparison = {"fixed": []}
+        report.comparison = {
+            "fixed": [],
+            "candidate_success_rates": {},
+            "candidate_protected_tasks": [],
+        }
         return report
 
     def _interrupt_publication(
@@ -927,6 +931,12 @@ class TransactionalLoopTest(unittest.TestCase):
                 reloaded = load_campaign(
                     self.repo, campaign.campaign_id, store_root=self.store
                 )
+                self.assertIsInstance(
+                    reloaded.state["pending_repeated_started_at"], float
+                )
+                reloaded.state["pending_repeated_started_at"] = state_before[
+                    "pending_repeated_started_at"
+                ]
                 self.assertEqual(reloaded.state, state_before)
                 self.assertEqual(campaign.ledger_path.read_bytes(), ledger_before)
                 self.assertFalse(
@@ -1631,7 +1641,11 @@ class TransactionalLoopTest(unittest.TestCase):
         accepted.admissions = {
             "dev_treatment": {"admission_receipt": {"receipt": "narrow mock"}}
         }
-        accepted.comparison = {"fixed": []}
+        accepted.comparison = {
+            "fixed": [],
+            "candidate_success_rates": {},
+            "candidate_protected_tasks": [],
+        }
         base_sha = campaign.state["pending_base_sha"]
         accepted_ref = f"refs/opti/{campaign.campaign_id}/accepted"
 
@@ -1832,6 +1846,14 @@ class TransactionalLoopTest(unittest.TestCase):
                     self.repo, campaign.campaign_id, store_root=self.store
                 )
                 self.assertEqual(reloaded.state["accepted_base_sha"], candidate_sha)
+                self.assertEqual(
+                    reloaded.state["accepted_protection"],
+                    {
+                        "champion_sha": candidate_sha,
+                        "protected_tasks": [],
+                        "success_rates": {},
+                    },
+                )
                 self.assertEqual(reloaded.state["pending_iteration"], 0)
                 self.assertEqual(reloaded.state, intent_record["final_state"])
                 self.assertEqual(
@@ -2270,10 +2292,11 @@ class TransactionalLoopTest(unittest.TestCase):
                 for name in (
                     "smoke_treatment",
                     "targeted_screen",
-                    "regression_treatment",
-                    "dev_treatment",
+                    "regression_screen",
                 ):
                     self.assertFalse((iteration_dir / "eval" / name).exists())
+                for name in ("regression_treatment", "dev_treatment"):
+                    self.assertTrue((iteration_dir / "eval" / name).exists())
             gate_calls += 1
             report = real_gate(**kwargs)
             self.assertEqual(report.verdict.decision, "accepted")
@@ -2529,7 +2552,10 @@ class TransactionalLoopTest(unittest.TestCase):
         self.assertEqual(result["decision"], "rejected")
         gate = json.loads((campaign.iteration_dir(1) / "gate-report.json").read_text())
         e5 = next(r for r in gate["rungs"] if r["rung"] == "E5")
-        self.assertFalse(e5["detail"]["conditions"]["prediction_precision_ok"])
+        self.assertLess(
+            e5["detail"]["prediction_precision"],
+            e5["detail"]["min_prediction_precision"],
+        )
 
     # ── AR-002: malformed manifests reject without splitting transaction ─
     def test_non_object_manifests_finish_truthful_rejected_transactions(self) -> None:
@@ -2845,6 +2871,9 @@ class TransactionalLoopTest(unittest.TestCase):
                     domain="test.accepted-build.v1",
                 ),
             )
+            snapshot["execution"]["accepted_protection"].update(
+                champion_sha=f"simulated:{label}:commit",
+            )
             for name in (
                 "calibration_binding_digest",
                 "comparison_apparatus_digest",
@@ -2948,7 +2977,7 @@ class TransactionalLoopTest(unittest.TestCase):
         )
         run_iteration(campaign)
 
-    def test_digest_only_real_noise_band_cannot_reach_a_decision(self) -> None:
+    def test_digest_only_legacy_noise_band_cannot_grant_a_decision(self) -> None:
         campaign = self._new_campaign("digest-only-noise", {"kind": "fixture", "seed": 0})
         base_before = campaign.state["accepted_base_sha"]
         band = measure_noise(campaign, runs=2).to_dict()
@@ -2970,10 +2999,8 @@ class TransactionalLoopTest(unittest.TestCase):
         report = json.loads(
             (campaign.iteration_dir(result["iteration"]) / "gate-report.json").read_text()
         )
-        self.assertIn(
-            "noise-band fields are not closed",
-            report["rungs"][0]["detail"]["reason"],
-        )
+        self.assertEqual(report["rungs"][-1]["status"], "invalid")
+        self.assertNotEqual(report["verdict"]["decision"], "accepted")
 
     def test_benchmark_preflight_rejects_simulated_identity_before_baseline(self) -> None:
         campaign = self._new_campaign("production", {"kind": "fixture", "seed": 0})

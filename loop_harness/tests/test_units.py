@@ -7,11 +7,13 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from opti_eval.identity import LiveRunReceipt, digest_json
 from opti_loop import fileguard, gitutil, lint, manifest, registration
 from opti_loop.attribution import attribute
 from opti_loop.compare import Comparison, NoiseBand, NoiseBandError, compare_runs, measure_noise_band
+from opti_loop.conductor import _frozen_transfer_status
 from opti_loop.evaluate import EvalRun
 from opti_loop.protocol import ProtocolError, build_identity, normalize_candidate_allowlist
 from opti_loop.verdict import Verdict
@@ -19,6 +21,43 @@ from opti_loop.verdict import Verdict
 ENV = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
        "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
 ALLOWED_PREFIXES = ("harness/components/",)
+
+
+class FrozenTransferStatusTest(unittest.TestCase):
+    def test_due_closed_checkpoint_maps_supported_regressed_or_missing(self) -> None:
+        state = {"accepted_iterations": [1, 2, 3, 4]}
+        campaign = SimpleNamespace(campaign_id="campaign-a", state=state)
+        base = "a" * 40
+        result = {
+            "campaign_id": "campaign-a",
+            "accepted_sha": base,
+            "accepted_iterations": [1, 2, 3, 4],
+            "deltas_by_model": {"model-a": 0.2, "model-b": 0.1},
+        }
+        result["evidence_digest"] = digest_json(
+            result, domain="opti.transfer-checkpoint-evidence.v1"
+        )
+        protocol = {
+            "accepted_build": {"commit_sha": base},
+            "execution": {
+                "transfer": {"checkpoint_every": 5, "checkpoint_result": result}
+            },
+        }
+        self.assertEqual(_frozen_transfer_status(campaign, protocol), "supported")
+        result["deltas_by_model"] = {"model-a": -0.2, "model-b": 0.1}
+        result["evidence_digest"] = digest_json(
+            {key: value for key, value in result.items() if key != "evidence_digest"},
+            domain="opti.transfer-checkpoint-evidence.v1",
+        )
+        self.assertEqual(_frozen_transfer_status(campaign, protocol), "regressed")
+        result["evidence_digest"] = "f" * 64
+        self.assertEqual(_frozen_transfer_status(campaign, protocol), "missing")
+        result["evidence_digest"] = digest_json(
+            {key: value for key, value in result.items() if key != "evidence_digest"},
+            domain="opti.transfer-checkpoint-evidence.v1",
+        )
+        result["decision"] = "transfer_supported"
+        self.assertEqual(_frozen_transfer_status(campaign, protocol), "missing")
 
 
 def _git(repo: Path, *args: str) -> None:
@@ -692,6 +731,7 @@ class VerdictTest(unittest.TestCase):
         self.assertTrue(Verdict("accepted", "benchmark").advances_accepted_state)
         self.assertFalse(Verdict("accepted", "simulated").advances_accepted_state)
         self.assertFalse(Verdict("rejected", "benchmark").advances_accepted_state)
+        self.assertFalse(Verdict("inconclusive", "benchmark").advances_accepted_state)
         self.assertEqual(Verdict("accepted", "simulated").label, "simulated:accepted")
 
 

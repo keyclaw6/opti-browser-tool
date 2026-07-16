@@ -428,7 +428,10 @@ def build_protocol_snapshot(
             repeated["repeats"]["count"] = repeat_count
             repeated["stopping"]["valid_after"] = repeat_count
             repeated["limits"]["max_runs"] = max(
-                repeat_count, int(repeated["limits"]["max_runs"])
+                repeat_count
+                * len(repeated["matched_blocks"]["seeds"])
+                * 2,
+                int(repeated["limits"]["max_runs"]),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise ProtocolError(
@@ -518,6 +521,16 @@ def build_protocol_snapshot(
             "fixed_variables": copy.deepcopy(campaign.config.get("fixed_variables", {})),
             "transfer": copy.deepcopy(campaign.config.get("transfer", {})),
             "exploration": copy.deepcopy(campaign.config.get("exploration", {})),
+            "accepted_protection": copy.deepcopy(
+                campaign.state.get(
+                    "accepted_protection",
+                    {
+                        "champion_sha": base_sha,
+                        "protected_tasks": [],
+                        "success_rates": {},
+                    },
+                )
+            ),
         },
     }
     try:

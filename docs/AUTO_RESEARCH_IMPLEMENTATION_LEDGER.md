@@ -42,15 +42,50 @@ findings, and only then may the package be committed and the next package start.
 | AR-011 | queued | Journaled exactly-once iteration recovery | OPS-006 | A durable iteration UUID/journal/receipt and ref CAS recover every start/gate/accept failpoint to exactly one committed or aborted result without split brain. |
 | AR-012 | queued | Preventative lifecycle driver and operator health | OPS-009; OPS-010; OPS-013 | A persisted driver resumes safely, honors running/paused/stopped plus budgets/deadlines, cleans descendants, and `status` diagnoses reconciliation failures without exposing secrets. |
 | AR-013 | queued | Identity-bound transfer and failed-transfer pause | CONV-013; OPS-011 | Finite complete paired transfer evidence is bound to campaign/base/candidate/task/model/environment identities; rejection atomically pauses further starts. |
-| AR-014 | queued | Inconclusive outcomes and indivisible attribution | CONV-006; CONV-015 | Infrastructure invalidity is behaviorally inert and does not consume attempts; partial candidates never advance wholesale. |
-| AR-015 | queued | Repeated paired statistical acceptance | FOUND-006; CONV-003 | Prespecified paired/interleaved repeats, uncertainty, minimum effect, and campaign-level false-acceptance control reject a stochastic no-op and detect powered positive controls. |
-| AR-016 | queued | Durable regression and champion protection | CONV-010 | Repeatedly supported capabilities remain protected across transient misses, and cumulative degradation from the declared champion cannot random-walk through local noise. |
+| AR-014 | complete in reviewer-clean Milestone-E software checkpoint; uncommitted | Inconclusive outcomes and indivisible attribution | CONV-006; CONV-015 | Infrastructure invalidity is behaviorally inert and does not consume attempts; partial candidates never advance wholesale. |
+| AR-015 | complete in reviewer-clean Milestone-E software checkpoint; uncommitted | Repeated paired statistical acceptance | FOUND-006; CONV-003 | Prespecified paired/interleaved repeats, uncertainty, minimum effect, and campaign-level false-acceptance control reject a stochastic no-op and detect powered positive controls. |
+| AR-016 | complete in reviewer-clean Milestone-E software checkpoint; uncommitted | Durable regression and champion protection | CONV-010 | Repeatedly supported capabilities remain protected across transient misses, and cumulative degradation from the declared champion cannot random-walk through local noise. |
 | AR-017 | queued | Event-addressable Analyst, clusters, and learnings | CONV-011 | Benchmark campaigns reject the stub; clusters are trace-backed and trusted; completed causal learnings are required before the next packet. |
 | AR-018 | queued | Judge trust identity and quarantine routing | CONV-012 | T2 trust is scoped to exact prompt/model/provider/settings/evidence/corpus identity; only trusted judgments may route; untrusted outputs are state-inert. |
 | AR-019 | queued | Source-aware scheduling and auditable task dispositions | FOUND-008; FOUND-010 | Per-source concurrency/leases are enforced; every provisional task has one validated disposition; smoke/source/site/mechanism coverage is mechanically checked. |
 | AR-020 | queued | Generated commands, status prose, and decision metadata | FOUND-009; FOUND-012; CONV-016; OPS-014 | Packets invoke the real workflow; accepted-contract versus activation-pending text matches the decision register; executable documentation tests prevent drift. |
 
 ## Current readiness execution order
+
+### Reviewer-clean milestone-E software checkpoint
+
+- **Frozen starting state:** reviewer-clean milestone F is committed at
+  `7c245e5402d03563f3ec98e067c612963c0a7725`.
+- **Active writer:** GPT-5.6 Sol medium session
+  `019f6aa3-ec13-70c1-a980-e661f21272aa` is the sole Milestone-E writer;
+  `/root` remains orchestrator; no overlapping editor exists.
+- **Implemented boundary:** the current consumer executes frozen repeated
+  paired/interleaved development and regression arms with symmetric exact run
+  identities/admission, four outcomes, prespecified stopping/budget/deadline,
+  one supported paired-mean/observed-range/all-blocks rule, repeatedly supported
+  predicted flips, post-arm deadline enforcement, protocol-owned quorum and
+  fixed policy identifiers, durable accepted-state regression/champion
+  evidence, and a canonically digested scheduled-transfer input evaluated by
+  the existing transfer decision. Completed WARC arms
+  reconstruct and revalidate conductor-owned activation from their existing
+  closed artifacts. The legacy noise band is diagnostic only. Existing D3/F
+  materialization, T1/quarantine/verifier admission, and recoverable accepted
+  publication remain the authorities.
+- **State boundary:** only `(accepted, benchmark)` may enter publication;
+  simulated/local-fixture evidence and every rejected/inconclusive/invalid
+  result are state-inert.
+- **Final review evidence:** correctness session
+  `019f6ade-3396-7303-afe6-afbf3e4e6083` returned CLEAN with no remaining P1;
+  both hashes matched and nine focused read-only checks passed. Elegance/YAGNI/
+  vision session `019f6ade-3492-78a2-8226-24d39ee6c825` returned CLEAN with no
+  findings and matching hashes. Writer evidence passes 17 identity, 15
+  repeated, 36 unit, 45 evidence/admission, 21 offline WARC, 21 materialization,
+  and 68 E2E tests; the broader loop suite ran 205 tests, with 204 passing and
+  one existing optional skip. This is reviewer-clean software ready to commit,
+  not a performance or reportability claim. No calibrated real evidence,
+  closed external transfer evidence, live WARC assets/runtime/credentials,
+  verifier admission, or campaign authorization exists; Milestone D and overall
+  operation readiness still depend on external activation and later G-I.
 
 ### Active milestone-F qualification slice
 
@@ -112,7 +147,10 @@ findings, and only then may the package be committed and the next package start.
   WACZ, native-verifier, runtime/browser, license/provenance, credential, and
   exact executor inputs remain blockers until owner supplied and verified.
 
-AR-001 through AR-003 are complete; AR-004 through AR-020 remain queued. The
+AR-001 through AR-003 and AR-014 through AR-016 are complete as software
+readiness packages; the reviewer-clean Milestone-E checkpoint remains
+uncommitted. The other
+AR-004 through AR-020 packages remain queued. The
 active sequence is now governed jointly with
 `docs/AUTO_RESEARCH_READINESS_EXECUTION.md`: milestone C is complete through
 code commit `9d0a7ab`, evidence commit `ef0da6b`, and the successful full
@@ -120,12 +158,11 @@ portable-archive proof from that clean evidence commit. The minimal required ADR
 transition was proposed at `544750b` and accepted as ADR-0018 on 2026-07-15 by
 the owner-delegated coordinator acting under the founder's delegated
 architecture-decision authority: `Accept ADR-0018 as written.` D3 is committed
-at `9d6b39c`; the one bounded milestone-F WARC `online.4` software
-qualification slice recorded above is now active. No D/E/F implementation was
-included in the proposal or acceptance slice itself.
-AR-004 through AR-020 remain queued and are pulled into bounded milestones only
-when their dependencies and review boundaries align. This ordering does not
-mark, skip, or silently supersede any queued package.
+at `9d6b39c`; milestone F is committed at `7c245e5`; and the Milestone-E
+candidate recorded above is active. No D/E/F implementation was included in
+the proposal or acceptance slice itself. Remaining queued packages are pulled
+only when their dependencies and review boundaries align; this ordering does
+not skip or silently supersede them.
 
 ## Required work deferred by real dependencies
 

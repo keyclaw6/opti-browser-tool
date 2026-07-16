@@ -16,13 +16,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-DECISIONS = ("accepted", "rejected", "invalid")
+DECISIONS = ("accepted", "rejected", "inconclusive", "invalid")
 EVIDENCE_CLASSES = ("benchmark", "simulated")
 
 
 @dataclass(slots=True, frozen=True)
 class Verdict:
-    decision: str          # accepted | rejected | invalid
+    decision: str          # accepted | rejected | inconclusive | invalid
     evidence_class: str    # benchmark | simulated
 
     def __post_init__(self) -> None:

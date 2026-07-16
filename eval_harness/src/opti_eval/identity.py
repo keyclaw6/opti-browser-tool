@@ -144,6 +144,29 @@ EXECUTION_FIELDS = {
     "fixed_variables",
     "transfer",
     "exploration",
+    "accepted_protection",
+}
+
+SUPPORTED_REPEATED_RULES = {
+    "interleaving": "paired-dev-regression",
+    "reset_scope": "per-task-arm",
+    "denominator": "frozen_task_seed_blocks",
+    "stopping": "fixed-complete-block-sets",
+    "estimator": "paired-mean",
+    "uncertainty": "observed-range",
+    "non_inferiority": "paired-range-lower-bound",
+    "regression": "no-new-failures",
+    "champion": "durable-success-rate-floor",
+    "transfer_rule": "scheduled-closed-checkpoint",
+    "transfer_schedule": "accepted-count-cadence",
+    "multiplicity_rule": "all-complete-dev-blocks",
+    "multiplicity_family": "frozen-dev-blocks",
+}
+SUPPORTED_OUTCOME_HANDLING = {
+    "invalid": "invalid",
+    "missing": "inconclusive",
+    "quarantined": "invalid",
+    "one_arm_only": "inconclusive",
 }
 
 _HEX_DIGEST = re.compile(r"[0-9a-f]{64}")
@@ -437,6 +460,9 @@ def comparison_apparatus_digest(snapshot: dict[str, Any]) -> str:
     value.pop("campaign_id", None)
     value.pop("iteration", None)
     value.pop("accepted_build", None)
+    execution = value.get("execution")
+    if type(execution) is dict and type(execution.get("accepted_protection")) is dict:
+        execution["accepted_protection"].pop("champion_sha", None)
     return digest_json(value, domain="opti.comparison-apparatus.v1")
 
 
@@ -492,11 +518,15 @@ def _validate_repeated_protocol(
         field_name="repeated_protocol.matched_blocks.interleaving",
         mode=mode,
     )
+    if matched["interleaving"] != SUPPORTED_REPEATED_RULES["interleaving"]:
+        raise IdentityError("unsupported repeated_protocol.matched_blocks.interleaving")
     _production_string(
         matched["reset_scope"],
         field_name="repeated_protocol.matched_blocks.reset_scope",
         mode=mode,
     )
+    if matched["reset_scope"] != SUPPORTED_REPEATED_RULES["reset_scope"]:
+        raise IdentityError("unsupported repeated_protocol.matched_blocks.reset_scope")
     coverage = repeated["coverage"]
     for name in ("minimum_fraction", "quorum_fraction"):
         number = _number(
@@ -514,6 +544,8 @@ def _validate_repeated_protocol(
         coverage["denominator"],
         field_name="repeated_protocol.coverage.denominator",
     )
+    if coverage["denominator"] != SUPPORTED_REPEATED_RULES["denominator"]:
+        raise IdentityError("unsupported repeated_protocol.coverage.denominator")
     repeat_count = _int(
         repeated["repeats"]["count"],
         field_name="repeated_protocol.repeats.count",
@@ -524,6 +556,8 @@ def _validate_repeated_protocol(
         field_name="repeated_protocol.stopping.rule",
         mode=mode,
     )
+    if repeated["stopping"]["rule"] != SUPPORTED_REPEATED_RULES["stopping"]:
+        raise IdentityError("unsupported repeated_protocol.stopping.rule")
     valid_after = _int(
         repeated["stopping"]["valid_after"],
         field_name="repeated_protocol.stopping.valid_after",
@@ -537,6 +571,8 @@ def _validate_repeated_protocol(
         raise IdentityError("repeated_protocol.stopping.optional_stopping must be false")
     for name, item in repeated["outcome_handling"].items():
         _string(item, field_name=f"repeated_protocol.outcome_handling.{name}")
+    if repeated["outcome_handling"] != SUPPORTED_OUTCOME_HANDLING:
+        raise IdentityError("unsupported repeated_protocol.outcome_handling")
     for section_name in (
         "effect",
         "non_inferiority",
@@ -554,14 +590,39 @@ def _validate_repeated_protocol(
                     field_name=f"repeated_protocol.{section_name}.{name}",
                     mode=mode,
                 )
+    if repeated["effect"]["estimator"] != SUPPORTED_REPEATED_RULES["estimator"]:
+        raise IdentityError("unsupported repeated_protocol.effect.estimator")
+    if repeated["effect"]["uncertainty"] != SUPPORTED_REPEATED_RULES["uncertainty"]:
+        raise IdentityError("unsupported repeated_protocol.effect.uncertainty")
+    fixed_rules = {
+        "non_inferiority": SUPPORTED_REPEATED_RULES["non_inferiority"],
+        "regression": SUPPORTED_REPEATED_RULES["regression"],
+        "champion": SUPPORTED_REPEATED_RULES["champion"],
+    }
+    for section, rule in fixed_rules.items():
+        if repeated[section]["rule"] != rule:
+            raise IdentityError(f"unsupported repeated_protocol.{section}.rule")
+    if repeated["transfer"] != {
+        "rule": SUPPORTED_REPEATED_RULES["transfer_rule"],
+        "schedule": SUPPORTED_REPEATED_RULES["transfer_schedule"],
+    }:
+        raise IdentityError("unsupported repeated_protocol.transfer policy")
+    if repeated["multiplicity"] != {
+        "rule": SUPPORTED_REPEATED_RULES["multiplicity_rule"],
+        "family": SUPPORTED_REPEATED_RULES["multiplicity_family"],
+    }:
+        raise IdentityError("unsupported repeated_protocol.multiplicity rule")
     limits = repeated["limits"]
     max_runs = _int(
         limits["max_runs"],
         field_name="repeated_protocol.limits.max_runs",
         minimum=1,
     )
-    if max_runs < repeat_count:
-        raise IdentityError("repeated_protocol.limits.max_runs is below repeat count")
+    required_runs = valid_after * len(seeds) * 2
+    if max_runs < required_runs:
+        raise IdentityError(
+            "repeated_protocol.limits.max_runs cannot reach stopping.valid_after"
+        )
     _int(
         limits["deadline_seconds"],
         field_name="repeated_protocol.limits.deadline_seconds",
@@ -850,9 +911,40 @@ def validate_protocol_snapshot(value: object) -> dict[str, Any]:
         "fixed_variables",
         "transfer",
         "exploration",
+        "accepted_protection",
     ):
         if type(execution[name]) is not dict:
             raise IdentityError(f"execution.{name} must be an object")
+    protection = _require_fields(
+        execution["accepted_protection"],
+        {"champion_sha", "protected_tasks", "success_rates"},
+        field_name="execution.accepted_protection",
+    )
+    reference = _production_string(
+        protection["champion_sha"],
+        field_name="execution.accepted_protection.champion_sha",
+        mode=mode,
+    )
+    if mode == "benchmark" and not _GIT_OBJECT.fullmatch(reference):
+        raise IdentityError("execution.accepted_protection.champion_sha is not a git object")
+    protected_tasks = protection["protected_tasks"]
+    success_rates = protection["success_rates"]
+    if (
+        type(protected_tasks) is not list
+        or protected_tasks != sorted(set(protected_tasks))
+        or any(type(task_id) is not str or not task_id for task_id in protected_tasks)
+        or type(success_rates) is not dict
+        or set(success_rates) != set(protected_tasks)
+    ):
+        raise IdentityError("execution.accepted_protection task evidence is malformed")
+    for task_id, rate in success_rates.items():
+        value = _number(rate, field_name=f"execution.accepted_protection.success_rates.{task_id}")
+        if not 0 <= value <= 1:
+            raise IdentityError("execution.accepted_protection success rate must be in [0, 1]")
+    if protection["champion_sha"] != accepted_build["commit_sha"]:
+        raise IdentityError(
+            "execution.accepted_protection.champion_sha differs from accepted build"
+        )
     if execution["noise_band"] is not None and type(execution["noise_band"]) is not dict:
         raise IdentityError("execution.noise_band must be an object or null")
 
@@ -1117,8 +1209,8 @@ def simulated_identity_defaults(
         "matched_blocks": {
             "seeds": [0],
             "arm_order": ["baseline", "treatment"],
-            "interleaving": "simulated:fixed",
-            "reset_scope": "simulated:per-task-arm",
+            "interleaving": SUPPORTED_REPEATED_RULES["interleaving"],
+            "reset_scope": SUPPORTED_REPEATED_RULES["reset_scope"],
         },
         "coverage": {
             "minimum_fraction": 1.0,
@@ -1128,34 +1220,38 @@ def simulated_identity_defaults(
         },
         "repeats": {"count": repeat_count},
         "stopping": {
-            "rule": "simulated:fixed-repeats",
+            "rule": SUPPORTED_REPEATED_RULES["stopping"],
             "valid_after": repeat_count,
             "optional_stopping": False,
         },
-        "outcome_handling": {
-            "invalid": "invalid",
-            "missing": "inconclusive",
-            "quarantined": "invalid",
-            "one_arm_only": "inconclusive",
-        },
+        "outcome_handling": copy.deepcopy(SUPPORTED_OUTCOME_HANDLING),
         "effect": {
-            "estimator": "simulated:paired-delta",
-            "uncertainty": "simulated:none",
+            "estimator": SUPPORTED_REPEATED_RULES["estimator"],
+            "uncertainty": SUPPORTED_REPEATED_RULES["uncertainty"],
             "minimum_effect": 0.0,
         },
-        "non_inferiority": {"rule": "simulated:legacy", "margin": 0.0},
+        "non_inferiority": {
+            "rule": SUPPORTED_REPEATED_RULES["non_inferiority"],
+            "margin": 0.0,
+        },
         "regression": {
-            "rule": "simulated:no-new-failures",
+            "rule": SUPPORTED_REPEATED_RULES["regression"],
             "max_regressions": 0,
         },
-        "champion": {"rule": "simulated:accepted-baseline", "margin": 0.0},
-        "transfer": {
-            "rule": "simulated:not-scheduled",
-            "schedule": "simulated:none",
+        "champion": {
+            "rule": SUPPORTED_REPEATED_RULES["champion"],
+            "margin": 0.0,
         },
-        "multiplicity": {"rule": "simulated:none", "family": "simulated:single"},
+        "transfer": {
+            "rule": SUPPORTED_REPEATED_RULES["transfer_rule"],
+            "schedule": SUPPORTED_REPEATED_RULES["transfer_schedule"],
+        },
+        "multiplicity": {
+            "rule": SUPPORTED_REPEATED_RULES["multiplicity_rule"],
+            "family": SUPPORTED_REPEATED_RULES["multiplicity_family"],
+        },
         "limits": {
-            "max_runs": max(2, repeat_count),
+            "max_runs": repeat_count * 2,
             "deadline_seconds": 3600,
             "exhaustion_outcome": "inconclusive",
         },
@@ -1277,6 +1373,11 @@ def simulated_protocol(
             "fixed_variables": {"evidence_mode": "simulated"},
             "transfer": {},
             "exploration": {},
+            "accepted_protection": {
+                "champion_sha": accepted_build["commit_sha"],
+                "protected_tasks": [],
+                "success_rates": {},
+            },
         },
     }
     return finalize_protocol_snapshot(payload)

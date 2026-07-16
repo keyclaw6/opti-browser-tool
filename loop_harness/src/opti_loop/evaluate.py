@@ -622,6 +622,58 @@ def load_run(
     return _parse_run(output_dir, suite_name, expected_receipt=expected_receipt)
 
 
+def reconstruct_warc_online4_activation(run: EvalRun) -> dict[str, Any] | None:
+    """Reconstruct the conductor-owned WARC observation from closed run bytes."""
+    task_root = run.output_dir / "tasks" / "warc-bench-online-4"
+    work = task_root / "warc-online4"
+    request_path = work / "request.json"
+    runtime_trace_path = work / "runtime-trace.jsonl"
+    task_trace_path = task_root / "trace.jsonl"
+    try:
+        request_bytes = request_path.read_bytes()
+        request = json.loads(request_bytes)
+        runtime_events = read_jsonl(runtime_trace_path)
+        treatment_events = [
+            event for event in runtime_events if event.get("event") == "treatment_loaded"
+        ]
+        request_events = [
+            event
+            for event in runtime_events
+            if event.get("event") == "model_request_applied"
+        ]
+        if len(treatment_events) != 1 or not request_events:
+            return None
+        treatment = treatment_events[0]
+        event_ids = [event.get("event_id") for event in request_events]
+        applied = [event.get("applied_request_sha256") for event in request_events]
+        if any(type(value) is not str for value in (*event_ids, *applied)):
+            return None
+        observation = {
+            "path": treatment.get("path"),
+            "sha256": treatment.get("sha256"),
+            "request_sha256": hashlib.sha256(request_bytes).hexdigest(),
+            "runtime_launcher_sha256": request.get("runtime_launcher_sha256"),
+            "runtime_trace": {
+                "path": "warc-online4/runtime-trace.jsonl",
+                "sha256": hashlib.sha256(runtime_trace_path.read_bytes()).hexdigest(),
+            },
+            "task_trace": {
+                "path": "trace.jsonl",
+                "sha256": hashlib.sha256(task_trace_path.read_bytes()).hexdigest(),
+            },
+            "treatment_event_id": treatment.get("event_id"),
+            "model_request_event_ids": event_ids,
+            "applied_request_sha256": applied,
+            "run_artifact": {
+                "path": "run.json",
+                "sha256": hashlib.sha256((run.output_dir / "run.json").read_bytes()).hexdigest(),
+            },
+        }
+    except (OSError, UnicodeError, ValueError, TypeError):
+        return None
+    return observation
+
+
 def _parse_run(
     output_dir: Path,
     suite_name: str,

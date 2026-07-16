@@ -86,6 +86,9 @@ def _benchmark_protocol(*, immutable: bool = True) -> dict:
         tree_sha="b" * 40,
         immutable=immutable,
     )
+    protocol["execution"]["accepted_protection"].update(
+        champion_sha="a" * 40,
+    )
     reportable = FixtureAdapter(pass_rate=1.0).describe()
     reportable["benchmark_reportable"] = True
     protocol["adapter"] = normalize_adapter_identity(reportable)
@@ -187,7 +190,7 @@ class IdentityContractTest(unittest.TestCase):
         decision = copy.deepcopy(noise)
         decision["repeated_protocol"]["repeats"]["count"] = 3
         decision["repeated_protocol"]["stopping"]["valid_after"] = 3
-        decision["repeated_protocol"]["limits"]["max_runs"] = 3
+        decision["repeated_protocol"]["limits"]["max_runs"] = 6
         for name in (
             "calibration_binding_digest",
             "comparison_apparatus_digest",
@@ -341,6 +344,35 @@ class IdentityContractTest(unittest.TestCase):
             benchmark.pop(name)
         with self.assertRaisesRegex(IdentityError, "reportable live adapter"):
             finalize_protocol_snapshot(benchmark)
+
+    def test_repeated_protocol_rejects_every_unsupported_fixed_policy(self) -> None:
+        cases = (
+            (("matched_blocks", "interleaving"), "unsupported-interleaving"),
+            (("matched_blocks", "reset_scope"), "unsupported-reset"),
+            (("coverage", "denominator"), "unsupported-denominator"),
+            (("stopping", "rule"), "unsupported-stop"),
+            (("effect", "estimator"), "unsupported-estimator"),
+            (("effect", "uncertainty"), "unsupported-uncertainty"),
+            (("non_inferiority", "rule"), "unsupported-non-inferiority"),
+            (("regression", "rule"), "unsupported-regression"),
+            (("champion", "rule"), "unsupported-champion"),
+            (("transfer", "rule"), "unsupported-transfer"),
+            (("transfer", "schedule"), "unsupported-schedule"),
+            (("multiplicity", "rule"), "unsupported-multiplicity"),
+            (("outcome_handling", "missing"), "invalid"),
+        )
+        for path, value in cases:
+            with self.subTest(path=path):
+                protocol = _protocol()
+                protocol["repeated_protocol"][path[0]][path[1]] = value
+                for name in (
+                    "calibration_binding_digest",
+                    "comparison_apparatus_digest",
+                    "protocol_digest",
+                ):
+                    protocol.pop(name)
+                with self.assertRaisesRegex(IdentityError, "unsupported"):
+                    finalize_protocol_snapshot(protocol)
 
     def test_benchmark_protocol_requires_immutable_materialized_build(self) -> None:
         with self.assertRaisesRegex(IdentityError, "immutable materialized build receipt"):
