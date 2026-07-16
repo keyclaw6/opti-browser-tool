@@ -32,10 +32,11 @@ remain separate inputs.
 | **B — decide the three external reviews** | **Complete** | The matrix below retains, adapts, defers, or rejects each major proposal against current code, charter value, and YAGNI; separate correctness and elegance reviews are clean. |
 | **C — clean installability** | **Complete** | Code commit `9d0a7ab` declares the actual package graph; evidence commit `ef0da6b` passes isolated source-to-wheel installation, transitive dependency, negative resolver, installed CLI/test, no-network-namespace, and full portable ZIP/bundle verification. The code and evidence slices have clean independent correctness and elegance/YAGNI reviews. |
 | **Pre-D architecture transition** | **Complete; Accepted** | Proposal commit `544750b` passed separate correctness and elegance/YAGNI/vision re-reviews. On 2026-07-15 the owner-delegated coordinator, acting under the founder's delegated architecture-decision authority, approved it exactly: `Accept ADR-0018 as written.` ADR-0018 now binds the minimal repeated-decision, identity/activation, candidate-boundary, indivisible-build, atomic-publication, and reversible WARC/BrowserGym/Playwright qualification transition while ADR-0002/0003 remain Open. |
-| **D — exact identity and trusted activation** | **D3 review-clean commit candidate; milestone D remains incomplete** | D1 and D2 are committed and review-clean. The uncommitted D3 candidate connects static-bundle import, D2 materialized execution, immutable treatment identity, conductor-observed harness-fixture activation through E1-E5, and recoverable accepted publication. This is fixture-backed trusted activation/publication infrastructure only; it does not complete milestone D, Slice A, browser activation, reportability, or operation readiness. |
+| **D — exact identity and trusted activation** | **D3 committed at `9d6b39c`; fixture-backed checkpoint only** | D3 connects static-bundle import, D2 materialized execution, immutable treatment identity, conductor-observed harness-fixture activation through E1-E5, and recoverable accepted publication. It is the frozen milestone-F starting point, not browser activation, reportability, or operation readiness. |
+| **F — WARC `online.4` qualification** | **Reviewer-clean software qualification checkpoint** | Final correctness session `019f6a8c-ecc7-79c1-9fe3-d0eec9e97ad0` and elegance/YAGNI/vision session `019f6a8c-ecb0-78e0-8db2-c2eee89f1d0c` returned CLEAN on frozen candidate digest `fe53a6c0e9ea405c0835e80cd090abefc620bae26a59381fc3bd7ea5583e3bc8`. The containing milestone-F commit will identify this reviewer-clean software checkpoint. No external WACZ/verifier/runtime/license/credential input or live/reportable qualification has been supplied or run; milestone F external completion and operation readiness remain incomplete. |
 
-The authorized remaining dependency order is the D3 checkpoint, concrete
-milestone-F WARC-Bench `online.4` qualification, milestone E repeated decision
+The authorized remaining dependency order is the committed D3 checkpoint,
+concrete milestone-F WARC-Bench `online.4` qualification, milestone E repeated decision
 and champion protection, then milestones G-I lifecycle, learning/operator, and
 final integration work. Numeric milestone labels do not override that
 dependency order.
@@ -96,7 +97,7 @@ review's proposed rewrite or timing.
 | Replace single-treatment/noise-envelope acceptance with a prespecified repeated paired/interleaved protocol | R1/R2/R3 | **Accept and implement** | Current E5 runs one treatment and can accept luck. The protocol must bind arm order, matched identities, repeats/stopping, missing/invalid handling, estimator/uncertainty, minimum effect, regression/transfer conditions, and multiplicity policy before treatment results. A predicted flip remains a diagnostic causal check, not sufficient evidence by itself. |
 | Adopt R2's universal `12` valid pairs, `p <= 0.05`, and `>= 0.25` effect as permanent thresholds | R2 | **Defer numeric selection; keep as a candidate first-source protocol** | ADR-0005 requires thresholds from measured real variance. Deterministic simulations can exercise an exact paired protocol, but fixture behavior must not calibrate production thresholds. The configured protocol must fail preflight until real identity-bound values are supplied. |
 | Add explicit `inconclusive` and keep invalid evidence behaviorally inert | R1/R2/R3 | **Accept and implement** | `Verdict` currently exposes only accepted/rejected/invalid although the charter and manifest name four outcomes. Valid but insufficient evidence is not rejection; infrastructure/integrity failure is not behavioral evidence and must not consume promotion evidence. |
-| Make observed activation a trusted dynamic fact rather than optimizer-authored prose or E1 `pending` | R1/R2/R3 | **Accept and implement** | The D3 candidate now qualifies only the conductor-observed harness-fixture seam; other adapters fail closed. Treatment evidence binds the executed candidate/build, frozen surface, run identity, trusted result metrics, and baseline observation. Missing, baseline-build, wrong-build, wrong-path/surface, or unconsumed observation is invalid; behavior-neutral output remains valid activation and proceeds to the efficacy decision. No generic instrumentation plugin system is needed. |
+| Make observed activation a trusted dynamic fact rather than optimizer-authored prose or E1 `pending` | R1/R2/R3 | **Accept and implement** | D3 qualified the conductor-observed harness-fixture seam; the active milestone-F candidate reuses that authority for only WARC `online.4`. Other adapters fail closed. Treatment evidence binds the executed candidate/build, frozen surface, run identity, trusted result metrics, and baseline observation. Missing, baseline-build, wrong-build, wrong-path/surface, or unconsumed observation is invalid; behavior-neutral output remains valid activation and proceeds to the efficacy decision. No generic instrumentation plugin system is needed. |
 | Retain T0/T1, verifier admission, quarantine, and no-score-override behavior; remove the generalized quarantine/admission state | R1/R3 | **Keep current machinery; defer only uncalibrated T2 use** | Existing evidence, T1, quarantine, and verifier code closes real evaluator-disagreement paths and has adversarial coverage. Do not delete it for conceptual neatness. Simplify only if concrete source integration exposes a correctness or operability cost. No LLM judge becomes trusted before identity-bound real-corpus calibration. |
 | Simplify trace/event/schema rules and shrink the cross-surface adversarial corpus | R1/R3 | **Reject now** | Exact framing, identity, ordering, terminal verifier, final-state adjacency, visibility, containment, and digest rules protect decisions and are the point of AR-003. Source-specific extensions may be added, but no guarantee is relaxed merely because a smaller greenfield envelope is imaginable. Delete tests only after replacement coverage proves the same invariant. |
 | Use SQLite or another database as the accepted-state transaction boundary | R1 | **Reject** | The current single-host scope does not justify a new database. Extend the existing owner-controlled filesystem store with safe paths, permissions, locks, staging, receipts/journal, and atomic compare-and-swap advancement only as needed for recoverable operation. |
@@ -288,16 +289,18 @@ review's proposed rewrite or timing.
   the exact materialized candidate to execution and conductor-observed
   activation; no benchmark performance is claimed.
 
-### D3 review-clean commit candidate
+### D3 committed checkpoint (`9d6b39c`)
 
 - **Bounded closeout writer:** local Codex session
   `019f69de-0b03-7333-adf2-579a6a2b5432`, GPT-5.6 Sol medium, was the sole
   writable D3 closeout implementer. `/root` is the orchestrator, not the
   implementer. This handback is implementation evidence only, not an
   independent-review claim or authorization for external activation.
-- The only qualified activation seam is `harness-fixture` consuming
-  `harness/components/policy/quality.txt`. All shipped adapters remain
-  non-reportable, and accepted benchmark publication is mocked in tests.
+- At the committed D3 checkpoint, the only qualified activation seam was
+  `harness-fixture` consuming
+  `harness/components/policy/quality.txt`. At that checkpoint, all shipped
+  adapters were non-reportable, and accepted benchmark publication was mocked
+  in tests.
 
 - The current consumer turns a same-user simulated optimizer worktree handback
   into one static Git bundle, while benchmark mode requires an independent
@@ -437,8 +440,9 @@ review's proposed rewrite or timing.
   unexpected `MaterializationError`, `ValueError`, and `OSError` exceptions from
   `run_gate` propagate with pending state intact instead of creating false E1
   evidence.
-- Only the currently instrumented `harness-fixture` adapter may start treatment
-  execution. Other adapters stop at E1 invalid with `run_suite` uncalled.
+- At the committed D3 checkpoint, only the instrumented `harness-fixture`
+  adapter could start treatment execution. Other adapters stopped at E1 invalid
+  with `run_suite` uncalled.
   Simulated accept/reject/invalid outcomes and the simulated pivot path clear
   pending fields but preserve `iterations_since_accept`, `failed_attempts`, and
   `iterations_since_divergent`; only valid benchmark accept/reject evidence may
@@ -490,7 +494,7 @@ review's proposed rewrite or timing.
   journal, taxonomy, recovery abstraction, or duplicated authority. Both
   reviewed frozen dirty-diff SHA-256
   `768c8b6ed2c9b81ee7274ad37106f01d0df084fb1adea8bb30a0eb84e543cba4`
-  with no drift. D3 is therefore a review-clean commit candidate for the
+  with no drift. D3 was therefore a review-clean commit candidate for the
   fixture-backed trusted activation/publication infrastructure only; no commit
   hash or milestone-D completion is claimed.
 
@@ -663,7 +667,7 @@ evidence; none is milestone-D or Slice-A completion evidence:
 - this closeout's diff, completeness, documentation, and generated-manifest
   gates are recorded after the final ledger bytes settled.
 
-The uncommitted D3 review-clean commit candidate has the following offline
+The D3 checkpoint committed at `9d6b39c` has the following offline
 verification evidence:
 
 - this remaining P1 correction pass ran seven focused tests covering transient
@@ -774,6 +778,77 @@ credential, paid API, or external benchmark asset.
 Fixture and deterministic simulation results are plumbing evidence only and
 must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
 
+The active uncommitted milestone-F software candidate has the following local
+verification evidence; none is live/reportable qualification evidence:
+
+- **Bounded writer:** session `019f6a00-be3a-7220-b4df-8b22c6da3f0c`, GPT-5.6
+  Sol medium, is the sole bounded milestone-F implementation writer with no
+  overlapping editor;
+- **Latest review status:** correctness session
+  `019f6a56-5b43-7442-a54a-091c1697a15b` and elegance session
+  `019f6a56-5a3f-7062-9d52-8f7a5dc4e342` each returned FIX. Their batch found
+  the guessed production Gym constructor, post-close JSON verifier authority,
+  preflight files that did not govern actual imports, and blocking/leaky worker
+  IPC. Subsequent orchestrator source inspection found that the first correction
+  still used an invented handler constructor/setup signature. This P1 is now
+  corrected to the pinned keyword API plus the narrow in-memory `online.4`
+  `task_config.env` adaptation. The final reviewer pair then found control-IPC
+  contamination, missing consumed-manifest authority, decorative model identity,
+  incomplete resolved-environment/Playwright binding, and an overlong HTTP
+  timeout. The permitted rereview of that state returned FIX because the real
+  CLI omitted derived model aliases, a drip-fed urllib response could exceed
+  the lifecycle, verifier calls were not bound to one Page object, and the
+  adapter kept a second post-hoc clock. Final resumed GPT-5.6 Sol medium
+  correctness session `019f6a8c-ecc7-79c1-9fe3-d0eec9e97ad0` returned CLEAN,
+  confirming the absolute full-response deadline and timer restoration, retained
+  reset-time Page, real CLI model-alias/operator traversal, removed adapter
+  clock, and accepted-state restriction to accepted benchmark evidence. Final
+  elegance/YAGNI/vision session `019f6a8c-ecb0-78e0-8db2-c2eee89f1d0c`
+  returned CLEAN, confirming one timing authority, one Page observation
+  authority, a connected CLI path, and no new recovery, scheduler, retry, or
+  duplicate framework. Frozen digest
+  `fe53a6c0e9ea405c0835e80cd090abefc620bae26a59381fc3bd7ea5583e3bc8`
+  is therefore the reviewer-clean software qualification checkpoint; its
+  containing milestone-F commit will carry that checkpoint identity;
+- evaluator discovery passes 67 tests, including all 21 focused WARC
+  config/preflight/admission/lifecycle/live-verifier/runtime-identity/
+  subprocess-cleanup cases;
+- the positive normal-conductor traversal, negative echo-only traversal, and
+  negative dropped-treatment traversal passed: exact candidate bytes are part
+  of the applied model body and its cited digest, while echo-only or omitted
+  candidate evidence is invalid and state-inert;
+- the broader affected loop end-to-end/CLI suite passes 79 tests, including
+  strict admission reuse and proof that admission failure prevents campaign
+  initialization. It also proves actual CLI `init` -> `start` -> local WARC
+  execution derives both protocol aliases without test-only injection, remains
+  non-reportable, and cannot advance accepted state; the earlier pre-correction
+  full loop discovery is historical
+  evidence only and is not a correctness claim for this correction;
+- the WARC local fake traversed the normal conductor, D2 materialized candidate,
+  WARC treatment load/replay/reset/model-request/action/native-verifier/final-state/
+  trace/artifact/cleanup
+  shapes, D3-derived E1 activation, E2, and the efficacy screening path;
+- the fake remained `benchmark_reportable=false`, used local-fixture evidence,
+  and left accepted state unchanged;
+- representative failures cover WACZ, verifier, pinned source, actual loaded
+  runtime/browser identity,
+  executor, provenance/license, credential, protocol identity, optimizer UID/
+  inbox, wrong task/source, reset, verifier, final state, trace, artifact,
+  activation, echo-only rejection, exact handler keyword/setup calls, missing
+  handler task-config shape, manifest blob/row mismatch, noisy upstream worker
+  output, wrong resolved Gym environment, wrong Playwright driver, clipped late
+  model calls, absolute drip-fed response timeout, reset-time Page substitution,
+  unsupported Gym kwargs, artifact symlink containment,
+  malformed/hung reset, hung close, terminate-resistant worker reaping, and
+  production preflight with zero lifecycle execution; and
+- the offline schema audit passed 531 documents, 195 evidence cases, and 180
+  experiment cases; documentation passed 85 Markdown files and 175 local links;
+  repository completeness passed 55 required files; the regenerated inventory
+  and digest manifest passed at 388 and 389 files; targeted changed-surface
+  Ruff, source compilation, and `git diff --check` passed; and
+- no live source, browser task, external benchmark asset, credential value,
+  model/API budget, fetch, or network access was used.
+
 ## Blockers
 
 ### Cleared architecture decision gate
@@ -785,9 +860,11 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
 
 ### Software blockers to close in milestones D-I
 
-- `harness/` is a scaffold with no executable browser harness; the current loop
-  can construct only fixture, harness-fixture, and non-reportable command
-  adapters.
+- `harness/` remains a scaffold with no executable browser harness. At committed
+  D3, the loop could construct only fixture, harness-fixture, and non-reportable
+  command adapters. The milestone-F candidate adds only the WARC `online.4`
+  qualification path described below; it is reviewer-clean software, its local fake is
+  non-reportable, and its external inputs and live qualification remain absent.
 - D1 supplies closed protocol and run-context identity. The rejected five-file
   D2a0 attempt did not derive candidate identity from trusted Git objects; it
   was discarded without commit, is absent from the current tree, and must not
@@ -795,10 +872,16 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
   materialization to immutable harness-fixture execution, activation, and
   recoverable publication. It remains fixture-backed infrastructure only and
   does not complete milestone D or establish a reportable browser path.
-- The missing public reportable WARC/operator activation path is the next
-  concrete milestone-F dependency: no source-native reportable adapter, reset
-  contract, credential/asset preflight, browser-fixture integration, or
-  operator activation flow is complete.
+- The milestone-F software candidate now contains one source-specific WARC
+  `online.4` adapter, repository-owned lifecycle, closed preflight, strict
+  verifier-admission gate, standard BrowserGym reset/step/close, a fixed
+  OpenCode Go messages request, verifier/final-state/trace/artifact/cleanup
+  contracts, deterministic local boundary fake, D3 activation integration,
+  and an operator flow. The final correctness and elegance/YAGNI/vision
+  rereviews returned CLEAN on the frozen candidate; the containing commit
+  records the reviewer-clean checkpoint.
+  Production activation is blocked on the external inputs below. Passing the
+  local fake cannot complete milestone F.
 - After milestone-F qualification, milestone E remains blocked on its
   four-valued repeated paired/interleaved protocol, durable champion/regression
   protection, and deterministic positive/no-op/regression/invalid simulations.
@@ -825,14 +908,13 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
 
 ## Next steps
 
-1. Preserve this bounded D3 checkpoint as fixture-backed trusted
-   activation/publication infrastructure; do not mark milestone D, Slice A, or
-   operation readiness complete from it.
-2. Supply the next concrete milestone-F dependency: a public reportable WARC
-   `online.4` operator activation path (or evidence forcing a different source),
-   with precise preflight, reset/verifier/artifact/config contracts,
-   constrained browser execution, and an explicit operator flow. Until then,
-   only offline/local fixture integration is qualified.
+1. Preserve committed D3 (`9d6b39c`) as fixture-backed trusted
+   activation/publication infrastructure; do not infer browser reportability
+   or operation readiness from it.
+2. Preserve the reviewer-clean milestone-F WARC `online.4` software checkpoint
+   in its containing commit. Keep production execution blocked until the exact external
+   inputs and explicit owner authorization exist; only offline/local fixture
+   integration is currently qualified.
 3. After milestone F, implement the four-valued repeated protocol in milestone
    E, with positive, no-op, regression, invalid, and interruption simulations.
 4. Then finish milestones G-I: single-host lifecycle, analyst/learning, source

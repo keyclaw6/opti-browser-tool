@@ -94,6 +94,28 @@ class RepoRootDiscoveryTest(unittest.TestCase):
             self.assertEqual(code, 2)
             self.assertIn("--harness-file required", stderr.getvalue())
 
+    def test_warc_admission_preflight_blocks_campaign_initialization(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = _seed_repo(Path(tmp))
+            stderr = StringIO()
+            with (
+                patch(
+                    "opti_loop.cli.load_and_preflight_config",
+                    side_effect=ValueError(
+                        "verifier admission failed: no admitted verifier record"
+                    ),
+                ),
+                patch("opti_loop.cli.init_campaign") as init,
+                redirect_stderr(stderr),
+            ):
+                code = main([
+                    "--repo-root", str(repo), "init", "--campaign", "warc",
+                    "--adapter", "warc-online4", "--warc-config", "/owner/config.json",
+                ])
+            self.assertEqual(code, 2)
+            self.assertIn("verifier admission failed", stderr.getvalue())
+            init.assert_not_called()
+
     def test_harness_fixture_init_writes_direct_file_defaults(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = _seed_repo(Path(tmp))

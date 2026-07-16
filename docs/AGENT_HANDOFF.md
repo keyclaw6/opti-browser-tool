@@ -1,6 +1,6 @@
 # Agent handoff: current project state
 
-Date: 2026-07-15
+Date: 2026-07-16
 
 ## Purpose of this document
 
@@ -53,6 +53,13 @@ proved during bring-up.
     delegated architecture-decision authority, accepted it exactly as written;
     the acceptance-only documentation slice records that decision without D/E/F
     implementation.
+11. D3 exact materialization, trusted fixture activation, and recoverable
+    publication are committed at `9d6b39c`. A milestone-F WARC `online.4`
+    software qualification candidate is active but uncommitted. Both initial
+    reviews returned FIX; the corrections are locally verified and await
+    independent rereview. The candidate does not
+    establish live execution, benchmark reportability, performance, readiness,
+    or a decision on ADR-0003.
 
 ## Binding decisions
 
@@ -87,7 +94,11 @@ ADR-0013 is retained as a superseded historical record because its original acti
 
 ## What is not complete
 
-- No real benchmark source bridge is implemented or audited.
+- No live benchmark source bridge has been externally activated or audited.
+  One WARC `online.4` software qualification adapter exists, but its production
+  preflight is intentionally blocked without owner-supplied assets, native
+  verifier/admission, conforming runtime/executor identities, license evidence,
+  credentials, and deployed confinement.
 - Upstream website environments, WACZ archives, ServiceNow instances, images, credentials, browser profiles, and evaluator packages are not vendored.
 - No task has a locally measured task-level success rate.
 - No task has completed the full reset, known-good-run, adversarial-verifier, repetition, safety, and duplication audit.

@@ -1,0 +1,21 @@
+{
+  "schema_version": "0.2.0",
+  "id": "warc-online4-qualification",
+  "kind": "qualification",
+  "status": "reversible_not_admitted",
+  "created_at": "2026-07-16T00:00:00Z",
+  "task_count": 1,
+  "task_ids": [
+    "warc-bench-online-4"
+  ],
+  "source_quotas": {
+    "warc_bench": 1
+  },
+  "policy": {
+    "qualification_only": true,
+    "reportability_requires_production_config_and_ar003_admission": true,
+    "local_fixture_state_inert": true,
+    "adr_0003_remains_open": true
+  },
+  "note": "One reversible WARC-Bench online.4 qualification path; not a frozen benchmark suite or backend selection."
+}

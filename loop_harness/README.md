@@ -32,7 +32,7 @@ decision.**
 | Change manifest (evidence → root cause → fix → predicted fixes/risks → why this component) | agentic-harness-engineering | one canonical `schemas/experiment.schema.json` requires `target_component` and `cluster_ref`; conductor alone appends `attribution` or writes the discriminated `rejected_submission` record for invalid input |
 | KEEP / PARTIAL / REVERT attribution | AHE | computed synchronously; a `revert` attribution can never be accepted, and the flip must be verified in FULL E5 evidence (not E3 screening) |
 | Iteration folders with pre-built analysis read first | AHE (`runs/iteration_NNN/`) | `<store>/<id>/iterations/iter-NNNN/` with `analysis/`, `PACKET.md`, `eval/*` — in the trusted store |
-| Registration validation before evaluation | AHE `validate_agent.py` | `component.json` checks remain supporting E1 metadata; only the `harness-fixture` rehearsal has conductor-observed activation, and other adapters fail closed pending concrete trusted instrumentation |
+| Registration validation before evaluation | AHE `validate_agent.py` | `component.json` checks remain supporting E1 metadata; `harness-fixture` and the one concrete WARC `online.4` seam have conductor-observed activation, and other adapters fail closed pending concrete trusted instrumentation |
 | Failure clusters prioritized by `total_failures × (1 − resolution_rate)` | neosigma method article | cluster register per `docs/architecture/ANALYST.md`; the stub Analyst labels itself `stub-0` and claims no root causes |
 | **Replaced:** monotonic `val_score ≥ best` ratchet | auto-harness | paired baseline/treatment comparison inside a measured noise band (ADR-0015 §8) |
 | **Replaced:** at-risk lists as regression protection | AHE manifests | risk lists are measured for prediction accuracy but never protect the gate |
@@ -84,14 +84,18 @@ separable, and `simulated:accepted` mutated real state. v2 closes these:
 ## Honest limitations (current)
 
 1. **The Analyst is a stub** (`stub-0`, no root causes) — needs traces (ADR-0004).
-2. **E1 observed activation is qualified only for `harness-fixture`** — the
+2. **E1 observed activation is qualified only for `harness-fixture` and the
+   concrete WARC `online.4` path** — the
    conductor binds one compact behavior-file observation (path, checksum,
    parsed value, and cited `run.json`) to the exact D2 build, frozen changed
    surface, run/protocol/adapter identity, and the trusted accepted-build
    baseline observation. Missing observation, baseline/wrong build, wrong
    path/surface, or unconsumed bytes stop at E1 invalid. A behavior-neutral
    candidate with proven exact build/surface consumption passes E1 and reaches
-   the efficacy decision. Other adapters fail E1 until their concrete trusted
+   the efficacy decision. The WARC path additionally requires its trusted
+   repository lifecycle trace to show the exact treatment load and
+   exact candidate-bearing applied model-request digest, with task-trace and `run.json`
+   citations; its local fake remains simulated and state-inert. Other adapters fail E1 until their concrete trusted
    instrumentation exists. T2 judges are owner-invoked; only T1 auto-runs in
    eligibility today.
 3. **k-repeat paired confirmation is specified but runs once** under the
@@ -162,5 +166,8 @@ accepted state, and cannot change research-continuation counters. Unsupported
 adapters stop at E1 before any treatment execution.
 
 Operator commands (see `opti-loop --help`): `init`, `measure-noise`, `start`,
-`run-iteration`, `status`, `compare-campaigns`, `transfer-plan`.
+`run-iteration`, `status`, `compare-campaigns`, `transfer-plan`, and the
+non-executing `warc-online4-preflight`. See
+[`docs/WARC_ONLINE4_QUALIFICATION.md`](../docs/WARC_ONLINE4_QUALIFICATION.md)
+for the exact external-input and operator contract.
 The optimizer's contract lives in [`PROGRAM.md`](../PROGRAM.md).

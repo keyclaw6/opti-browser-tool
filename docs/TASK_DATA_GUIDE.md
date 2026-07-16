@@ -91,7 +91,7 @@ To resolve a suite ID into its full task record, load `evals/catalog/task-index.
 | WebArena-Verified | Exact IDs, textual intents, site, version/checksum, evaluator category, and provenance | Environment containers/data, full task/evaluator configuration, authentication/reset setup, network-trace capture, and a source bridge |
 | WorkArena++ L2 | Exact task class, seed, benchmark label, source version/checksum, and provenance | Gated ServiceNow instance, runtime-instantiated instruction and initial state, oracle/verifier implementation, and a source bridge |
 | VisualWebArena | Exact IDs, textual intents, site, difficulty labels, version/checksum, and provenance | Referenced input images, website environments and data, full config/evaluator records, and a source bridge |
-| WARC-Bench | Exact IDs, human-readable goals, site, version/checksum, evaluator category, and provenance | WACZ archives, full environment records, JavaScript/URL verifier scripts, replay runtime, and a source bridge |
+| WARC-Bench | Exact IDs, human-readable goals, site, version/checksum, evaluator category, provenance, and one software qualification adapter for `online.4` | WACZ bytes/checksum, native JavaScript verifier bytes/admission, replay/BrowserGym/Playwright/browser/executor runtime identities, license evidence, credentials if required, deployed confinement, and any authorized live qualification |
 
 ### WorkArena and visual-task caveats
 

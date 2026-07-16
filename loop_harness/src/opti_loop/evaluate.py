@@ -10,7 +10,9 @@ infrastructure signals, never agent failures.
 """
 from __future__ import annotations
 
+import base64
 import hashlib
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from pathlib import PurePosixPath
@@ -18,11 +20,13 @@ from typing import Any
 
 from opti_eval.adapters.command import CommandAdapter
 from opti_eval.adapters.fixture import FixtureAdapter
+from opti_eval.adapters.warc_online4 import RUNTIME_LAUNCHER, WarcOnline4Adapter
 from opti_eval.catalog import select_tasks
 from opti_eval.identity import LiveRunReceipt, digest_json
 from opti_eval.models import validate_nonempty_string
 from opti_eval.runner import run_evaluation
 from opti_eval.summary import load_run_artifacts, validate_run_directory
+from opti_eval.util import read_jsonl
 
 from . import gitutil
 
@@ -269,6 +273,13 @@ def build_adapter(adapter_config: dict[str, Any], *, repo_root: Path | None = No
             adapter_config["command"],
             timeout_seconds=int(adapter_config.get("timeout_seconds", 1800)),
         )
+    if kind == "warc-online4":
+        if repo_root is None:
+            raise ValueError("warc-online4 requires an exact candidate repository root")
+        config_path = Path(adapter_config["config_path"])
+        if not config_path.is_absolute():
+            raise ValueError("warc-online4 config_path must be absolute")
+        return WarcOnline4Adapter(config_path, candidate_root=repo_root)
     raise ValueError(
         f"unsupported adapter kind {kind!r} (registry adapters arrive with the source bridges)"
     )
@@ -287,6 +298,9 @@ def run_suite(
 ) -> EvalRun:
     suite, tasks = select_tasks(repo_root, suite_name, task_ids=task_ids)
     adapter = build_adapter(adapter_config, repo_root=repo_root)
+    validate_protocol = getattr(adapter, "validate_protocol", None)
+    if callable(validate_protocol):
+        validate_protocol(protocol_snapshot)
     verifier_binding: dict[str, str] | None = None
     verifier_id = adapter_config.get("verifier_id")
     verifier_checksum = adapter_config.get("verifier_checksum")
@@ -422,6 +436,180 @@ def validate_harness_fixture_activation(
             "baseline_sha256": baseline.get("sha256"),
             "baseline_parsed_value": baseline.get("parsed_value"),
         }
+    return compact, errors
+
+
+def validate_warc_online4_activation(
+    run: EvalRun,
+    *,
+    baseline_run: EvalRun,
+    trusted_repo: Path,
+    base_sha: str,
+    candidate_root: Path,
+    candidate_build: dict[str, Any],
+    candidate_allowlist: list[str],
+    changed_files: list[str],
+    configured_path: object,
+) -> tuple[dict[str, Any] | None, list[str]]:
+    """Validate trusted invocation/consumption evidence for the one WARC seam."""
+    errors: list[str] = []
+    if not candidate_build.get("immutable") or run.run_context.get("build") != candidate_build:
+        errors.append("treatment run context has the wrong immutable candidate build")
+    if run.protocol_snapshot.get("candidate_allowlist") != candidate_allowlist:
+        errors.append("treatment run has the wrong frozen candidate allowlist")
+    if type(configured_path) is not str or configured_path not in changed_files:
+        errors.append("configured WARC treatment path was not changed by the treatment")
+    if type(configured_path) is str and not any(
+        configured_path.startswith(prefix) for prefix in candidate_allowlist
+    ):
+        errors.append("configured WARC treatment path is outside the frozen allowlist")
+
+    observation = run.activation_observation
+    baseline = baseline_run.activation_observation
+    if type(observation) is not dict:
+        errors.append("trusted WARC lifecycle did not consume the candidate treatment path")
+    if type(baseline) is not dict:
+        errors.append("trusted accepted-build WARC activation observation is missing")
+    for label, item, root, commit in (
+        ("candidate", observation, candidate_root, None),
+        ("baseline", baseline, trusted_repo, base_sha),
+    ):
+        if type(item) is not dict:
+            continue
+        if item.get("path") != configured_path:
+            errors.append(f"{label} WARC activation consumed the wrong treatment path")
+            continue
+        try:
+            raw = (
+                root.joinpath(*PurePosixPath(configured_path).parts).read_bytes()
+                if commit is None
+                else gitutil.read_blob(root, commit, configured_path)
+            )
+        except (OSError, gitutil.GitError, TypeError):
+            raw = None
+        expected = hashlib.sha256(raw).hexdigest() if raw is not None else None
+        if item.get("sha256") != expected:
+            errors.append(f"{label} WARC activation consumed the wrong treatment digest")
+        if type(item.get("request_sha256")) is not str or len(item["request_sha256"]) != 64:
+            errors.append(f"{label} WARC activation lacks the lifecycle request digest")
+        try:
+            expected_launcher = hashlib.sha256(RUNTIME_LAUNCHER.read_bytes()).hexdigest()
+        except OSError:
+            expected_launcher = None
+        if item.get("runtime_launcher_sha256") != expected_launcher:
+            errors.append(f"{label} WARC activation lacks the trusted runtime launcher digest")
+        trace = item.get("runtime_trace")
+        task_trace = item.get("task_trace")
+        run_obj = run if label == "candidate" else baseline_run
+        task_root = run_obj.output_dir / "tasks" / "warc-bench-online-4"
+        runtime_events: list[dict[str, Any]] = []
+        if (
+            type(trace) is not dict
+            or set(trace) != {"path", "sha256"}
+            or trace.get("path") != "warc-online4/runtime-trace.jsonl"
+        ):
+            errors.append(f"{label} WARC activation lacks its trusted lifecycle trace")
+        else:
+            runtime_trace_path = task_root / trace["path"]
+            try:
+                actual_trace_sha = hashlib.sha256(runtime_trace_path.read_bytes()).hexdigest()
+                runtime_events = read_jsonl(runtime_trace_path)
+            except (OSError, ValueError):
+                actual_trace_sha = None
+            if trace.get("sha256") != actual_trace_sha:
+                errors.append(f"{label} WARC activation cites the wrong lifecycle trace")
+        treatment_event_id = item.get("treatment_event_id")
+        treatment_events = [
+            event for event in runtime_events
+            if event.get("event_id") == treatment_event_id
+            and event.get("event") == "treatment_loaded"
+        ]
+        if len(treatment_events) != 1 or any(
+            treatment_events[0].get(name) != value
+            for name, value in {"path": configured_path, "sha256": expected}.items()
+        ):
+            errors.append(f"{label} WARC lifecycle trace lacks the exact treatment load")
+        request_event_ids = item.get("model_request_event_ids")
+        request_digests = item.get("applied_request_sha256")
+        applied_events = {
+            event.get("event_id"): event
+            for event in runtime_events
+            if event.get("event") == "model_request_applied"
+        }
+        if (
+            type(request_event_ids) is not list or not request_event_ids
+            or type(request_digests) is not list or len(request_digests) != len(request_event_ids)
+        ):
+            errors.append(f"{label} WARC lifecycle lacks applied model request evidence")
+            request_event_ids = []
+        for index, event_id in enumerate(request_event_ids):
+            event = applied_events.get(event_id)
+            request_rel = event.get("request_path") if isinstance(event, dict) else None
+            request_path = task_root / "warc-online4" / str(request_rel)
+            try:
+                request_bytes = request_path.read_bytes().rstrip(b"\n")
+                body = json.loads(request_bytes)
+            except (OSError, UnicodeError, ValueError):
+                request_bytes = b""
+                body = {}
+            marker = base64.b64encode(raw).decode("ascii") if raw is not None else None
+            if (
+                type(event) is not dict
+                or event.get("treatment_sha256") != expected
+                or event.get("applied_request_sha256") != hashlib.sha256(request_bytes).hexdigest()
+                or request_digests[index] != event.get("applied_request_sha256")
+                or type(body.get("system")) is not str
+                or f"OPTI_CANDIDATE_SHA256={expected}" not in body["system"]
+                or f"OPTI_CANDIDATE_BASE64_BEGIN\n{marker}\nOPTI_CANDIDATE_BASE64_END" not in body["system"]
+            ):
+                errors.append(f"{label} WARC model request dropped or substituted the treatment")
+        if (
+            type(task_trace) is not dict
+            or set(task_trace) != {"path", "sha256"}
+            or task_trace.get("path") != "trace.jsonl"
+        ):
+            errors.append(f"{label} WARC activation lacks its task trace")
+        else:
+            task_trace_path = task_root / task_trace["path"]
+            try:
+                actual_task_trace = hashlib.sha256(task_trace_path.read_bytes()).hexdigest()
+                task_events = read_jsonl(task_trace_path)
+            except (OSError, ValueError):
+                actual_task_trace = None
+                task_events = []
+            if task_trace.get("sha256") != actual_task_trace:
+                errors.append(f"{label} WARC activation cites the wrong task trace")
+            if not any(
+                event.get("event_type") == "checkpoint"
+                and event.get("actor") == "orchestrator"
+                and event.get("payload", {}).get("phase") == "trusted_activation"
+                and event.get("payload", {}).get("treatment_sha256") == expected
+                and event.get("payload", {}).get("model_request_event_ids") == request_event_ids
+                for event in task_events
+            ):
+                errors.append(f"{label} task trace lacks the trusted activation checkpoint")
+        if any(
+            result.get("metrics", {}).get("activation_sha256") != item.get("sha256")
+            or result.get("metrics", {}).get("activation_trace_sha256")
+            != (trace.get("sha256") if isinstance(trace, dict) else None)
+            or result.get("metrics", {}).get("runtime_launcher_sha256")
+            != item.get("runtime_launcher_sha256")
+            for result in (run if label == "candidate" else baseline_run).results.values()
+        ):
+            errors.append(f"{label} WARC activation was not consumed by task execution")
+        artifact = item.get("run_artifact")
+        if type(artifact) is not dict or set(artifact) != {"path", "sha256"} or artifact.get("path") != "run.json":
+            errors.append(f"{label} WARC activation does not cite its run artifact")
+        else:
+            try:
+                actual = hashlib.sha256((run_obj.output_dir / "run.json").read_bytes()).hexdigest()
+            except OSError:
+                actual = None
+            if artifact.get("sha256") != actual:
+                errors.append(f"{label} WARC activation cites the wrong run artifact")
+    compact = None
+    if isinstance(observation, dict) and isinstance(baseline, dict):
+        compact = {**observation, "baseline_sha256": baseline.get("sha256")}
     return compact, errors
 
 

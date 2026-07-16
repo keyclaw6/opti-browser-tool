@@ -52,6 +52,66 @@ findings, and only then may the package be committed and the next package start.
 
 ## Current readiness execution order
 
+### Active milestone-F qualification slice
+
+- **Frozen starting state:** D3 is committed at
+  `9d6b39c361b1c7c9616884a055f59eaa5ce571fd` (`9d6b39c`), and the milestone-F
+  worktree was clean before this ledger update.
+- **Active writer:** session `019f6a00-be3a-7220-b4df-8b22c6da3f0c`, running
+  GPT-5.6 Sol at medium reasoning effort, is the sole bounded milestone-F
+  implementation writer. No overlapping editor exists.
+- **Exact ownership:** one concrete `warc-bench-online-4` qualification path,
+  including production code, focused deterministic tests, the minimum operator
+  runbook/CLI surface, and the ledger/manifests needed by that slice.
+- **Current status:** correctness rereview session
+  `019f6a56-5b43-7442-a54a-091c1697a15b` and elegance rereview session
+  `019f6a56-5a3f-7062-9d52-8f7a5dc4e342` returned FIX on the guessed upstream
+  Gym constructor, post-close reconstructed-JSON scoring, runtime pins that did
+  not govern actual imports, and blocking/leaky source-worker IPC. The bounded
+  correction uses the pinned handler/CDP constructor shape, the admitted matcher
+  on the live page, executed-module/replay/Node/browser identity checks, and
+  deadline-bounded terminate/kill/reap cleanup. It is locally implemented and
+  verified by 18 focused WARC tests, 64-test evaluator discovery, and the
+  78-test affected loop end-to-end/CLI suite. Subsequent orchestrator source
+  inspection found that the handler constructor/setup call was still invented;
+  the targeted P1 correction now uses the pinned keyword constructor, mutates
+  only the consumed `online.4` `task_config.env.data_path/start_url`, preserves
+  the rest of that config, and calls `setup_webreplay_server(run_headless=True)`.
+  The final correctness/elegance handbacks then found noisy upstream output on
+  the JSON control channel, an unverified consumed task manifest, decorative
+  snapshot/revision fields, an unbound resolved Gym environment/Playwright
+  driver, and HTTP timeouts that could outlive the lifecycle. This one bounded
+  pass now redirects diagnostics away from IPC, binds the installed manifest
+  blob and exact original row, derives protocol snapshot/revision aliases from
+  the one endpoint-consumed model ID, checks the resolved environment and
+  Playwright driver bytes, and clips transport timeouts to the remaining
+  deadline. The permitted rereview of that state returned FIX because the real
+  CLI omitted derived model aliases, a drip-fed urllib response could exceed
+  the lifecycle, verifier calls were not bound to one Page object, and the
+  adapter kept a second post-hoc clock. The additional correction derives both
+  aliases from the one configured model ID, bounds connect plus complete read
+  with the lifecycle remainder, retains and rechecks the reset-time Page through
+  steps and both verifier calls, and removes the adapter timer. Twenty-one
+  focused WARC tests, 67 evaluator tests, and the 79-test loop E2E/CLI suite
+  pass. Final resumed GPT-5.6 Sol medium correctness session
+  `019f6a8c-ecc7-79c1-9fe3-d0eec9e97ad0` returned CLEAN, confirming the
+  full-response deadline and timer restoration, retained reset-time Page, real
+  CLI alias/operator traversal, removal of the adapter clock, and accepted-state
+  restriction to accepted benchmark evidence. Final elegance/YAGNI/vision
+  session `019f6a8c-ecb0-78e0-8db2-c2eee89f1d0c` returned CLEAN, confirming one
+  timing authority, one Page authority, the connected CLI path, and no new
+  recovery/scheduler/retry/duplicate framework. Frozen digest
+  `fe53a6c0e9ea405c0835e80cd090abefc620bae26a59381fc3bd7ea5583e3bc8`
+  is the reviewer-clean software qualification checkpoint; its containing
+  milestone-F commit will carry that checkpoint identity. The
+  software candidate is a reversible, identity-bound software qualification
+  path connected to the normal conductor and D3 materialized-candidate
+  activation seam. It is not milestone-F
+  completion evidence, benchmark reportability, performance evidence, a live
+  qualification, campaign authorization, or a decision on ADR-0003. External
+  WACZ, native-verifier, runtime/browser, license/provenance, credential, and
+  exact executor inputs remain blockers until owner supplied and verified.
+
 AR-001 through AR-003 are complete; AR-004 through AR-020 remain queued. The
 active sequence is now governed jointly with
 `docs/AUTO_RESEARCH_READINESS_EXECUTION.md`: milestone C is complete through
@@ -59,8 +119,10 @@ code commit `9d0a7ab`, evidence commit `ef0da6b`, and the successful full
 portable-archive proof from that clean evidence commit. The minimal required ADR
 transition was proposed at `544750b` and accepted as ADR-0018 on 2026-07-15 by
 the owner-delegated coordinator acting under the founder's delegated
-architecture-decision authority: `Accept ADR-0018 as written.` Milestone D is
-next; no D/E/F implementation was included in the proposal or acceptance slice.
+architecture-decision authority: `Accept ADR-0018 as written.` D3 is committed
+at `9d6b39c`; the one bounded milestone-F WARC `online.4` software
+qualification slice recorded above is now active. No D/E/F implementation was
+included in the proposal or acceptance slice itself.
 AR-004 through AR-020 remain queued and are pulled into bounded milestones only
 when their dependencies and review boundaries align. This ordering does not
 mark, skip, or silently supersede any queued package.

@@ -30,7 +30,12 @@ from . import fileguard, lint, registration
 from .attribution import attribute
 from .compare import NoiseBand, compare_runs
 from .eligibility import Eligibility, assess
-from .evaluate import EvalRun, run_suite, validate_harness_fixture_activation
+from .evaluate import (
+    EvalRun,
+    run_suite,
+    validate_harness_fixture_activation,
+    validate_warc_online4_activation,
+)
 from .manifest import ManifestReport, predicted_task_ids
 from .protocol import (
     ProtocolError,
@@ -230,13 +235,14 @@ def run_gate(
         })
     )
 
-    # ── E1: static registration + conductor-observed fixture activation ──
-    if adapter_config.get("kind") != "harness-fixture":
+    # ── E1: static registration + one qualified observed activation seam ──
+    adapter_kind = adapter_config.get("kind")
+    if adapter_kind not in {"harness-fixture", "warc-online4"}:
         report.rungs.append(
             RungResult(
                 "E1",
                 "invalid",
-                {"error": "only harness-fixture has qualified D3 activation instrumentation"},
+                {"error": "adapter lacks qualified conductor-owned activation instrumentation"},
             )
         )
         return _finish(report, "invalid")
@@ -281,7 +287,12 @@ def run_gate(
         )
         return _finish(report, "invalid")
     report.run_digests["smoke_treatment"] = smoke_context["run_digest"]
-    activation, activation_errors = validate_harness_fixture_activation(
+    activation_validator = (
+        validate_warc_online4_activation
+        if adapter_kind == "warc-online4"
+        else validate_harness_fixture_activation
+    )
+    activation, activation_errors = activation_validator(
         smoke,
         baseline_run=baseline_dev,
         trusted_repo=repo_root,
@@ -290,7 +301,11 @@ def run_gate(
         candidate_build=treatment_build,
         candidate_allowlist=protocol_snapshot["candidate_allowlist"],
         changed_files=guard.changed,
-        configured_path=adapter_config.get("file"),
+        configured_path=(
+            adapter_config.get("treatment_path")
+            if adapter_kind == "warc-online4"
+            else adapter_config.get("file")
+        ),
     )
     if activation_errors:
         report.rungs.append(RungResult("E1", "invalid", {"errors": activation_errors}))

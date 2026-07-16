@@ -20,12 +20,18 @@ A new implementation or review agent should read these in order:
 - The same 20 tasks currently form a provisional regression seed; permanent regression policy remains proposed.
 - The accepted task-level reference-success band is **35–70%, inclusive** under ADR-0012.
 - Public percentages currently stored on tasks are benchmark-family aggregates used for source screening, not per-task measurements.
-- The evaluation runner is executable at the orchestration layer. Real browser evaluation still requires audited source bridges and upstream benchmark environments.
+- The evaluation runner now has one concrete, reversible WARC-Bench `online.4`
+  qualification adapter. Its production preflight remains blocked on
+  owner-supplied WACZ/verifier/runtime/license/credential/confinement inputs;
+  no live or reportable run has occurred.
 - Accepted trace, experiment-gate, judge, and auto-research-loop architectures
   now have reference implementations. No audited real source bridge, calibrated
   judge council, private holdout, or activated production loop exists yet.
   Browser backend, control library, lane architecture, and detailed live-site
   operating policy remain open.
+
+The exact milestone-F configuration and operator flow are documented in
+[`docs/WARC_ONLINE4_QUALIFICATION.md`](docs/WARC_ONLINE4_QUALIFICATION.md).
 
 The incomplete 100-task draft is preserved under `archive/superseded/runnable-suite-v0-100/` for audit and is not active.
 
@@ -122,7 +128,9 @@ python scripts/verify_file_manifest.py --repo-root .
 - ADR-0014: execute all 140 provisional candidates before filtering;
 - ADR-0015: auto-research loop architecture;
 - ADR-0016: judge panel and verifier audit protocol; and
-- ADR-0017: model and infrastructure pins for loop bring-up.
+- ADR-0017: model and infrastructure pins for loop bring-up; and
+- ADR-0018: repeated decisions, exact identity/activation, atomic advancement,
+  and reversible WARC `online.4` qualification.
 
 ADR-0002, ADR-0003, and ADR-0006 remain open. ADR-0008 and ADR-0009 remain
 proposed. ADR-0011's 40% floor and ADR-0013's active 100-task count are

@@ -16,13 +16,19 @@ OPTI_BROWSER_REPO_ROOT, or the current directory.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
+import shutil
 import sys
 from pathlib import Path
 
 from opti_eval.errors import ConfigurationError
 from opti_eval.paths import find_repo_root
+from opti_eval.adapters.warc_online4 import (
+    WarcOnline4Error,
+    load_and_preflight_config,
+)
 
 from . import fileguard, gitutil
 from .campaign import DEFAULT_CONFIG, init_campaign, load_campaign
@@ -89,11 +95,15 @@ def main(argv: list[str] | None = None) -> int:
 
     p_init = sub.add_parser("init")
     p_init.add_argument("--campaign", required=True)
-    p_init.add_argument("--adapter", default="fixture", choices=["fixture", "harness-fixture", "command"])
+    p_init.add_argument(
+        "--adapter", default="fixture",
+        choices=["fixture", "harness-fixture", "command", "warc-online4"],
+    )
     p_init.add_argument("--pass-rate", type=float, default=0.55)
     p_init.add_argument("--seed", type=int, default=0)
     p_init.add_argument("--harness-file", default=None)
     p_init.add_argument("--bridge-command", default=None)
+    p_init.add_argument("--warc-config", default=None)
     p_init.add_argument("--dev-suite", default="smoke")
 
     for name in ("start", "status", "transfer-plan"):
@@ -114,6 +124,12 @@ def main(argv: list[str] | None = None) -> int:
     p_teval = sub.add_parser("transfer-eval")
     p_teval.add_argument("--deltas", required=True, help="comma list model=delta")
 
+    p_warc = sub.add_parser(
+        "warc-online4-preflight",
+        help="Validate WARC online.4 inputs without executing the lifecycle",
+    )
+    p_warc.add_argument("--config", required=True)
+
     args = parser.parse_args(argv)
     try:
         repo_root = _repo_root(args)
@@ -121,6 +137,25 @@ def main(argv: list[str] | None = None) -> int:
         print(f"opti-loop: {exc}", file=sys.stderr)
         return 2
     store_root = args.store_root
+
+    if args.command == "warc-online4-preflight":
+        try:
+            checked = load_and_preflight_config(Path(args.config))
+        except (OSError, ValueError, WarcOnline4Error) as exc:
+            print(f"opti-loop: WARC online.4 preflight failed: {exc}", file=sys.stderr)
+            return 2
+        _emit(
+            {
+                "ok": True,
+                "task_id": "warc-bench-online-4",
+                "mode": checked["mode"],
+                "benchmark_reportable": checked["mode"] == "production",
+                "config_digest": checked["config_digest"],
+                "lifecycle_executed": False,
+                "credentials": checked["credentials"]["required_env"],
+            }
+        )
+        return 0
 
     if args.command == "compare-campaigns":
         ids = [c.strip() for c in args.campaigns.split(",") if c.strip()]
@@ -169,11 +204,81 @@ def main(argv: list[str] | None = None) -> int:
                 print("error: --bridge-command required for the command adapter", file=sys.stderr)
                 return 2
             adapter["command"] = args.bridge_command
+        elif args.adapter == "warc-online4":
+            if not args.warc_config:
+                print("error: --warc-config required for warc-online4", file=sys.stderr)
+                return 2
+            try:
+                checked = load_and_preflight_config(Path(args.warc_config))
+            except (OSError, ValueError, WarcOnline4Error) as exc:
+                print(f"error: WARC online.4 preflight failed: {exc}", file=sys.stderr)
+                return 2
+            adapter.update(
+                {
+                    "config_path": str(Path(args.warc_config).resolve()),
+                    "treatment_path": checked["treatment_path"],
+                    "verifier_id": checked["verifier"]["id"],
+                    "verifier_checksum": checked["verifier"]["sha256"],
+                }
+            )
+            protocol_identity = checked["protocol_identity"]
+            executor_identity = {
+                **checked["executor"],
+                "snapshot": checked["executor"]["model"],
+                "revision": checked["executor"]["model"],
+            }
+            identity = {
+                "evidence_mode": (
+                    "benchmark" if checked["mode"] == "production" else "simulated"
+                ),
+                "source_runtimes": {"warc_bench": protocol_identity["source_runtime"]},
+                "executor": executor_identity,
+                "verifier_bundle": {
+                    "id": checked["verifier"]["id"],
+                    "checksum": checked["verifier"]["sha256"],
+                    "bundle_digest": checked["verifier"]["sha256"],
+                    "admissions_digest": hashlib.sha256(
+                        b"opti.admissions.v1\0"
+                        + Path(checked["verifier"]["admissions_path"]).read_bytes()
+                    ).hexdigest(),
+                },
+                "activation_instrumentation": protocol_identity[
+                    "activation_instrumentation"
+                ],
+                "lane": protocol_identity["lane"],
+            }
+        overrides = {
+            "adapter": adapter,
+            "suites": {
+                "dev": args.dev_suite,
+                "smoke": (
+                    args.dev_suite if args.adapter == "warc-online4" else "smoke"
+                ),
+                "regression": (
+                    args.dev_suite if args.adapter == "warc-online4" else "regression"
+                ),
+            },
+        }
+        if args.adapter == "warc-online4":
+            overrides.update(
+                {
+                    "identity": identity,
+                    "repeated_protocol": protocol_identity["repeated_protocol"],
+                    "fixed_variables": {
+                        "executor_model": checked["executor"]["model"],
+                        "browser_backend": "warc-browsergym-playwright-qualification",
+                        "lane": protocol_identity["lane"]["id"],
+                    },
+                }
+            )
         campaign = init_campaign(
             repo_root, args.campaign, store_root=store_root,
-            overrides={"adapter": adapter,
-                       "suites": {"dev": args.dev_suite, "smoke": "smoke", "regression": "regression"}},
+            overrides=overrides,
         )
+        if args.adapter == "warc-online4":
+            shutil.copyfile(
+                checked["verifier"]["admissions_path"], campaign.store.admissions_path
+            )
         _emit({"created": str(campaign.store.campaign_dir), "store_outside_repo": True,
                "config": campaign.config})
         return 0

@@ -30,9 +30,17 @@ from opti_eval.identity import (
     digest_json,
     finalize_protocol_snapshot,
     normalize_adapter_identity,
+    simulated_identity_defaults,
     simulated_protocol,
 )
+from opti_eval.warc_online4_runtime import (
+    ONLINE4_MATCHER,
+    UPSTREAM_START_URL,
+    action_tool_schema_digest,
+)
+from opti_eval.warc_online4_runtime import run_lifecycle as run_warc_lifecycle
 from opti_loop.campaign import init_campaign, load_campaign
+from opti_loop.cli import main as cli_main
 from opti_loop.conductor import (
     MAX_MANIFEST_BYTES,
     _copy_benchmark_bundle,
@@ -91,6 +99,73 @@ json.dump({"task_id": tid, "status": "passed" if passed else "failed",
            "reward": 1.0 if passed else 0.0, "verifier": {"kind": "test_state", "valid": True}},
           open(a.result_json, "w"))
 """
+
+WARC_VERIFIER = ONLINE4_MATCHER + "\n"
+
+
+def _warc_echo_only_lifecycle(request_path: Path, result_path: Path) -> None:
+    """Legacy-shaped echo: identity claims without trusted lifecycle evidence."""
+    request = json.loads(request_path.read_text())
+    result_path.write_text(json.dumps({
+        "schema_version": "0.4.0", "task_id": request["task_id"],
+        "request_digest": request["request_digest"],
+        "reset": {
+            "start_url": UPSTREAM_START_URL,
+            "initial_state": {"calendarfocusdate": None},
+            "source_manifest": {
+                "git_blob_sha1": request["source_identity"]["manifest_blob_sha1"],
+                "content_sha256": "0" * 64,
+                "online4_row_sha256": "0" * 64,
+                "verified_from_installed_bytes": False,
+            },
+        },
+        "steps": [{
+            "action": {"kind": "click"}, "outcome": {"status": "ok"},
+            "browser_state": {"calendarfocusdate": "03/21/2025"},
+        }],
+        "final_state": {"calendarfocusdate": "03/21/2025"},
+        "verifier": {
+            phase: {
+                "passed": phase == "final",
+                "verifier_id": request["verifier"]["id"],
+                "verifier_sha256": request["verifier"]["sha256"],
+                "upstream_commit": request["source_identity"]["upstream_commit"],
+                "manifest_blob_sha1": request["source_identity"]["manifest_blob_sha1"],
+                "page_url": request["wacz_start_url"], "state_sha256": "0" * 64,
+            }
+            for phase in ("initial", "final")
+        },
+        "artifacts": [],
+        "activation": {
+            "path": request["treatment_relative_path"],
+            "sha256": request["treatment_sha256"],
+            "runtime_trace_path": "missing.jsonl",
+            "runtime_trace_sha256": "0" * 64,
+            "treatment_event_id": "echo",
+            "model_request_event_ids": ["echo"],
+        },
+        "cleanup": {"completed": True},
+    }) + "\n")
+
+
+def _warc_dropped_treatment_lifecycle(request_path: Path, result_path: Path) -> None:
+    """A complete-looking run whose actual model body omits the candidate."""
+    run_warc_lifecycle(request_path, result_path)
+    work = result_path.parent
+    request_file = work / "model-request-0.json"
+    body = json.loads(request_file.read_text())
+    body["system"] = "candidate bytes deliberately dropped"
+    applied = json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
+    request_file.write_bytes(applied + b"\n")
+    trace_path = work / "runtime-trace.jsonl"
+    events = [json.loads(line) for line in trace_path.read_text().splitlines()]
+    for event in events:
+        if event.get("event") == "model_request_applied" and event.get("request_path") == request_file.name:
+            event["applied_request_sha256"] = hashlib.sha256(applied).hexdigest()
+    trace_path.write_text("".join(json.dumps(event, sort_keys=True) + "\n" for event in events))
+    result = json.loads(result_path.read_text())
+    result["activation"]["runtime_trace_sha256"] = hashlib.sha256(trace_path.read_bytes()).hexdigest()
+    result_path.write_text(json.dumps(result, sort_keys=True) + "\n")
 
 
 def _git(repo: Path, *args: str) -> None:
@@ -284,6 +359,152 @@ class TransactionalLoopTest(unittest.TestCase):
             }
         return init_campaign(self.repo, cid, store_root=self.store, overrides=overrides)
 
+    def _new_warc_campaign(self, cid: str, *, via_cli: bool = False):
+        self.store.mkdir(parents=True, exist_ok=True)
+        verifier = self.store / f"{cid}-verifier.py"
+        wacz = self.store / f"{cid}.wacz"
+        license_file = self.store / f"{cid}-LICENSE"
+        admissions = self.store / f"{cid}-admissions.jsonl"
+        inbox = self.store / f"{cid}-static-inbox"
+        verifier.write_text(WARC_VERIFIER)
+        wacz.write_bytes(b"local fixture wacz")
+        license_file.write_text("local fixture only\n")
+        admissions.write_text(
+            json.dumps(
+                {
+                    "verifier_id": f"{cid}-native-js",
+                    "task_id": "warc-bench-online-4",
+                    "verifier_checksum": hashlib.sha256(verifier.read_bytes()).hexdigest(),
+                    "admitted": True,
+                }
+            )
+            + "\n"
+        )
+        inbox.mkdir()
+        python = str(Path(sys.executable).resolve())
+        python_sha = hashlib.sha256(Path(python).read_bytes()).hexdigest()
+        version = subprocess.run(
+            [python, "--version"], capture_output=True, text=True, check=True
+        )
+        expected_version = "\n".join(
+            value.strip() for value in (version.stdout, version.stderr) if value.strip()
+        )
+        runtime_identity = {
+            "path": python,
+            "sha256": python_sha,
+            "version_command": [python, "--version"],
+            "expected_version": expected_version,
+        }
+        defaults = simulated_identity_defaults(["warc_bench"])
+        defaults["executor"]["settings"] = {"temperature": 0, "max_tokens": 256}
+        defaults["executor"]["tool_schema_digest"] = action_tool_schema_digest()
+        defaults["executor"]["snapshot"] = defaults["executor"]["model"]
+        defaults["executor"]["revision"] = defaults["executor"]["model"]
+        config_executor = dict(defaults["executor"])
+        config_executor.pop("snapshot")
+        config_executor.pop("revision")
+        config = {
+            "schema_version": "0.1.0",
+            "mode": "local_fixture",
+            "task": {"id": "warc-bench-online-4", "source": "warc_bench",
+                     "native_task_id": "online.4"},
+            "source": {
+                "upstream_commit": "98d213ccd2b4380761738e1d144467a8695e37c5",
+                "manifest_path": "src/orby/subtask_benchmark/environments/benchmark.json",
+                "manifest_blob_sha1": "6b2bc7ee04b3231325fe3a84b195d26d0c589287",
+                "data_path": "environments/web_archives/alaska_airlines/alaska_airlines_flight_booking.wacz",
+            },
+            "wacz": {
+                "path": str(wacz), "sha256": hashlib.sha256(wacz.read_bytes()).hexdigest(),
+                "start_url": UPSTREAM_START_URL,
+            },
+            "verifier": {
+                "id": f"{cid}-native-js", "path": str(verifier),
+                "sha256": hashlib.sha256(verifier.read_bytes()).hexdigest(),
+                "admissions_path": str(admissions),
+                "admissions_sha256": hashlib.sha256(admissions.read_bytes()).hexdigest(),
+            },
+            "provenance": {
+                "wacz_origin": "local-fixture:generated", "verifier_origin": "local-fixture:generated",
+                "license_id": "local-fixture-only", "license_evidence_path": str(license_file),
+                "license_evidence_sha256": hashlib.sha256(license_file.read_bytes()).hexdigest(),
+                "acknowledged": True,
+            },
+            "runtime": {
+                **{name: dict(runtime_identity) for name in
+                   ("python", "node", "warc_bench", "replay", "browsergym", "gymnasium",
+                    "playwright", "playwright_driver", "browser", "sandbox")},
+                "cdp_port": 4222,
+            },
+            "executor": config_executor,
+            "credentials": {"required_env": []},
+            "confinement": {
+                "single_host": True, "network": "loopback-only",
+                "filesystem": "read-only-except-task-output",
+                "optimizer_uid": os.getuid(), "static_inbox": str(inbox),
+            },
+            "limits": {"timeout_seconds": 30, "deadline_seconds": 60, "action_budget": 3},
+            "treatment_path": QUALITY_REL,
+            "protocol_identity": {
+                "source_runtime": defaults["source_runtimes"]["warc_bench"],
+                "activation_instrumentation": defaults["activation_instrumentation"],
+                "lane": {"id": "structured", "config_path": "harness/lanes/structured.lane.json"},
+                "repeated_protocol": defaults["repeated_protocol"],
+            },
+        }
+        config_path = self.store / f"{cid}-warc-config.json"
+        config_path.write_text(json.dumps(config, indent=2) + "\n")
+        verifier_sha = config["verifier"]["sha256"]
+        if via_cli:
+            self.assertEqual(
+                cli_main([
+                    "--repo-root", str(self.repo),
+                    "--store-root", str(self.store),
+                    "init", "--campaign", cid,
+                    "--adapter", "warc-online4",
+                    "--warc-config", str(config_path),
+                    "--dev-suite", "warc-online4-qualification",
+                ]),
+                0,
+            )
+            return load_campaign(
+                self.repo, cid, store_root=self.store
+            ), config_path
+        campaign = init_campaign(
+            self.repo,
+            cid,
+            store_root=self.store,
+            overrides={
+                "adapter": {
+                    "kind": "warc-online4", "config_path": str(config_path),
+                    "treatment_path": QUALITY_REL,
+                    "verifier_id": config["verifier"]["id"],
+                    "verifier_checksum": verifier_sha,
+                },
+                "suites": {role: "warc-online4-qualification" for role in ("dev", "smoke", "regression")},
+                "identity": {
+                    "evidence_mode": "simulated",
+                    "source_runtimes": {"warc_bench": defaults["source_runtimes"]["warc_bench"]},
+                    "executor": defaults["executor"],
+                    "verifier_bundle": {
+                        "id": config["verifier"]["id"], "checksum": verifier_sha,
+                        "bundle_digest": verifier_sha,
+                        "admissions_digest": hashlib.sha256(
+                            b"opti.admissions.v1\0" + admissions.read_bytes()
+                        ).hexdigest(),
+                    },
+                    "activation_instrumentation": defaults["activation_instrumentation"],
+                    "lane": config["protocol_identity"]["lane"],
+                },
+                "repeated_protocol": defaults["repeated_protocol"],
+                "thresholds": {"smoke_min_pass_rate": 0.1},
+                "exploration": {"divergence_quota": 0, "plateau_force_after": 0,
+                                "pivot_after_failures": 2},
+            },
+        )
+        shutil.copyfile(admissions, campaign.store.admissions_path)
+        return campaign, config_path
+
     def _assert_rejected_transaction(
         self,
         campaign,
@@ -446,6 +667,133 @@ class TransactionalLoopTest(unittest.TestCase):
             treatment_roots.add(run_record["repo_root"])
         self.assertEqual(len(treatment_roots), 1)
         self.assertTrue((campaign.iteration_dir(1) / "candidate.bundle").is_file())
+
+    def test_warc_online4_local_fixture_traverses_real_seam_and_is_state_inert(self) -> None:
+        campaign, _config_path = self._new_warc_campaign("warc-local")
+        base_before = campaign.state["accepted_base_sha"]
+        measure_noise(campaign, runs=2)
+        worktree = Path(start_iteration(campaign)["worktree"])
+        self._commit_quality(worktree, "0.550\n")
+        self._write_manifest(worktree, predicted=["warc-bench-online-4"])
+
+        result = run_iteration(campaign)
+
+        self.assertEqual(result["decision"], "rejected")
+        self.assertEqual(result["evidence_class"], "simulated")
+        self.assertFalse(result["advanced_accepted_state"])
+        reloaded = load_campaign(self.repo, campaign.campaign_id, store_root=self.store)
+        self.assertEqual(reloaded.state["accepted_base_sha"], base_before)
+        self.assertEqual(reloaded.state["accepted_iterations"], [])
+        gate = json.loads((campaign.iteration_dir(1) / "gate-report.json").read_text())
+        self.assertEqual(
+            [(rung["rung"], rung["status"]) for rung in gate["rungs"]],
+            [("E0", "pass"), ("E1", "pass"), ("E2", "pass"), ("E3", "fail")],
+        )
+        activation = gate["rungs"][1]["detail"]["observed_activation"]
+        self.assertEqual(activation["path"], QUALITY_REL)
+        self.assertNotEqual(activation["sha256"], activation["baseline_sha256"])
+        for name in ("smoke_treatment", "targeted_screen"):
+            result_row = json.loads(
+                (campaign.iteration_dir(1) / "eval" / name / "results.jsonl")
+                .read_text()
+                .splitlines()[0]
+            )
+            self.assertEqual(result_row["metadata"]["evidence_class"], "local_fixture")
+            self.assertFalse(result_row["metadata"]["benchmark_reportable"])
+            self.assertTrue(result_row["metadata"]["cleanup_completed"])
+            self.assertEqual(result_row["task_id"], "warc-bench-online-4")
+            self.assertEqual(result_row["trace_path"], "trace.jsonl")
+            self.assertTrue(result_row["artifacts"])
+
+    def test_warc_cli_init_start_projects_model_aliases_and_reaches_local_seam(self) -> None:
+        campaign, _config_path = self._new_warc_campaign(
+            "warc-cli-local", via_cli=True
+        )
+        executor = campaign.config["identity"]["executor"]
+        self.assertEqual(executor["snapshot"], executor["model"])
+        self.assertEqual(executor["revision"], executor["model"])
+        base_before = campaign.state["accepted_base_sha"]
+        measure_noise(campaign, runs=2)
+
+        self.assertEqual(
+            cli_main([
+                "--repo-root", str(self.repo),
+                "--store-root", str(self.store),
+                "start", "--campaign", campaign.campaign_id,
+            ]),
+            0,
+        )
+        campaign = load_campaign(
+            self.repo, campaign.campaign_id, store_root=self.store
+        )
+        worktree = campaign.worktree_path
+        self._commit_quality(worktree, "0.550\n")
+        self._write_manifest(worktree, predicted=["warc-bench-online-4"])
+        self.assertEqual(
+            cli_main([
+                "--repo-root", str(self.repo),
+                "--store-root", str(self.store),
+                "run-iteration", "--campaign", campaign.campaign_id,
+            ]),
+            1,
+        )
+
+        reloaded = load_campaign(
+            self.repo, campaign.campaign_id, store_root=self.store
+        )
+        self.assertEqual(reloaded.state["accepted_base_sha"], base_before)
+        self.assertEqual(reloaded.state["accepted_iterations"], [])
+        result_row = json.loads(
+            (
+                campaign.iteration_dir(1)
+                / "eval/smoke_treatment/results.jsonl"
+            ).read_text().splitlines()[0]
+        )
+        self.assertEqual(result_row["metadata"]["evidence_class"], "local_fixture")
+        self.assertFalse(result_row["metadata"]["benchmark_reportable"])
+
+    def test_warc_echo_only_activation_is_invalid_in_normal_traversal(self) -> None:
+        campaign, _config_path = self._new_warc_campaign("warc-echo-only")
+        base_before = campaign.state["accepted_base_sha"]
+        measure_noise(campaign, runs=2)
+        worktree = Path(start_iteration(campaign)["worktree"])
+        self._commit_quality(worktree, "0.550\n")
+        self._write_manifest(worktree, predicted=["warc-bench-online-4"])
+
+        with mock.patch(
+            "opti_eval.adapters.warc_online4.run_lifecycle",
+            side_effect=_warc_echo_only_lifecycle,
+        ):
+            result = run_iteration(campaign)
+
+        self.assertEqual(result["decision"], "invalid")
+        self.assertFalse(result["advanced_accepted_state"])
+        reloaded = load_campaign(self.repo, campaign.campaign_id, store_root=self.store)
+        self.assertEqual(reloaded.state["accepted_base_sha"], base_before)
+        gate = json.loads((campaign.iteration_dir(1) / "gate-report.json").read_text())
+        self.assertEqual(gate["rungs"][1]["rung"], "E1")
+        self.assertEqual(gate["rungs"][1]["status"], "invalid")
+
+    def test_warc_dropped_treatment_is_invalid_in_normal_traversal(self) -> None:
+        campaign, _config_path = self._new_warc_campaign("warc-dropped-treatment")
+        base_before = campaign.state["accepted_base_sha"]
+        measure_noise(campaign, runs=2)
+        worktree = Path(start_iteration(campaign)["worktree"])
+        self._commit_quality(worktree, "0.550\n")
+        self._write_manifest(worktree, predicted=["warc-bench-online-4"])
+
+        with mock.patch(
+            "opti_eval.adapters.warc_online4.run_lifecycle",
+            side_effect=_warc_dropped_treatment_lifecycle,
+        ):
+            result = run_iteration(campaign)
+
+        self.assertEqual(result["decision"], "invalid")
+        self.assertFalse(result["advanced_accepted_state"])
+        reloaded = load_campaign(self.repo, campaign.campaign_id, store_root=self.store)
+        self.assertEqual(reloaded.state["accepted_base_sha"], base_before)
+        gate = json.loads((campaign.iteration_dir(1) / "gate-report.json").read_text())
+        self.assertEqual(gate["rungs"][1]["status"], "invalid")
 
     def test_all_simulated_terminal_decisions_preserve_continuation_counters(self) -> None:
         for decision in ("accepted", "rejected", "invalid"):

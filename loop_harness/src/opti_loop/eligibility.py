@@ -13,13 +13,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from opti_eval.admissions import load_admissions
 from opti_eval.identity import LiveRunReceipt, digest_json
 from opti_eval.models import (
     canonical_json,
-    split_lf_jsonl_records,
-    strict_json_loads,
     validate_nonempty_string,
-    validate_task_id,
 )
 from opti_eval.summary import validate_run_directory
 
@@ -101,60 +99,6 @@ def _invalid(*errors: str, flag_count: int = 0) -> Eligibility:
         integrity_errors=rows,
         t1_flag_count=flag_count,
     )
-
-
-def _load_admissions(path: Path) -> dict[tuple[str, str], dict[str, Any]]:
-    index: dict[tuple[str, str], dict[str, Any]] = {}
-    if not path.exists():
-        return index
-    if path.is_symlink() or not path.is_file():
-        raise ValueError("admissions path must be a regular file, not a symlink")
-    try:
-        with path.open("r", encoding="utf-8", newline="") as handle:
-            records = split_lf_jsonl_records(
-                handle.read(), field_name="admissions JSONL"
-            )
-    except (OSError, UnicodeError) as exc:
-        raise ValueError(f"admissions file is unreadable: {exc}") from exc
-    except ValueError as exc:
-        raise ValueError(f"admissions JSONL framing is invalid: {exc}") from exc
-    for line_number, record in enumerate(records, start=1):
-        try:
-            row = strict_json_loads(
-                record, field_name=f"admissions line {line_number}"
-            )
-        except ValueError as exc:
-            raise ValueError(f"admissions line {line_number} is invalid: {exc}") from exc
-        if not isinstance(row, dict):
-            raise ValueError(f"admissions line {line_number} must be an object")
-        if not isinstance(row.get("admitted"), bool):
-            raise ValueError(f"admissions line {line_number} admitted must be boolean")
-        try:
-            verifier_id = validate_nonempty_string(
-                row.get("verifier_id"),
-                field_name=f"admissions line {line_number} verifier_id",
-            )
-            task_id = validate_task_id(
-                row.get("task_id"),
-                field_name=f"admissions line {line_number} task_id",
-            )
-            validate_nonempty_string(
-                row.get("verifier_checksum"),
-                field_name=f"admissions line {line_number} verifier_checksum",
-            )
-        except ValueError as exc:
-            raise ValueError(str(exc)) from exc
-        if row["admitted"]:
-            key = (verifier_id, task_id)
-            previous = index.get(key)
-            if previous is not None and previous.get("verifier_checksum") != row.get(
-                "verifier_checksum"
-            ):
-                raise ValueError(
-                    f"admissions contains conflicting checksums for {verifier_id}/{task_id}"
-                )
-            index[key] = row
-    return index
 
 
 def assess(
@@ -283,7 +227,7 @@ def assess(
             return _invalid(f"task {task_id}: persisted source does not match trusted schedule")
         expected_sources[task_id] = source
     try:
-        admissions = _load_admissions(admissions_path)
+        admissions = load_admissions(admissions_path)
     except ValueError as exc:
         return _invalid(str(exc))
     unadmitted: list[str] = []
