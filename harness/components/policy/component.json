@@ -3,6 +3,7 @@
   "version": "0.1.0-seed",
   "purpose": "System prompt and top-level decision policy.",
   "files": [
+    "quality.txt",
     "system_prompt.md"
   ],
   "interfaces": [],

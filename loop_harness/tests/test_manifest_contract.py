@@ -136,6 +136,11 @@ class ManifestContractTest(unittest.TestCase):
             set(self.experiment_schema["properties"]["evaluation_plan"]["required"]),
             set(manifest.EVALUATION_FIELDS),
         )
+        self.assertEqual(
+            self.experiment_schema["properties"]["evaluation_plan"]["properties"]
+            ["repetitions"]["additionalProperties"]["maximum"],
+            manifest.MAX_REPETITIONS,
+        )
         rejected_schema = self.schema["$defs"]["rejected_submission"]
         self.assertEqual(
             rejected_schema["properties"]["record_type"]["const"],
@@ -281,6 +286,37 @@ class ManifestContractTest(unittest.TestCase):
                     path.write_text(raw, encoding="utf-8")
                     with self.assertRaisesRegex(ValueError, "non-finite JSON number"):
                         schema_load_json(path)
+
+    def test_public_manifest_loader_rejects_duplicate_keys_and_constants(self) -> None:
+        cases = (
+            ('{"schema_version":"0.1-draft","schema_version":"duplicate"}',
+             "duplicate object key"),
+            ('{"value":NaN}', "non-JSON numeric constant"),
+            ('{"value":Infinity}', "non-JSON numeric constant"),
+        )
+        for raw, expected in cases:
+            with self.subTest(raw=raw), tempfile.TemporaryDirectory() as temp_dir:
+                path = Path(temp_dir) / "manifest.json"
+                path.write_text(raw, encoding="utf-8")
+                report = manifest.load_and_validate(
+                    path,
+                    allowed_prefixes=("harness/components/",),
+                )
+                self.assertFalse(report.ok)
+                self.assertIn(expected, " ".join(report.errors))
+
+    def test_public_manifest_loader_rejects_huge_integer_repetition_totally(self) -> None:
+        submitted = copy.deepcopy(self.example)
+        submitted["evaluation_plan"]["repetitions"] = {"dynamic": 10**400}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "manifest.json"
+            path.write_text(json.dumps(submitted), encoding="utf-8")
+            report = manifest.load_and_validate(
+                path,
+                allowed_prefixes=("harness/components/",),
+            )
+        self.assertFalse(report.ok)
+        self.assertIn("must be an integer from 1 through", " ".join(report.errors))
 
     def test_schema_tool_skips_derived_corpus_for_invalid_optimizer_example(self) -> None:
         try:

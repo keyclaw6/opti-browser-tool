@@ -10,8 +10,10 @@ infrastructure signals, never agent failures.
 """
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
+from pathlib import PurePosixPath
 from typing import Any
 
 from opti_eval.adapters.command import CommandAdapter
@@ -22,6 +24,7 @@ from opti_eval.models import validate_nonempty_string
 from opti_eval.runner import run_evaluation
 from opti_eval.summary import load_run_artifacts, validate_run_directory
 
+from . import gitutil
 
 @dataclass(frozen=True, slots=True)
 class AdmissionReceipt:
@@ -124,6 +127,7 @@ class EvalRun:
     protocol_snapshot: dict[str, Any] = field(default_factory=dict)
     task_records: dict[str, dict[str, Any]] = field(default_factory=dict)
     admission_receipt: dict[str, Any] | None = None
+    activation_observation: dict[str, Any] | None = None
 
     @property
     def run_valid(self) -> bool:
@@ -199,10 +203,12 @@ class HarnessFixtureAdapter(FixtureAdapter):
         default_pass_rate: float,
         seed: int,
         file: str | None,
+        activation_observation: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(pass_rate=pass_rate, seed=seed)
         self.default_pass_rate = default_pass_rate
         self.file = file
+        self.activation_observation = activation_observation
 
     def describe(self) -> dict[str, Any]:
         return {
@@ -230,18 +236,33 @@ def build_adapter(adapter_config: dict[str, Any], *, repo_root: Path | None = No
         default_rate = float(adapter_config.get("default_pass_rate", 0.55))
         rate = default_rate
         rel = adapter_config.get("file")
-        if rel and repo_root is not None:
-            path = repo_root / str(rel)
-            if path.is_file():
+        observation = None
+        if type(rel) is str and rel and repo_root is not None:
+            posix = PurePosixPath(rel)
+            if (
+                not posix.is_absolute()
+                and posix.as_posix() == rel
+                and all(part not in {"", ".", ".."} for part in posix.parts)
+            ):
+                path = repo_root.joinpath(*posix.parts)
                 try:
-                    rate = float(path.read_text(encoding="utf-8").strip())
-                except ValueError:
-                    rate = default_rate
+                    raw = path.read_bytes()
+                    parsed = float(raw.decode("utf-8").strip())
+                except (OSError, UnicodeDecodeError, ValueError):
+                    pass
+                else:
+                    rate = parsed
+                    observation = {
+                        "path": rel,
+                        "sha256": hashlib.sha256(raw).hexdigest(),
+                        "parsed_value": parsed,
+                    }
         return HarnessFixtureAdapter(
             pass_rate=rate,
             default_pass_rate=default_rate,
             seed=int(adapter_config.get("seed", 0)),
             file=(str(rel) if rel else None),
+            activation_observation=observation,
         )
     if kind == "command":
         return CommandAdapter(
@@ -290,7 +311,118 @@ def run_suite(
         protocol_snapshot=protocol_snapshot,
         run_context=run_context,
     )
-    return _parse_run(output_dir, suite_name, expected_receipt=execution.receipt)
+    run = _parse_run(output_dir, suite_name, expected_receipt=execution.receipt)
+    observation = getattr(adapter, "activation_observation", None)
+    if isinstance(observation, dict):
+        run.activation_observation = {
+            **observation,
+            "run_artifact": {
+                "path": "run.json",
+                "sha256": hashlib.sha256((output_dir / "run.json").read_bytes()).hexdigest(),
+            },
+        }
+    return run
+
+
+def validate_harness_fixture_activation(
+    run: EvalRun,
+    *,
+    baseline_run: EvalRun,
+    trusted_repo: Path,
+    base_sha: str,
+    candidate_root: Path,
+    candidate_build: dict[str, Any],
+    candidate_allowlist: list[str],
+    changed_files: list[str],
+    configured_path: object,
+) -> tuple[dict[str, Any] | None, list[str]]:
+    """Validate the one conductor-observed activation path implemented for D3."""
+    errors: list[str] = []
+    if not candidate_build.get("immutable") or run.run_context.get("build") != candidate_build:
+        errors.append("treatment run context has the wrong immutable candidate build")
+    if run.protocol_snapshot.get("candidate_allowlist") != candidate_allowlist:
+        errors.append("treatment run has the wrong frozen candidate allowlist")
+    if type(configured_path) is not str or configured_path not in changed_files:
+        errors.append("configured candidate behavior file was not changed by the treatment")
+    if type(configured_path) is str and not any(
+        configured_path.startswith(prefix) for prefix in candidate_allowlist
+    ):
+        errors.append("configured candidate behavior file is outside the frozen allowlist")
+    observation = run.activation_observation
+    if type(observation) is not dict:
+        errors.append("configured candidate behavior file was not consumed")
+    else:
+        if observation.get("path") != configured_path:
+            errors.append("activation consumed the wrong candidate behavior path")
+        checksum = observation.get("sha256")
+        if type(checksum) is not str or len(checksum) != 64:
+            errors.append("activation lacks the consumed candidate behavior digest")
+        elif type(configured_path) is str:
+            try:
+                actual_checksum = hashlib.sha256(
+                    candidate_root.joinpath(*PurePosixPath(configured_path).parts).read_bytes()
+                ).hexdigest()
+            except OSError:
+                actual_checksum = None
+            if checksum != actual_checksum:
+                errors.append("activation consumed the wrong candidate behavior digest")
+        consumed_value = observation.get("parsed_value")
+        if any(
+            result.get("metrics", {}).get("fixture_pass_rate") != consumed_value
+            for result in run.results.values()
+        ):
+            errors.append("observed candidate behavior did not affect fixture execution")
+    baseline = baseline_run.activation_observation
+    if type(baseline) is not dict:
+        errors.append("trusted accepted-build baseline observation is missing")
+    else:
+        if baseline.get("path") != configured_path:
+            errors.append("baseline observed the wrong candidate behavior path")
+        try:
+            baseline_digest = hashlib.sha256(
+                gitutil.read_blob(trusted_repo, base_sha, configured_path)
+            ).hexdigest()
+        except (OSError, gitutil.GitError, TypeError):
+            baseline_digest = None
+        if baseline.get("sha256") != baseline_digest:
+            errors.append("baseline observation does not match the trusted accepted build")
+        if any(
+            result.get("metrics", {}).get("fixture_pass_rate")
+            != baseline.get("parsed_value")
+            for result in baseline_run.results.values()
+        ):
+            errors.append("baseline observation did not affect trusted baseline execution")
+        baseline_artifact = baseline.get("run_artifact")
+        if not isinstance(baseline_artifact, dict) or baseline_artifact.get("path") != "run.json":
+            errors.append("baseline observation does not cite its trusted run artifact")
+        else:
+            try:
+                baseline_actual = hashlib.sha256(
+                    (baseline_run.output_dir / "run.json").read_bytes()
+                ).hexdigest()
+            except OSError:
+                baseline_actual = None
+            if baseline_artifact.get("sha256") != baseline_actual:
+                errors.append("baseline observation cites the wrong trusted run artifact")
+    artifact = observation.get("run_artifact") if isinstance(observation, dict) else None
+    actual_run = run.output_dir / "run.json"
+    if type(artifact) is not dict or set(artifact) != {"path", "sha256"} or artifact.get("path") != "run.json":
+        errors.append("activation observation does not cite the treatment run artifact")
+    else:
+        try:
+            actual_digest = hashlib.sha256(actual_run.read_bytes()).hexdigest()
+        except OSError:
+            actual_digest = None
+        if artifact.get("sha256") != actual_digest:
+            errors.append("activation observation cites the wrong treatment run artifact")
+    compact = None
+    if isinstance(observation, dict) and isinstance(baseline, dict):
+        compact = {
+            **observation,
+            "baseline_sha256": baseline.get("sha256"),
+            "baseline_parsed_value": baseline.get("parsed_value"),
+        }
+    return compact, errors
 
 
 def load_run(

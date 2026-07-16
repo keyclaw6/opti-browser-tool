@@ -68,6 +68,22 @@ opti-eval run \
 
 The fixture adapter validates catalog, scheduling, result, and artifact plumbing only. Its output is marked `benchmark_reportable=false` and must never be presented as browser-agent performance.
 
+The shipped offline D3 activation rehearsal uses the registered numeric behavior
+file and remains simulated/nonreportable:
+
+```bash
+opti-loop --store-root /safe/path init --campaign rehearsal \
+  --adapter harness-fixture \
+  --harness-file harness/components/policy/quality.txt
+opti-loop --store-root /safe/path start --campaign rehearsal
+```
+
+Public initialization rejects a missing, unsafe, out-of-surface, symlinked,
+unreadable, non-finite, or out-of-range `--harness-file` baseline and requires
+the configured file to exist in the accepted Git surface. See
+[`loop_harness/README.md`](loop_harness/README.md) for the trusted handback and
+benchmark-evidence boundaries.
+
 `make install` installs the three existing editable distributions with their
 declared dependency graph: `opti-loop` requires exact `opti-judge` and
 `opti-browser-eval` version `0.1.0`, and `opti-judge` requires exact

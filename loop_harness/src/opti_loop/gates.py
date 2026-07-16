@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from opti_eval.errors import OptiEvalError
 from opti_eval.identity import (
     IdentityError,
     expected_live_run_receipt,
@@ -29,11 +30,10 @@ from . import fileguard, lint, registration
 from .attribution import attribute
 from .compare import NoiseBand, compare_runs
 from .eligibility import Eligibility, assess
-from .evaluate import EvalRun, run_suite
+from .evaluate import EvalRun, run_suite, validate_harness_fixture_activation
 from .manifest import ManifestReport, predicted_task_ids
 from .protocol import (
     ProtocolError,
-    build_identity,
     run_context as make_run_context,
     verify_runtime_bindings,
 )
@@ -81,9 +81,9 @@ def _finish(report: GateReport, decision: str, evidence_class: str = "simulated"
 def run_gate(
     *,
     repo_root: Path,
-    worktree: Path,
+    candidate_root: Path,
+    candidate_guard: fileguard.GuardReport,
     base_sha: str,
-    candidate_sha: str,
     iteration: int,
     eval_root: Path,
     baseline_dev: EvalRun,
@@ -101,6 +101,7 @@ def run_gate(
     admissions_path: Path,
     quarantine_path: Path,
     noise_band_error: str | None = None,
+    treatment_build: dict[str, Any],
 ) -> GateReport:
     """Run the ladder. ``manifest``/``manifest_report`` are pre-validated by the
     conductor (which owns manifest ingestion from the untrusted worktree)."""
@@ -204,17 +205,7 @@ def run_gate(
             return _finish(report, "invalid")
 
     # ── E0: containment — commit-diff guard, manifest, whole-tree lint ────
-    try:
-        guard = fileguard.check_candidate(
-            repo=repo_root,
-            worktree=worktree,
-            base_sha=base_sha,
-            candidate_sha=candidate_sha,
-            allowed_prefixes=tuple(protocol_snapshot["candidate_allowlist"]),
-        )
-    except fileguard.GuardError as exc:
-        report.rungs.append(RungResult("E0", "invalid", {"error": str(exc)}))
-        return _finish(report, "invalid")
+    guard = candidate_guard
     if not guard.ok:
         report.rungs.append(RungResult("E0", "fail", guard.to_dict()))
         return _finish(report, "rejected")
@@ -223,7 +214,7 @@ def run_gate(
         return _finish(report, "rejected")
 
     lint_report = lint.scan_tree(
-        worktree,
+        candidate_root,
         allowed_prefixes=tuple(protocol_snapshot["candidate_allowlist"]),
     )
     if not lint_report.ok:
@@ -239,30 +230,28 @@ def run_gate(
         })
     )
 
-    # ── E1: activation audit — static half now, dynamic half pending ─────
-    reg_report = registration.check_change_registered(
-        worktree, manifest["target_component"], guard.changed
-    )
+    # ── E1: static registration + conductor-observed fixture activation ──
+    if adapter_config.get("kind") != "harness-fixture":
+        report.rungs.append(
+            RungResult(
+                "E1",
+                "invalid",
+                {"error": "only harness-fixture has qualified D3 activation instrumentation"},
+            )
+        )
+        return _finish(report, "invalid")
+    try:
+        reg_report = registration.check_change_registered(
+            candidate_root, manifest["target_component"], guard.changed
+        )
+    except OSError as exc:
+        report.rungs.append(
+            RungResult("E1", "invalid", {"error": f"registration preflight failed: {exc}"})
+        )
+        return _finish(report, "invalid")
     if not reg_report.ok:
         report.rungs.append(RungResult("E1", "invalid", {"errors": reg_report.errors}))
         return _finish(report, "invalid")  # inert/broken wiring falsifies nothing
-    report.rungs.append(RungResult("E1", "pass", {
-        "static": "pass",
-        "dynamic_trace_audit": "pending (no tracer/browser runtime yet)",
-        "warnings": reg_report.warnings,
-    }))
-    try:
-        treatment_build = build_identity(
-            worktree,
-            commit_sha=candidate_sha,
-            role="candidate",
-            candidate_allowlist=protocol_snapshot["candidate_allowlist"],
-            immutable=False,
-        )
-    except ProtocolError as exc:
-        report.rungs.append(RungResult("E1", "invalid", {"error": str(exc)}))
-        return _finish(report, "invalid")
-
     def treatment_context(
         suite_role: str, task_ids: list[str] | None = None
     ) -> dict[str, Any]:
@@ -275,16 +264,44 @@ def run_gate(
             seed=seed,
         )
 
-    # ── E2: smoke ─────────────────────────────────────────────────────────
+    # The smoke execution is also the bounded D3 activation probe.  It is the
+    # only treatment run allowed before E1 is proven.
     if drift := runtime_drift():
-        report.rungs.append(RungResult("E2", "invalid", {"error": drift}))
+        report.rungs.append(RungResult("E1", "invalid", {"error": drift}))
         return _finish(report, "invalid")
     smoke_context = treatment_context("smoke")
-    smoke = run_suite(repo_root=worktree, suite_name=suites["smoke"],
-                      adapter_config=adapter_config, output_dir=eval_root / "smoke_treatment",
-                      protocol_snapshot=protocol_snapshot,
-                      run_context=smoke_context)
+    try:
+        smoke = run_suite(repo_root=candidate_root, suite_name=suites["smoke"],
+                          adapter_config=adapter_config, output_dir=eval_root / "smoke_treatment",
+                          protocol_snapshot=protocol_snapshot,
+                          run_context=smoke_context)
+    except (OptiEvalError, OSError, ValueError) as exc:
+        report.rungs.append(
+            RungResult("E1", "invalid", {"error": f"smoke evaluation failed: {exc}"})
+        )
+        return _finish(report, "invalid")
     report.run_digests["smoke_treatment"] = smoke_context["run_digest"]
+    activation, activation_errors = validate_harness_fixture_activation(
+        smoke,
+        baseline_run=baseline_dev,
+        trusted_repo=repo_root,
+        base_sha=base_sha,
+        candidate_root=candidate_root,
+        candidate_build=treatment_build,
+        candidate_allowlist=protocol_snapshot["candidate_allowlist"],
+        changed_files=guard.changed,
+        configured_path=adapter_config.get("file"),
+    )
+    if activation_errors:
+        report.rungs.append(RungResult("E1", "invalid", {"errors": activation_errors}))
+        return _finish(report, "invalid")
+    report.rungs.append(RungResult("E1", "pass", {
+        "static": "pass",
+        "observed_activation": activation,
+        "warnings": reg_report.warnings,
+    }))
+
+    # ── E2: smoke ─────────────────────────────────────────────────────────
     smoke_eligibility = admit_decision_run("smoke_treatment", smoke, smoke_context)
     if error := admission_error(smoke_eligibility):
         report.rungs.append(RungResult("E2", "invalid", error))
@@ -308,10 +325,16 @@ def run_gate(
             report.rungs.append(RungResult("E3", "invalid", {"error": drift}))
             return _finish(report, "invalid")
         screen_context = treatment_context("dev", predicted)
-        screen = run_suite(repo_root=worktree, suite_name=suites["dev"], adapter_config=adapter_config,
-                           output_dir=eval_root / "targeted_screen", task_ids=predicted,
-                           protocol_snapshot=protocol_snapshot,
-                           run_context=screen_context)
+        try:
+            screen = run_suite(repo_root=candidate_root, suite_name=suites["dev"], adapter_config=adapter_config,
+                               output_dir=eval_root / "targeted_screen", task_ids=predicted,
+                               protocol_snapshot=protocol_snapshot,
+                               run_context=screen_context)
+        except (OptiEvalError, OSError, ValueError) as exc:
+            report.rungs.append(
+                RungResult("E3", "invalid", {"error": f"targeted evaluation failed: {exc}"})
+            )
+            return _finish(report, "invalid")
         report.run_digests["targeted_screen"] = screen_context["run_digest"]
         screen_eligibility = admit_decision_run(
             "targeted_screen", screen, screen_context
@@ -337,10 +360,16 @@ def run_gate(
         report.rungs.append(RungResult("E4", "invalid", {"error": drift}))
         return _finish(report, "invalid")
     regression_context = treatment_context("regression")
-    regression = run_suite(repo_root=worktree, suite_name=suites["regression"], adapter_config=adapter_config,
-                           output_dir=eval_root / "regression_treatment",
-                           protocol_snapshot=protocol_snapshot,
-                           run_context=regression_context)
+    try:
+        regression = run_suite(repo_root=candidate_root, suite_name=suites["regression"], adapter_config=adapter_config,
+                               output_dir=eval_root / "regression_treatment",
+                               protocol_snapshot=protocol_snapshot,
+                               run_context=regression_context)
+    except (OptiEvalError, OSError, ValueError) as exc:
+        report.rungs.append(
+            RungResult("E4", "invalid", {"error": f"regression evaluation failed: {exc}"})
+        )
+        return _finish(report, "invalid")
     report.run_digests["regression_treatment"] = regression_context["run_digest"]
     regression_eligibility = admit_decision_run(
         "regression_treatment", regression, regression_context
@@ -370,10 +399,16 @@ def run_gate(
         report.rungs.append(RungResult("E5", "invalid", {"error": drift}))
         return _finish(report, "invalid")
     treatment_context_record = treatment_context("dev")
-    treatment = run_suite(repo_root=worktree, suite_name=suites["dev"], adapter_config=adapter_config,
-                          output_dir=eval_root / "dev_treatment",
-                          protocol_snapshot=protocol_snapshot,
-                          run_context=treatment_context_record)
+    try:
+        treatment = run_suite(repo_root=candidate_root, suite_name=suites["dev"], adapter_config=adapter_config,
+                              output_dir=eval_root / "dev_treatment",
+                              protocol_snapshot=protocol_snapshot,
+                              run_context=treatment_context_record)
+    except (OptiEvalError, OSError, ValueError) as exc:
+        report.rungs.append(
+            RungResult("E5", "invalid", {"error": f"development evaluation failed: {exc}"})
+        )
+        return _finish(report, "invalid")
     report.run_digests["dev_treatment"] = treatment_context_record["run_digest"]
     try:
         validate_paired_contexts(

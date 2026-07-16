@@ -30,13 +30,26 @@ def _seed_repo(tmp: Path) -> Path:
     (repo / "harness/components/policy").mkdir(parents=True)
     (repo / "harness/components/policy/system_prompt.md").write_text("seed\n")
     (repo / "harness/components/policy/component.json").write_text(
-        json.dumps({"component": "policy", "version": "0.1.0-seed",
-                    "files": ["system_prompt.md"], "activation_events": ["x"], "emits": []}) + "\n")
+        json.dumps(
+            {
+                "component": "policy",
+                "version": "0.1.0-seed",
+                "purpose": "Test policy fixture",
+                "files": ["system_prompt.md"],
+                "interfaces": [],
+                "activation_events": ["x"],
+                "emits": [],
+            }
+        )
+        + "\n"
+    )
     (repo / "harness/runtime").mkdir(parents=True)
     (repo / "harness/runtime/engine.py").write_text("VALUE = 1\n")
     (repo / "evals").mkdir()
     (repo / "evals/plane.txt").write_text("evaluation plane\n")
-    _git(repo, "init", "-q"); _git(repo, "add", "-A"); _git(repo, "commit", "-qm", "base")
+    _git(repo, "init", "-q")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "base")
     return repo
 
 
@@ -54,7 +67,8 @@ class FileGuardCommitDiffTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as t:
             repo, base, wt = self._candidate(Path(t))
             (wt / "harness/components/policy/system_prompt.md").write_text("improved\n")
-            _git(wt, "add", "-A"); _git(wt, "commit", "-qm", "chg")
+            _git(wt, "add", "-A")
+            _git(wt, "commit", "-qm", "chg")
             cand = gitutil.head_sha(wt)
             report = fileguard.check_candidate(
                 repo=repo,
@@ -72,7 +86,8 @@ class FileGuardCommitDiffTest(unittest.TestCase):
             repo, base, wt = self._candidate(Path(t))
             (wt / "evals/plane.txt").write_text("tampered\n")
             (wt / "harness/components/policy/system_prompt.md").write_text("x\n")
-            _git(wt, "add", "-A"); _git(wt, "commit", "-qm", "sneaky")
+            _git(wt, "add", "-A")
+            _git(wt, "commit", "-qm", "sneaky")
             cand = gitutil.head_sha(wt)
             report = fileguard.check_candidate(
                 repo=repo,
@@ -115,7 +130,8 @@ class FileGuardCommitDiffTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as t:
             repo, base, wt = self._candidate(Path(t))
             (wt / "harness/runtime/engine.py").write_text("VALUE = 2\n")
-            _git(wt, "add", "-A"); _git(wt, "commit", "-qm", "runtime")
+            _git(wt, "add", "-A")
+            _git(wt, "commit", "-qm", "runtime")
             report = fileguard.check_candidate(
                 repo=repo,
                 worktree=wt,
@@ -224,7 +240,8 @@ def _valid_manifest(**over) -> dict:
 class ManifestTest(unittest.TestCase):
     def _check(self, m, **kw):
         with tempfile.TemporaryDirectory() as t:
-            p = Path(t) / "m.json"; p.write_text(json.dumps(m))
+            p = Path(t) / "m.json"
+            p.write_text(json.dumps(m))
             allowed_prefixes = kw.pop("allowed_prefixes", ALLOWED_PREFIXES)
             return manifest.load_and_validate(
                 p,
@@ -241,7 +258,8 @@ class ManifestTest(unittest.TestCase):
         self.assertFalse(self._check(m, changed_files=[]).ok)
 
     def test_cross_component_and_undeclared_rejected(self) -> None:
-        m = _valid_manifest(); m["treatment"]["change_scope"] = ["harness/components/actions/a.md"]
+        m = _valid_manifest()
+        m["treatment"]["change_scope"] = ["harness/components/actions/a.md"]
         self.assertFalse(self._check(m, changed_files=[]).ok)
         self.assertFalse(self._check(_valid_manifest(),
                          changed_files=["harness/components/policy/system_prompt.md",
@@ -639,7 +657,8 @@ class EligibilityTest(unittest.TestCase):
             (tmp / "adm.jsonl").write_text(json.dumps(
                 {"verifier_id": "v", "task_id": "a", "verifier_checksum": "c", "admitted": True}) + "\n")
             # A passed run whose trace shows a DELETE with no expected mutation.
-            trace_dir = tmp / "tasks" / "a"; trace_dir.mkdir(parents=True)
+            trace_dir = tmp / "tasks" / "a"
+            trace_dir.mkdir(parents=True)
             (trace_dir / "trace.jsonl").write_text("\n".join([
                 json.dumps({"run_id": "r", "event_id": "e1", "sequence": 1, "actor": "browser",
                             "event_type": "browser_state", "visibility": ["judge"], "payload": {}}),

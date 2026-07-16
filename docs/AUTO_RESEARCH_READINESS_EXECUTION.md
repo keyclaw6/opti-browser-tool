@@ -32,21 +32,23 @@ remain separate inputs.
 | **B — decide the three external reviews** | **Complete** | The matrix below retains, adapts, defers, or rejects each major proposal against current code, charter value, and YAGNI; separate correctness and elegance reviews are clean. |
 | **C — clean installability** | **Complete** | Code commit `9d0a7ab` declares the actual package graph; evidence commit `ef0da6b` passes isolated source-to-wheel installation, transitive dependency, negative resolver, installed CLI/test, no-network-namespace, and full portable ZIP/bundle verification. The code and evidence slices have clean independent correctness and elegance/YAGNI reviews. |
 | **Pre-D architecture transition** | **Complete; Accepted** | Proposal commit `544750b` passed separate correctness and elegance/YAGNI/vision re-reviews. On 2026-07-15 the owner-delegated coordinator, acting under the founder's delegated architecture-decision authority, approved it exactly: `Accept ADR-0018 as written.` ADR-0018 now binds the minimal repeated-decision, identity/activation, candidate-boundary, indivisible-build, atomic-publication, and reversible WARC/BrowserGym/Playwright qualification transition while ADR-0002/0003 remain Open. |
-| **D — exact identity and trusted activation** | **In progress — D2 committed and code-review-clean; D3 pending** | D1 and D2 are committed, and the settled D2 code passed its final correctness and elegance/YAGNI/vision reviews exactly CLEAN. D3 is inactive and must begin from a clean frozen HEAD; trusted activation proof remains required, so milestone D and Slice A are not complete. |
+| **D — exact identity and trusted activation** | **D3 review-clean commit candidate; milestone D remains incomplete** | D1 and D2 are committed and review-clean. The uncommitted D3 candidate connects static-bundle import, D2 materialized execution, immutable treatment identity, conductor-observed harness-fixture activation through E1-E5, and recoverable accepted publication. This is fixture-backed trusted activation/publication infrastructure only; it does not complete milestone D, Slice A, browser activation, reportability, or operation readiness. |
 
-Milestones D-I remain ordered as identity/activation; repeated decision and
-champion protection; concrete
-source/backend readiness; safe single-host lifecycle; trace-backed
-learning/operator flow; and final integration/adversarial verification.
+The authorized remaining dependency order is the D3 checkpoint, concrete
+milestone-F WARC-Bench `online.4` qualification, milestone E repeated decision
+and champion protection, then milestones G-I lifecycle, learning/operator, and
+final integration work. Numeric milestone labels do not override that
+dependency order.
 
 ### Founder fast path for the remaining work
 
 The remaining readiness work is organized into four vertical slices: **A** is
 D2 immutable Git-backed materialization followed by D3 trusted activation;
-**B** is milestone E repeated decision and champion protection; **C** is
-milestone F concrete source/backend readiness; and **D** is milestones G-I
-single-host lifecycle, learning/operator flow, and final integration. Each
-checkpoint has one bounded implementation owner and exactly two fresh
+**B** is milestone F concrete WARC-Bench `online.4` source/backend
+qualification; **C** is milestone E repeated decision and champion protection;
+and **D** is milestones G-I single-host lifecycle, learning/operator flow, and
+final integration. Each checkpoint has one bounded implementation owner and
+exactly two fresh
 independent reviewers: one correctness reviewer and one
 elegance/YAGNI/vision reviewer. Focused tests run during editing, one broader
 suite runs when a checkpoint becomes a review candidate, and complete
@@ -94,7 +96,7 @@ review's proposed rewrite or timing.
 | Replace single-treatment/noise-envelope acceptance with a prespecified repeated paired/interleaved protocol | R1/R2/R3 | **Accept and implement** | Current E5 runs one treatment and can accept luck. The protocol must bind arm order, matched identities, repeats/stopping, missing/invalid handling, estimator/uncertainty, minimum effect, regression/transfer conditions, and multiplicity policy before treatment results. A predicted flip remains a diagnostic causal check, not sufficient evidence by itself. |
 | Adopt R2's universal `12` valid pairs, `p <= 0.05`, and `>= 0.25` effect as permanent thresholds | R2 | **Defer numeric selection; keep as a candidate first-source protocol** | ADR-0005 requires thresholds from measured real variance. Deterministic simulations can exercise an exact paired protocol, but fixture behavior must not calibrate production thresholds. The configured protocol must fail preflight until real identity-bound values are supplied. |
 | Add explicit `inconclusive` and keep invalid evidence behaviorally inert | R1/R2/R3 | **Accept and implement** | `Verdict` currently exposes only accepted/rejected/invalid although the charter and manifest name four outcomes. Valid but insufficient evidence is not rejection; infrastructure/integrity failure is not behavioral evidence and must not consume promotion evidence. |
-| Make observed activation a trusted dynamic fact rather than optimizer-authored prose or E1 `pending` | R1/R2/R3 | **Accept and implement** | E1 currently passes static registration while recording dynamic audit as pending. Treatment evidence must bind the executed candidate/build/component digest and cited trace events; a missing, baseline-present, or wrong-build activation proof makes the experiment invalid. No generic instrumentation plugin system is needed. |
+| Make observed activation a trusted dynamic fact rather than optimizer-authored prose or E1 `pending` | R1/R2/R3 | **Accept and implement** | The D3 candidate now qualifies only the conductor-observed harness-fixture seam; other adapters fail closed. Treatment evidence binds the executed candidate/build, frozen surface, run identity, trusted result metrics, and baseline observation. Missing, baseline-build, wrong-build, wrong-path/surface, or unconsumed observation is invalid; behavior-neutral output remains valid activation and proceeds to the efficacy decision. No generic instrumentation plugin system is needed. |
 | Retain T0/T1, verifier admission, quarantine, and no-score-override behavior; remove the generalized quarantine/admission state | R1/R3 | **Keep current machinery; defer only uncalibrated T2 use** | Existing evidence, T1, quarantine, and verifier code closes real evaluator-disagreement paths and has adversarial coverage. Do not delete it for conceptual neatness. Simplify only if concrete source integration exposes a correctness or operability cost. No LLM judge becomes trusted before identity-bound real-corpus calibration. |
 | Simplify trace/event/schema rules and shrink the cross-surface adversarial corpus | R1/R3 | **Reject now** | Exact framing, identity, ordering, terminal verifier, final-state adjacency, visibility, containment, and digest rules protect decisions and are the point of AR-003. Source-specific extensions may be added, but no guarantee is relaxed merely because a smaller greenfield envelope is imaginable. Delete tests only after replacement coverage proves the same invariant. |
 | Use SQLite or another database as the accepted-state transaction boundary | R1 | **Reject** | The current single-host scope does not justify a new database. Extend the existing owner-controlled filesystem store with safe paths, permissions, locks, staging, receipts/journal, and atomic compare-and-swap advancement only as needed for recoverable operation. |
@@ -286,6 +288,212 @@ review's proposed rewrite or timing.
   the exact materialized candidate to execution and conductor-observed
   activation; no benchmark performance is claimed.
 
+### D3 review-clean commit candidate
+
+- **Bounded closeout writer:** local Codex session
+  `019f69de-0b03-7333-adf2-579a6a2b5432`, GPT-5.6 Sol medium, was the sole
+  writable D3 closeout implementer. `/root` is the orchestrator, not the
+  implementer. This handback is implementation evidence only, not an
+  independent-review claim or authorization for external activation.
+- The only qualified activation seam is `harness-fixture` consuming
+  `harness/components/policy/quality.txt`. All shipped adapters remain
+  non-reportable, and accepted benchmark publication is mocked in tests.
+
+- The current consumer turns a same-user simulated optimizer worktree handback
+  into one static Git bundle, while benchmark mode requires an independent
+  static bundle plus manifest sidecar. It imports the bundle with
+  `materialize_candidate_bundle` under the campaign lock, projects the treatment
+  context only through `project_build_identity`, and executes every treatment
+  run from the exact read-only tree inside one `consume_materialization`
+  boundary. In benchmark mode D2's receipt supplies candidate identity, E0
+  derives changed paths from the sealed D2 tree against the trusted accepted
+  commit, and the sidecar is read once into the one manifest snapshot used for
+  validation, execution, and persistence. The mutable worktree is neither
+  benchmark candidate nor manifest authority.
+- `run_iteration` now holds one existing campaign lock from a fresh trusted
+  pending-state reload through D2, evaluation, terminal recording, pending
+  reset, and accepted publication. It verifies the pending base against the
+  freshly loaded accepted identity. Advancing publication imports the exact
+  D2 commit/tree first and compare-and-swaps the accepted ref from the identity
+  observed under that lock; contention and a ref race are deterministic
+  regressions, without adding the later milestone-G recovery journal/service.
+- `start_iteration` uses the same campaign lock and reloads trusted campaign
+  state before deciding what may open. It refuses a pending publication without
+  consuming N+1; a current complete/failed receipt is validated and cleaned
+  before the next iteration opens. `run_iteration` owns pending recovery and
+  terminal replay, so cleanup after the final receipt is interruption-safe.
+- Accepted benchmark advancement now writes one campaign-owned pending
+  publication intent after the verified staging ref roots the exact candidate.
+  Under the same campaign lock, one idempotent recovery path couples the
+  accepted-ref CAS, canonical gate/snapshot, cluster register, ledger,
+  learnings, final campaign state, and completion receipt. The next
+  `run_iteration` reloads trusted state and finishes a pending intent before
+  normal pending processing. Deterministic interruption after intent, ref,
+  each artifact/register/ledger/learnings boundary, and state converges to the
+  same ref/state/evidence receipt without duplicate rows. The intent and
+  terminal receipt have closed versioned shapes and canonical digests. Recovery
+  validates every duplicated identity, the exact accepted-state and cluster
+  transitions, frozen protocol/manifest diff, canonical result, and current
+  campaign state before the first mutation. Pre-intent construction/write
+  failures compare-and-swap-delete staging; once a valid intent is durable, it
+  alone owns cleanup. Before an attempt without a durable intent, one canonical
+  cleanup rule removes only the conductor-derived trusted handback and treatment
+  evaluation outputs while preserving the frozen protocol and accepted-build
+  baselines. A regression injects failure after real E1-E5 gate execution but
+  before intent serialization, retries real gate execution, and converges
+  without stale outputs or a staging ref. Complete/failed receipts retain only
+  transaction identity, intent digest, result summary, and failure text when
+  applicable. This is only the D accepted-publication seam, not milestone-G
+  lifecycle recovery.
+- The P1 recovery correction narrows invalid-publication handling to an explicit
+  accepted-ref contention exception at the pre-CAS/CAS boundary. A Git failure
+  during terminal cleanup now leaves the already-durable accepted ref, state,
+  evidence, complete receipt, and single ledger row intact for replay. Intent
+  readback is conservative: staging is deleted only when readback positively
+  establishes that the persisted record is not the just-written intent;
+  indeterminate read failure preserves staging for recovery. These corrections
+  reuse the same publication record and replay path rather than adding another
+  recovery mechanism.
+- The remaining P1 CAS correction rereads the accepted ref after a CAS Git
+  error. A demonstrated move to another commit is contention and remains
+  invalid; reaching the candidate continues idempotently; an unchanged or
+  unavailable ref propagates the original Git error with pending intent and
+  staging intact for replay. This keeps unrelated Git failures retryable
+  without weakening the genuine-race decision.
+- The harness-fixture smoke run is the bounded E1 activation probe. Immutable
+  conductor code carries the smallest observation on `EvalRun`: consumed path,
+  checksum, parsed value, and cited `run.json`. E1 verifies it against the exact
+  materialized candidate tree, D2 treatment identity, frozen changed/allowed
+  surface, existing protocol/run/adapter identity and result metrics, plus the
+  trusted accepted-build observation. There is no duplicate activation file,
+  schema, or digest. Missing baseline/candidate observations, a baseline build,
+  wrong build/digest/path/surface, unconsumed bytes, or receipt mismatch are
+  invalid and stop later treatment runs. Exact candidate bytes/build and
+  declared-surface consumption remain valid when treatment output equals the
+  baseline; behavior-neutral mode and numeric-text candidates now pass E1 and
+  reach the existing efficacy decision, where the focused fixtures reject them
+  for no verified flip. D2 before/after
+  consumption verification remains the tamper boundary.
+- Local fixture handback and all fixture results remain simulated,
+  nonreportable, and state-inert. Benchmark mode requires an explicit static
+  bundle and manifest sidecar whose files and inbox share a separate optimizer
+  UID. Manifest structure is evaluated first at E0; ownership is checked only
+  immediately before the conductor takes its trusted bundle copy and enters D2.
+  The manifest and every inbox directory component are opened with no-follow
+  semantics, its bytes are read exactly once from a pinned descriptor, and the
+  bundle is opened relative to the same pinned inbox. Ownership uses `fstat`
+  on those descriptors and the trusted copy reads exactly the initially
+  bounded bundle byte count, rejecting append, short, or metadata-change races.
+  Manifest snapshots are capped at 256 KiB and likewise reject size/metadata
+  change while preserving the one-read E0 ordering. Path replacement, symlink
+  substitution, or append-driven trusted-disk growth therefore cannot change
+  or enlarge the admitted handback.
+  Expected ownership failures terminate at E1 invalid with the complete trusted
+  gate report, canonical experiment snapshot, ledger, and safe reset. The
+  successful end-to-end static handback regression uses real D2
+  import/materialization and narrowly mocks only ownership validation; it is
+  not evidence of deployed UID isolation.
+- One exact conductor-owned handback copy now survives D2 quarantine cleanup
+  through the verdict. Before an advancing benchmark verdict writes terminal
+  artifacts, the conductor imports that same bundle into a temporary trusted
+  ref and verifies its commit and tree against both the D2 receipt and projected
+  treatment build. Accepted-ref publication is compare-and-swap over the
+  already-present object. A separate-clone regression exercises real object
+  absence, bundle import, D2 materialization, prepublication import, and ref
+  publication; only admission/verdict and the ownership boundary are mocked, so
+  it is not full benchmark or two-user deployment evidence.
+- Structurally invalid manifests terminate authoritatively at E0 before bundle
+  import. After E0 structure passes, handback/import/materialization failures
+  remain E1 invalid and are never relabeled rejected. Simulated automatic bundle
+  creation preserves any pre-existing `refs/heads/candidate` with compare-and-
+  swap restoration and fails closed on a concurrent ref change. Manifest JSON
+  uses the repository strict parser in both conductor ingestion and the public
+  `load_and_validate` loader, so duplicate keys and NaN/Infinity are E0
+  rejected submissions rather than silently normalized trusted snapshots.
+  Optimizer-authored repetition counts are bounded identically by runtime and
+  schema at 1 through 10,000; arbitrarily large JSON integers are rejected at
+  E0 without lossy float conversion.
+- Component registration now strictly decodes each changed component exactly
+  once and requires the complete closed `component.json` shape. Root arrays,
+  scalars/null, missing/unknown fields, duplicate keys, non-JSON numbers,
+  malformed or duplicate file entries, and missing registered files fail E1
+  without a second permissive parse.
+- The accepted harness component now ships and registers
+  `harness/components/policy/quality.txt` with the numeric baseline rate. Public
+  CLI initialization requires the harness-fixture path and rejects unsafe,
+  out-of-allowlist/current-accepted-surface, nonregular, symlinked, unreadable,
+  non-finite, or out-of-range file/default-rate inputs;
+  a repository-level CLI `init` then `start` regression uses the shipped file
+  without mocks.
+- Expected adapter, evaluation, registration/preflight, and materialization
+  failures after E0 become active-rung invalid terminal evidence, write the
+  canonical gate/snapshot/ledger, and reset pending state. The boundary catches
+  only declared runner/configuration, value, filesystem, Git, guard, and D2
+  failures; programmer exceptions are not swallowed broadly. Numeric behavior
+  values `2.0`, `NaN`, and `Infinity` are covered.
+- The conductor's outer preparation boundary now catches only declared
+  handback/import/D2/guard failures. `run_gate` executes outside that broad
+  catch: expected evaluation errors terminate locally at E1/E3/E4/E5, while
+  unexpected `MaterializationError`, `ValueError`, and `OSError` exceptions from
+  `run_gate` propagate with pending state intact instead of creating false E1
+  evidence.
+- Only the currently instrumented `harness-fixture` adapter may start treatment
+  execution. Other adapters stop at E1 invalid with `run_suite` uncalled.
+  Simulated accept/reject/invalid outcomes and the simulated pivot path clear
+  pending fields but preserve `iterations_since_accept`, `failed_attempts`, and
+  `iterations_since_divergent`; only valid benchmark accept/reject evidence may
+  mutate those research-continuation counters.
+- This is fixture-backed trusted activation/publication infrastructure only,
+  not milestone-D, Slice-A, browser-activation, reportability,
+  or operation-readiness. Targeted rereviews in correctness session
+  `019f6823-fc0a-7873-a189-85724ca6682d` and elegance/YAGNI/vision session
+  `019f6823-fbb9-7953-b606-5f0c31c24166` found the external-object publication,
+  shipped-fixture/CLI, and canonical-preflight-order gaps corrected in this
+  pass. These were historical actionable findings; the final reviews below
+  supersede their review status. This pass accessed no live source, external
+  benchmark asset, credential, model, or paid API.
+- The subsequent R2 correctness session
+  `019f6824-4020-7863-bf69-2ec5a60e2193` and elegance/YAGNI/vision session
+  `019f6824-3fdc-7223-b3e1-08fdeb554b7c` identified the seven remaining
+  lock/CAS, handback TOCTOU, strict-JSON, terminal-failure, CLI preflight,
+  simulated-inertia, and unsupported-adapter findings corrected above. These
+  were historical actionable rereviews, not clean sign-offs; the final reviews
+  below supersede their review status.
+- Fresh R3 correctness session `019f684a-fea8-7753-aba4-d2efb46a6423`
+  and elegance/YAGNI/vision session
+  `019f684a-fef0-7fb0-ab5b-332f4d14f55b` identified four actionable findings:
+  recoverable accepted publication, bounded pinned snapshots, the active-rung
+  exception boundary, and duplicate strict-manifest authority. The bounded
+  corrections are recorded above. These were historical actionable sessions,
+  not clean sign-offs; the final reviews below supersede their review status.
+- R4 correctness reviewer `/root/d3_r4_correctness` and elegance/YAGNI/vision
+  reviewer `/root/d3_r4_elegance` identified the remaining publication-contract,
+  start serialization/replay, gate exception, total registration, established-ref,
+  pre-intent cleanup, huge-integer, sole-authority integration, and receipt-size
+  findings. Implementer `/root/d3_r4_fixes` made the bounded corrections above
+  and added failure-injection, resealed-tamper/no-mutation, real separate-clone,
+  and malformed-registration regressions. These were actionable reviews, not
+  clean sign-offs; the final reviews below supersede their review status.
+- The frozen P1 reviews authorized the two bounded publication-recovery
+  findings corrected in this pass. They are actionable finding inputs, not
+  clean-review claims. The correction writer is the local Codex session named
+  above; `/root` remains the orchestrator.
+- The targeted correctness and elegance rereviews identically reported the
+  remaining CAS-error classification finding corrected above. This records an
+  actionable historical correction, not a clean rereview result.
+- Final targeted correctness session
+  `019f69e9-6517-7d71-ab89-406a46abdc64` returned **CLEAN** for CAS outcomes,
+  transient retry, genuine contention, staging preservation, single-row replay,
+  and adjacent cleanup/readback interactions. Final targeted
+  elegance/YAGNI/vision session
+  `019f69e9-6824-77e3-9cb7-ca6e24439122` returned **CLEAN** and found no added
+  journal, taxonomy, recovery abstraction, or duplicated authority. Both
+  reviewed frozen dirty-diff SHA-256
+  `768c8b6ed2c9b81ee7274ad37106f01d0df084fb1adea8bb30a0eb84e543cba4`
+  with no drift. D3 is therefore a review-clean commit candidate for the
+  fixture-backed trusted activation/publication infrastructure only; no commit
+  hash or milestone-D completion is claimed.
+
 ### ADR-0018 acceptance record
 
 - The exact reviewed proposal is committed at `544750b`; both independent
@@ -455,16 +663,77 @@ evidence; none is milestone-D or Slice-A completion evidence:
 - this closeout's diff, completeness, documentation, and generated-manifest
   gates are recorded after the final ledger bytes settled.
 
+The uncommitted D3 review-clean commit candidate has the following offline
+verification evidence:
+
+- this remaining P1 correction pass ran seven focused tests covering transient
+  CAS retry, genuine CAS contention, terminal cleanup, intent readback, real-
+  gate pre-intent retry, and both behavior-neutral activation cases: all seven
+  passed;
+- broader loop-harness discovery ran 184 tests: 183 passed and one skipped for
+  the deliberately optional `jsonschema` dependency;
+- targeted `ruff check` and `py_compile` over the corrected conductor and
+  focused test module passed;
+- this P1 correction pass ran the two new recovery regressions plus the three
+  existing pre-intent retry and behavior-neutral activation closeout tests: all
+  five passed;
+- broader loop-harness discovery ran 183 tests: 182 passed and one skipped for
+  the deliberately optional `jsonschema` dependency;
+- targeted `ruff check` and `py_compile` over the corrected conductor and
+  focused test module passed;
+- this bounded closeout's nine focused retry, publication-recovery, neutral-
+  activation, and invalid-activation regressions passed; the pre-intent retry
+  executes real E1-E5 gates twice around the injected failure and converges;
+- broader loop-harness discovery ran 181 tests: 180 passed and one skipped for
+  the deliberately optional `jsonschema` dependency;
+- targeted `ruff check` and `py_compile` over the two changed production
+  modules and focused test module passed;
+
+- focused affected CLI, transaction, eligibility, and manifest-contract run:
+  124 tests ran, 123 passed, and one skipped for optional `jsonschema`;
+- the earlier pre-closeout broader loop-harness discovery ran 180 tests: 179
+  passed and one skipped for the deliberately optional `jsonschema` dependency;
+- unchanged eval-harness and judge-harness regression suites passed 46 and 28
+  tests respectively;
+- production-module `ruff check` and Python compilation passed;
+- required adversarial coverage includes static-bundle import through exact
+  materialized execution, immutable run-context identity, observed behavior
+  activation, invalid missing/wrong activation, valid behavior-neutral activation,
+  stop-after-E1, D2 tamper before and after consumption, manifest snapshot
+  swap, malformed-manifest/materialization ordering, terminal benchmark
+  handback preflight, real static bundle/sidecar import with mocked ownership,
+  separate-clone object publication, shipped-file CLI `init` then `start`,
+  candidate-ref preservation, full transaction-lock/ref-CAS races, pinned-path
+  replacement/symlinks, strict JSON, terminal expected failures, unsupported
+  adapter nonexecution, full simulated counter inertia, bounded append/short/
+  oversize snapshots, true later-rung errors, nine accepted-publication
+  interruption/recovery boundaries, strict/digested publication shapes,
+  resealed intent tamper with zero recovery mutation, pre-intent staging
+  cleanup, start/replay serialization, established-ref deletion, malformed
+  registrations, and huge repetition integers; and
+- no live source/campaign, external asset, credential, or model/API budget was
+  used;
+- repository completeness passed 55 required files, package metadata, and all
+  140 cataloged candidates; documentation passed 84 Markdown files, 172 local
+  links, 18 ADRs, and all 140 normalized task files;
+- the optional schema audit was attempted but could not run because
+  `jsonschema` is unavailable in this environment. The changed repetition
+  schema/runtime ceiling is instead covered by alignment, public-loader, and
+  canonical E0 regression tests; and
+- final inventory/manifest counts and verification are recorded below after the
+  durable ledger bytes settle.
+
 The initial candidate's offline clean-install proof was not rerun for this
 bounded correction because no package metadata or dependency surface changed.
-After all source, test, and ledger changes, `python
-scripts/build_file_manifest.py` regenerated 381 inventory rows and 382 manifest
-entries. `python scripts/verify_file_manifest.py --repo-root .` then passed all
-382 entries. `git diff --check` passed. Repository completeness passed
-55 required files, package metadata, and all 140 cataloged candidates without
-errors or warnings. Documentation verification passed 84 Markdown files, 171
-local links, 18 ADRs, and all 140 normalized task files without errors or
-warnings.
+After all corrected source, test, README, and ledger bytes settled, production
+and touched-test `ruff check`, Python compilation, and `git diff --check`
+passed. Repository completeness passed 55 required files, all package metadata,
+and all 140 cataloged candidates without errors or warnings. Documentation
+verification passed 84 Markdown files, 172 local links, 18 ADRs, and all 140
+normalized task files without errors or warnings. Final
+`python scripts/build_file_manifest.py` regeneration produced 382 inventory
+rows and 383 manifest entries; `python scripts/verify_file_manifest.py
+--repo-root .` passed all 383 entries.
 
 Adversarial D1 coverage includes exact ordered task subsets and suite roles;
 undeclared seed/repeat/order rejection; exact matched blocks and arm order;
@@ -522,14 +791,17 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
 - D1 supplies closed protocol and run-context identity. The rejected five-file
   D2a0 attempt did not derive candidate identity from trusted Git objects; it
   was discarded without commit, is absent from the current tree, and must not
-  be resurrected. Original and review-corrected D2 materialization remain
-  unwired;
-  D3 must connect immutable candidate execution and trusted dynamic activation.
-- E5 executes one treatment run; the four-valued repeated paired/interleaved
-  protocol, durable champion/regression protection, and deterministic
-  positive/no-op/regression/invalid simulations are incomplete.
-- No concrete reportable source adapter, reset contract, credential/asset
-  preflight, or local browser-fixture integration path is complete.
+  be resurrected. The bounded D3 closeout connects the settled D2
+  materialization to immutable harness-fixture execution, activation, and
+  recoverable publication. It remains fixture-backed infrastructure only and
+  does not complete milestone D or establish a reportable browser path.
+- The missing public reportable WARC/operator activation path is the next
+  concrete milestone-F dependency: no source-native reportable adapter, reset
+  contract, credential/asset preflight, browser-fixture integration, or
+  operator activation flow is complete.
+- After milestone-F qualification, milestone E remains blocked on its
+  four-valued repeated paired/interleaved protocol, durable champion/regression
+  protection, and deterministic positive/no-op/regression/invalid simulations.
 - Interrupted-iteration recovery, atomic state/receipt advancement, minimal
   locks/permissions, budgets/deadlines, and operator status are not yet at the
   requested single-host readiness boundary.
@@ -553,17 +825,18 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
 
 ## Next steps
 
-1. Resume D3 trusted activation from a future clean frozen HEAD with one
-   writable GPT-5.6 Sol medium implementer
-   and its own bounded implementation/review loop.
-2. Implement the four-valued repeated protocol in milestone E, with positive,
-   no-op, regression, invalid, and interruption simulations.
-3. Implement the reversible WARC `online.4` readiness path in milestone F (or document the
-   evidence that forces a different concrete source): precise preflight,
-   reset/verifier/artifact/config contracts, constrained execution seam, and
-   offline/local fixture integration only.
-4. Finish single-host lifecycle, analyst/learning, source dispositions,
-   status/operator commands, adversarial integration, manifest regeneration,
+1. Preserve this bounded D3 checkpoint as fixture-backed trusted
+   activation/publication infrastructure; do not mark milestone D, Slice A, or
+   operation readiness complete from it.
+2. Supply the next concrete milestone-F dependency: a public reportable WARC
+   `online.4` operator activation path (or evidence forcing a different source),
+   with precise preflight, reset/verifier/artifact/config contracts,
+   constrained browser execution, and an explicit operator flow. Until then,
+   only offline/local fixture integration is qualified.
+3. After milestone F, implement the four-valued repeated protocol in milestone
+   E, with positive, no-op, regression, invalid, and interruption simulations.
+4. Then finish milestones G-I: single-host lifecycle, analyst/learning, source
+   dispositions, status/operator commands, adversarial integration, manifest regeneration,
    and final independent correctness plus elegance reviews.
 5. Stop at software readiness and publish the exact external activation
    checklist. Do not run or imply a real campaign without owner-supplied inputs

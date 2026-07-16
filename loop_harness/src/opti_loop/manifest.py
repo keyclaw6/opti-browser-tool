@@ -21,9 +21,11 @@ shape so downstream attribution never receives an untyped entry.
 """
 from __future__ import annotations
 
-import json
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from opti_eval.models import strict_json_loads
 
 from .fileguard import is_allowed, path_is_safe
 
@@ -84,6 +86,10 @@ COMPONENT_ROOT = "harness/components"
 TREATMENT_FIELDS = ("description", "change_scope", "activation_evidence")
 PREDICTION_FIELDS = ("failure_class", "tasks")
 EVALUATION_FIELDS = ("task_sets", "repetitions", "pairing", "budget")
+# Optimizer-authored repetition metadata is not execution authority, but it is
+# still bounded to a practical single-host campaign size before later milestone
+# E replaces this field with its frozen repeated-decision schedule.
+MAX_REPETITIONS = 10_000
 
 
 @dataclass(slots=True)
@@ -216,14 +222,15 @@ def _validate_evaluation_plan(report: ManifestReport, value: object) -> None:
             # JSON Schema's ``integer`` type is mathematical: ``1.0`` is an
             # integer value even though Python decodes it as ``float``. Keep
             # the stdlib validator aligned while still rejecting booleans.
-            is_integer = (
-                not isinstance(count, bool)
-                and isinstance(count, (int, float))
-                and float(count).is_integer()
+            is_integer = type(count) is int or (
+                type(count) is float
+                and math.isfinite(count)
+                and count.is_integer()
             )
-            if not is_integer or count < 1:
+            if not is_integer or count < 1 or count > MAX_REPETITIONS:
                 report.errors.append(
-                    f"evaluation_plan.repetitions.{key} must be an integer of at least 1"
+                    f"evaluation_plan.repetitions.{key} must be an integer from 1 "
+                    f"through {MAX_REPETITIONS}"
                 )
     if "pairing" in value and not _is_nonempty_string(value["pairing"]):
         report.errors.append("evaluation_plan.pairing must be a non-empty string")
@@ -231,25 +238,19 @@ def _validate_evaluation_plan(report: ManifestReport, value: object) -> None:
         report.errors.append("evaluation_plan.budget must be an object")
 
 
-def load_and_validate(
-    manifest_path: Path,
+def validate_manifest(
+    submitted: object,
     *,
     allowed_prefixes: tuple[str, ...],
     changed_files: list[str] | None = None,
     divergent: bool = False,
 ) -> ManifestReport:
+    """Validate one already-read manifest snapshot."""
     report = ManifestReport(manifest=None)
-    if not manifest_path.is_file():
-        report.errors.append(f"manifest not found: {manifest_path}")
-        return report
-    try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        report.errors.append(f"manifest is not valid JSON: {exc}")
-        return report
-    if not isinstance(manifest, dict):
+    if not isinstance(submitted, dict):
         report.errors.append("manifest must be a JSON object")
         return report
+    manifest = submitted
     report.manifest = manifest
 
     for fieldname in REQUIRED_FIELDS:
@@ -399,6 +400,37 @@ def load_and_validate(
             "manifest must not contain 'attribution' — the conductor appends it after evaluation"
         )
     return report
+
+
+def load_and_validate(
+    manifest_path: Path,
+    *,
+    allowed_prefixes: tuple[str, ...],
+    changed_files: list[str] | None = None,
+    divergent: bool = False,
+) -> ManifestReport:
+    """Read a manifest once, then validate that exact parsed snapshot."""
+    if not manifest_path.is_file():
+        return ManifestReport(
+            manifest=None, errors=[f"manifest not found: {manifest_path}"]
+        )
+    try:
+        submitted = strict_json_loads(
+            manifest_path.read_bytes().decode("utf-8"),
+            field_name="candidate manifest",
+        )
+    except UnicodeDecodeError as exc:
+        return ManifestReport(manifest=None, errors=[f"manifest is not UTF-8: {exc}"])
+    except ValueError as exc:
+        return ManifestReport(
+            manifest=None, errors=[f"manifest is not strict JSON: {exc}"]
+        )
+    return validate_manifest(
+        submitted,
+        allowed_prefixes=allowed_prefixes,
+        changed_files=changed_files,
+        divergent=divergent,
+    )
 
 
 def predicted_task_ids(manifest: object) -> set[str]:

@@ -17,14 +17,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 
 from opti_eval.errors import ConfigurationError
 from opti_eval.paths import find_repo_root
 
-from .campaign import init_campaign, load_campaign
+from . import fileguard, gitutil
+from .campaign import DEFAULT_CONFIG, init_campaign, load_campaign
 from .conductor import compare_campaigns, measure_noise, run_iteration, start_iteration
+from .protocol import ProtocolError, normalize_candidate_allowlist
 from .transfer import evaluate_checkpoint, plan_checkpoint
 
 
@@ -34,6 +37,48 @@ def _repo_root(args) -> Path:
 
 def _emit(payload) -> None:
     print(json.dumps(payload, indent=2, default=str))
+
+
+def _harness_fixture_file(repo_root: Path, value: str) -> str:
+    """Validate the one shipped harness-fixture behavior-file seam."""
+    if not fileguard.path_is_safe(value):
+        raise ValueError("--harness-file must be a safe relative POSIX path")
+    try:
+        allowlist = tuple(
+            normalize_candidate_allowlist(DEFAULT_CONFIG["candidate_allowlist"])
+        )
+    except ProtocolError as exc:  # static defaults are trusted, but fail closed
+        raise ValueError(f"default candidate allowlist is invalid: {exc}") from exc
+    if not fileguard.is_allowed(value, allowlist):
+        raise ValueError("--harness-file is outside the campaign candidate surface")
+    if not fileguard.is_regular_file(repo_root, value):
+        raise ValueError("--harness-file must be a regular non-symlink file")
+    path = repo_root.joinpath(*value.split("/"))
+    try:
+        current = path.read_bytes()
+    except OSError as exc:
+        raise ValueError("--harness-file must be readable") from exc
+    try:
+        accepted = gitutil.read_blob(repo_root, gitutil.head_sha(repo_root), value)
+    except gitutil.GitError as exc:
+        raise ValueError(
+            "--harness-file must exist in the current accepted harness surface"
+        ) from exc
+    if current != accepted:
+        raise ValueError(
+            "--harness-file must match the current accepted harness surface"
+        )
+    try:
+        rate = float(accepted.decode("utf-8").strip())
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise ValueError(
+            "--harness-file accepted baseline must contain one numeric fixture rate"
+        ) from exc
+    if not math.isfinite(rate) or not 0.0 <= rate <= 1.0:
+        raise ValueError(
+            "--harness-file accepted baseline fixture rate must be finite and lie in [0, 1]"
+        )
+    return value
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -47,12 +92,17 @@ def main(argv: list[str] | None = None) -> int:
     p_init.add_argument("--adapter", default="fixture", choices=["fixture", "harness-fixture", "command"])
     p_init.add_argument("--pass-rate", type=float, default=0.55)
     p_init.add_argument("--seed", type=int, default=0)
+    p_init.add_argument("--harness-file", default=None)
     p_init.add_argument("--bridge-command", default=None)
     p_init.add_argument("--dev-suite", default="smoke")
 
-    for name in ("start", "run-iteration", "status", "transfer-plan"):
+    for name in ("start", "status", "transfer-plan"):
         p = sub.add_parser(name)
         p.add_argument("--campaign", required=True)
+    p_run = sub.add_parser("run-iteration")
+    p_run.add_argument("--campaign", required=True)
+    p_run.add_argument("--candidate-bundle", default=None)
+    p_run.add_argument("--candidate-manifest", default=None)
 
     p_noise = sub.add_parser("measure-noise")
     p_noise.add_argument("--campaign", required=True)
@@ -89,6 +139,31 @@ def main(argv: list[str] | None = None) -> int:
         adapter: dict = {"kind": args.adapter}
         if args.adapter == "fixture":
             adapter.update({"pass_rate": args.pass_rate, "seed": args.seed})
+        elif args.adapter == "harness-fixture":
+            if not args.harness_file:
+                print(
+                    "error: --harness-file required for the harness-fixture adapter",
+                    file=sys.stderr,
+                )
+                return 2
+            try:
+                harness_file = _harness_fixture_file(repo_root, args.harness_file)
+            except ValueError as exc:
+                print(f"error: {exc}", file=sys.stderr)
+                return 2
+            if not math.isfinite(args.pass_rate) or not 0.0 <= args.pass_rate <= 1.0:
+                print(
+                    "error: --pass-rate must be finite and lie in [0, 1]",
+                    file=sys.stderr,
+                )
+                return 2
+            adapter.update(
+                {
+                    "file": harness_file,
+                    "default_pass_rate": args.pass_rate,
+                    "seed": args.seed,
+                }
+            )
         elif args.adapter == "command":
             if not args.bridge_command:
                 print("error: --bridge-command required for the command adapter", file=sys.stderr)
@@ -112,7 +187,13 @@ def main(argv: list[str] | None = None) -> int:
         _emit(start_iteration(campaign))
         return 0
     if args.command == "run-iteration":
-        result = run_iteration(campaign)
+        result = run_iteration(
+            campaign,
+            candidate_bundle=(Path(args.candidate_bundle) if args.candidate_bundle else None),
+            candidate_manifest=(
+                Path(args.candidate_manifest) if args.candidate_manifest else None
+            ),
+        )
         _emit(result)
         return 0 if result.get("advanced_accepted_state") else 1
     if args.command == "transfer-plan":

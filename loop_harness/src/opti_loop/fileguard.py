@@ -13,6 +13,8 @@ rejected before anything is read or deleted, closing the traversal-delete
 """
 from __future__ import annotations
 
+import os
+import stat
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -119,4 +121,48 @@ def check_candidate(
             continue
         report.dirty_worktree.append(f"{xy} {path}")
 
+    return report
+
+
+def check_materialized_candidate(
+    *,
+    repo: Path,
+    candidate_root: Path,
+    base_sha: str,
+    allowed_prefixes: tuple[str, ...],
+) -> GuardReport:
+    """Derive the exact E0 change set from a sealed D2 tree and trusted base."""
+    report = GuardReport()
+    try:
+        base = {
+            path: (mode, oid)
+            for mode, object_type, oid, path in gitutil.tree_entries(repo, base_sha)
+            if object_type == "blob"
+        }
+        candidate: dict[str, tuple[str, str]] = {}
+        for current, directories, files in os.walk(candidate_root, followlinks=False):
+            current_path = Path(current)
+            if any((current_path / name).is_symlink() for name in directories):
+                report.violations.append("materialized candidate contains a symlink directory")
+                return report
+            for name in files:
+                path = current_path / name
+                info = path.lstat()
+                rel = path.relative_to(candidate_root).as_posix()
+                if not stat.S_ISREG(info.st_mode):
+                    report.violations.append(f"non-regular file in materialized candidate: {rel}")
+                    continue
+                mode = "100755" if info.st_mode & 0o111 else "100644"
+                candidate[rel] = (mode, gitutil.hash_blob(repo, path.read_bytes()))
+    except (OSError, ValueError, gitutil.GitError) as exc:
+        raise GuardError(str(exc)) from exc
+
+    report.changed = sorted(
+        path for path in set(base) | set(candidate) if base.get(path) != candidate.get(path)
+    )
+    for path in report.changed:
+        if not path_is_safe(path):
+            report.violations.append(f"unsafe path in candidate diff: {path!r}")
+        elif not is_allowed(path, allowed_prefixes):
+            report.violations.append(f"path outside optimizer surface: {path}")
     return report

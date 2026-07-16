@@ -1023,9 +1023,9 @@ class EvidenceEligibilityTest(unittest.TestCase):
             reloaded = NoiseBand.from_dict(band.to_dict())
             report = run_gate(
                 repo_root=root,
-                worktree=root,
+                candidate_root=root,
+                candidate_guard=SimpleNamespace(ok=True, changed=[], to_dict=lambda: {}),
                 base_sha="a" * 40,
-                candidate_sha="c" * 40,
                 iteration=1,
                 eval_root=root / "gate",
                 baseline_dev=samples[0].run,
@@ -1042,6 +1042,7 @@ class EvidenceEligibilityTest(unittest.TestCase):
                 regression_baseline=samples[0].run,
                 admissions_path=campaign.store.admissions_path,
                 quarantine_path=campaign.store.quarantine_path,
+                treatment_build=current_protocol["accepted_build"],
             )
             self.assertEqual(report.verdict.decision, "invalid")
             self.assertIn(
@@ -1066,9 +1067,9 @@ class EvidenceEligibilityTest(unittest.TestCase):
             )
             report = run_gate(
                 repo_root=root,
-                worktree=root,
+                candidate_root=root,
+                candidate_guard=SimpleNamespace(ok=True, changed=[], to_dict=lambda: {}),
                 base_sha="base",
-                candidate_sha="candidate",
                 iteration=1,
                 eval_root=root,
                 baseline_dev=unadmitted,
@@ -1085,6 +1086,7 @@ class EvidenceEligibilityTest(unittest.TestCase):
                 regression_baseline=unadmitted,
                 admissions_path=bundle.admissions,
                 quarantine_path=bundle.quarantine,
+                treatment_build=bundle.candidate_build,
             )
             self.assertEqual(report.rungs[-1].rung, "E0")
             self.assertEqual(report.rungs[-1].status, "invalid")
@@ -1635,8 +1637,8 @@ class EvidenceEligibilityTest(unittest.TestCase):
                     "opti_loop.gates.run_suite", side_effect=lambda **_: next(runs)
                 ),
                 mock.patch(
-                    "opti_loop.gates.build_identity",
-                    return_value=bundle.candidate_build,
+                    "opti_loop.gates.validate_harness_fixture_activation",
+                    return_value=({}, []),
                 ),
                 mock.patch(
                     "opti_loop.gates.make_run_context",
@@ -1665,9 +1667,9 @@ class EvidenceEligibilityTest(unittest.TestCase):
             ):
                 report = run_gate(
                     repo_root=root,
-                    worktree=root,
+                    candidate_root=root,
+                    candidate_guard=SimpleNamespace(ok=True, changed=[], to_dict=lambda: {}),
                     base_sha="base",
-                    candidate_sha="candidate",
                     iteration=1,
                     eval_root=root,
                     baseline_dev=diagnostic,
@@ -1682,6 +1684,8 @@ class EvidenceEligibilityTest(unittest.TestCase):
                         ok=True, errors=[], warnings=[]
                     ),
                     adapter_config={
+                        "kind": "harness-fixture",
+                        "file": "harness/components/policy/quality.txt",
                         "verifier_id": "verifier-v1",
                         "verifier_checksum": "checksum-v1",
                     },
@@ -1699,6 +1703,7 @@ class EvidenceEligibilityTest(unittest.TestCase):
                     regression_baseline=diagnostic,
                     admissions_path=bundle.admissions,
                     quarantine_path=bundle.quarantine,
+                    treatment_build=bundle.candidate_build,
                 )
             self.assertTrue(
                 report.eligibility["acceptance_eligible"],
@@ -1756,8 +1761,8 @@ class EvidenceEligibilityTest(unittest.TestCase):
                     return_value=SimpleNamespace(ok=True, errors=[], warnings=[]),
                 ),
                 mock.patch(
-                    "opti_loop.gates.build_identity",
-                    return_value=bundle.candidate_build,
+                    "opti_loop.gates.validate_harness_fixture_activation",
+                    return_value=({}, []),
                 ),
                 mock.patch(
                     "opti_loop.gates.run_suite",
@@ -1780,9 +1785,9 @@ class EvidenceEligibilityTest(unittest.TestCase):
             ):
                 report = run_gate(
                     repo_root=root,
-                    worktree=root,
+                    candidate_root=root,
+                    candidate_guard=SimpleNamespace(ok=True, changed=[], to_dict=lambda: {}),
                     base_sha="base",
-                    candidate_sha="candidate",
                     iteration=1,
                     eval_root=root,
                     baseline_dev=diagnostic,
@@ -1799,6 +1804,8 @@ class EvidenceEligibilityTest(unittest.TestCase):
                         warnings=[],
                     ),
                     adapter_config={
+                        "kind": "harness-fixture",
+                        "file": "harness/components/policy/quality.txt",
                         "verifier_id": "verifier-v1",
                         "verifier_checksum": "checksum-v1",
                     },
@@ -1816,6 +1823,7 @@ class EvidenceEligibilityTest(unittest.TestCase):
                     regression_baseline=diagnostic,
                     admissions_path=bundle.admissions,
                     quarantine_path=bundle.quarantine,
+                    treatment_build=bundle.candidate_build,
                 )
             self.assertEqual(run_suite_mock.call_count, 1)
             self.assertEqual(report.rungs[-1].rung, "E4")
@@ -2230,8 +2238,8 @@ class EvidenceEligibilityTest(unittest.TestCase):
                 ),
                 mock.patch("opti_loop.gates.run_suite", side_effect=lambda **_: next(runs)),
                 mock.patch(
-                    "opti_loop.gates.build_identity",
-                    return_value=bundle.candidate_build,
+                    "opti_loop.gates.validate_harness_fixture_activation",
+                    return_value=({}, []),
                 ),
                 mock.patch(
                     "opti_loop.gates.make_run_context",
@@ -2254,15 +2262,17 @@ class EvidenceEligibilityTest(unittest.TestCase):
             ):
                 report = run_gate(
                     repo_root=root,
-                    worktree=root,
+                    candidate_root=root,
+                    candidate_guard=guard,
                     base_sha="base",
-                    candidate_sha="candidate",
                     iteration=1,
                     eval_root=bundle.run_dir.parent,
                     baseline_dev=diagnostic,
                     manifest=manifest,
                     manifest_report=SimpleNamespace(ok=True, errors=[], warnings=[]),
                     adapter_config={
+                        "kind": "harness-fixture",
+                        "file": "harness/components/policy/quality.txt",
                         "verifier_id": "verifier-v1",
                         "verifier_checksum": "checksum-v1",
                     },
@@ -2276,6 +2286,7 @@ class EvidenceEligibilityTest(unittest.TestCase):
                     regression_baseline=diagnostic,
                     admissions_path=bundle.admissions,
                     quarantine_path=bundle.quarantine,
+                    treatment_build=bundle.candidate_build,
                 )
             self.assertEqual(report.rungs[-1].rung, "E5")
             self.assertEqual(report.rungs[-1].status, "invalid")

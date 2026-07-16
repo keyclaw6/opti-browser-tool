@@ -61,6 +61,48 @@ def rev_parse(repo: Path, ref: str) -> str:
     return _run(repo, "rev-parse", ref).stdout.strip()
 
 
+def try_rev_parse(repo: Path, ref: str) -> str | None:
+    proc = _run(repo, "rev-parse", "--verify", ref, check=False)
+    return proc.stdout.strip() if proc.returncode == 0 else None
+
+
+def tree_entries(repo: Path, commit: str) -> list[tuple[str, str, str, str]]:
+    proc = subprocess.run(
+        ["git", "-C", str(repo), "ls-tree", "-rz", "--full-tree", f"{commit}^{{tree}}"],
+        capture_output=True,
+    )
+    if proc.returncode != 0:
+        raise GitError(
+            f"git ls-tree failed in {repo}: "
+            + proc.stderr.decode("utf-8", errors="replace").strip()
+        )
+    return parse_raw_tree(proc.stdout)
+
+
+def hash_blob(repo: Path, content: bytes) -> str:
+    proc = subprocess.run(
+        ["git", "-C", str(repo), "hash-object", "--stdin"],
+        input=content,
+        capture_output=True,
+    )
+    if proc.returncode != 0:
+        raise GitError(
+            f"git hash-object failed in {repo}: "
+            + proc.stderr.decode("utf-8", errors="replace").strip()
+        )
+    return proc.stdout.decode("ascii").strip()
+
+
+def read_blob(repo: Path, commit: str, path: str) -> bytes:
+    proc = subprocess.run(
+        ["git", "-C", str(repo), "show", f"{commit}:{path}"],
+        capture_output=True,
+    )
+    if proc.returncode != 0:
+        raise GitError(f"Git blob is missing at {commit[:12]}:{path}")
+    return proc.stdout
+
+
 def is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
     proc = _run(repo, "merge-base", "--is-ancestor", ancestor, descendant, check=False)
     if proc.returncode == 0:
@@ -125,6 +167,84 @@ def reset_worktree(worktree: Path, base_sha: str) -> None:
     _run(worktree, "clean", "-fdx")
 
 
-def update_ref(repo: Path, ref: str, sha: str) -> None:
-    """Point a ref at a SHA so an accepted candidate is never garbage-collected."""
-    _run(repo, "update-ref", ref, sha)
+def update_ref(repo: Path, ref: str, sha: str, *, expected: str | None = None) -> None:
+    """Point a ref at a SHA, optionally with compare-and-swap semantics."""
+    if expected is None:
+        _run(repo, "update-ref", ref, sha)
+        return
+    _run(repo, "update-ref", ref, sha, expected)
+
+
+def delete_ref(repo: Path, ref: str, *, expected: str) -> None:
+    """Delete exactly the expected temporary ref."""
+    _run(repo, "update-ref", "-d", ref, expected)
+
+
+def compare_and_swap_ref(
+    repo: Path, ref: str, sha: str, *, expected: str | None
+) -> None:
+    """Create a missing ref or replace exactly its expected object ID."""
+    if expected is None:
+        object_format = _run(repo, "rev-parse", "--show-object-format").stdout.strip()
+        expected = "0" * (64 if object_format == "sha256" else 40)
+    _run(repo, "update-ref", ref, sha, expected)
+
+
+def stage_bundle_candidate(
+    repo: Path,
+    bundle: Path,
+    *,
+    candidate_sha: str,
+    tree_sha: str,
+    staging_ref: str,
+) -> None:
+    """Import and root one exact bundle candidate before accepted publication."""
+    existing = try_rev_parse(repo, staging_ref)
+    if existing is None:
+        _run(
+            repo,
+            "fetch",
+            "--no-tags",
+            "--no-write-fetch-head",
+            str(bundle),
+            f"refs/heads/candidate:{staging_ref}",
+        )
+    elif existing != candidate_sha:
+        raise GitError(f"candidate staging ref already points elsewhere: {staging_ref}")
+    try:
+        staged = rev_parse(repo, f"{staging_ref}^{{commit}}")
+        staged_tree = rev_parse(repo, f"{staging_ref}^{{tree}}")
+        if staged != candidate_sha or staged_tree != tree_sha:
+            raise GitError("staged candidate commit/tree does not match D2 receipt")
+    except BaseException:
+        if try_rev_parse(repo, staging_ref) == candidate_sha:
+            delete_ref(repo, staging_ref, expected=candidate_sha)
+        raise
+
+
+def create_candidate_bundle(
+    repo: Path, destination: Path, *, base_sha: str, candidate_sha: str
+) -> None:
+    """Create the static D2 handback used by same-user simulated rehearsals."""
+    ref = "refs/heads/candidate"
+    previous = try_rev_parse(repo, ref)
+    if previous == candidate_sha:
+        _run(repo, "bundle", "create", str(destination), ref, f"^{base_sha}")
+        if try_rev_parse(repo, ref) != candidate_sha:
+            destination.unlink(missing_ok=True)
+            raise GitError("candidate ref changed concurrently during bundle creation")
+        return
+    object_format = _run(repo, "rev-parse", "--show-object-format").stdout.strip()
+    missing = "0" * (64 if object_format == "sha256" else 40)
+    _run(repo, "update-ref", ref, candidate_sha, previous or missing)
+    try:
+        _run(repo, "bundle", "create", str(destination), ref, f"^{base_sha}")
+    finally:
+        try:
+            if previous is None:
+                _run(repo, "update-ref", "-d", ref, candidate_sha)
+            else:
+                _run(repo, "update-ref", ref, previous, candidate_sha)
+        except GitError:
+            destination.unlink(missing_ok=True)
+            raise

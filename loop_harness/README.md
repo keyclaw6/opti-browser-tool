@@ -32,7 +32,7 @@ decision.**
 | Change manifest (evidence → root cause → fix → predicted fixes/risks → why this component) | agentic-harness-engineering | one canonical `schemas/experiment.schema.json` requires `target_component` and `cluster_ref`; conductor alone appends `attribution` or writes the discriminated `rejected_submission` record for invalid input |
 | KEEP / PARTIAL / REVERT attribution | AHE | computed synchronously; a `revert` attribution can never be accepted, and the flip must be verified in FULL E5 evidence (not E3 screening) |
 | Iteration folders with pre-built analysis read first | AHE (`runs/iteration_NNN/`) | `<store>/<id>/iterations/iter-NNNN/` with `analysis/`, `PACKET.md`, `eval/*` — in the trusted store |
-| Registration validation before evaluation | AHE `validate_agent.py` | `component.json` checks = the static half of E1; the dynamic (trace) half is **pending** until a tracer exists and is reported as such, never silently passed |
+| Registration validation before evaluation | AHE `validate_agent.py` | `component.json` checks remain supporting E1 metadata; only the `harness-fixture` rehearsal has conductor-observed activation, and other adapters fail closed pending concrete trusted instrumentation |
 | Failure clusters prioritized by `total_failures × (1 − resolution_rate)` | neosigma method article | cluster register per `docs/architecture/ANALYST.md`; the stub Analyst labels itself `stub-0` and claims no root causes |
 | **Replaced:** monotonic `val_score ≥ best` ratchet | auto-harness | paired baseline/treatment comparison inside a measured noise band (ADR-0015 §8) |
 | **Replaced:** at-risk lists as regression protection | AHE manifests | risk lists are measured for prediction accuracy but never protect the gate |
@@ -54,7 +54,13 @@ separable, and `simulated:accepted` mutated real state. v2 closes these:
   the guard reads `base..candidate` commit objects, so committing an edit no
   longer hides it, and path-safety rejects traversal/symlink/absolute paths.
 - **One atomic transaction** (`conductor.run_iteration`) — gate + attribute +
-  record + accept/reset in a single step; no forgeable gate report to plant.
+  record + accept/reset in a single step under one campaign lock acquired
+  before a fresh trusted-state reload. Concurrent consumers cannot reuse one
+  pending iteration; accepted-ref publication compare-and-swaps from the
+  freshly observed accepted identity before any advancing terminal record.
+  `start` uses the same lock and a fresh state reload: it refuses a pending
+  publication, validates and cleans a current terminal receipt, then opens the
+  next iteration.
 - **Typed verdict** (`verdict.py`) — only `(accepted, benchmark)` advances
   state; every `simulated` verdict is inert for promotion, drift, and ranking.
 - **Benchmark admission** (`eligibility.py`) — raw evaluator summaries always
@@ -78,9 +84,16 @@ separable, and `simulated:accepted` mutated real state. v2 closes these:
 ## Honest limitations (current)
 
 1. **The Analyst is a stub** (`stub-0`, no root causes) — needs traces (ADR-0004).
-2. **E1 dynamic half is pending** — registration is enforced; trace-activation
-   is reported `pending` until a tracer exists. T2 judges are owner-invoked;
-   only T1 auto-runs in eligibility today.
+2. **E1 observed activation is qualified only for `harness-fixture`** — the
+   conductor binds one compact behavior-file observation (path, checksum,
+   parsed value, and cited `run.json`) to the exact D2 build, frozen changed
+   surface, run/protocol/adapter identity, and the trusted accepted-build
+   baseline observation. Missing observation, baseline/wrong build, wrong
+   path/surface, or unconsumed bytes stop at E1 invalid. A behavior-neutral
+   candidate with proven exact build/surface consumption passes E1 and reaches
+   the efficacy decision. Other adapters fail E1 until their concrete trusted
+   instrumentation exists. T2 judges are owner-invoked; only T1 auto-runs in
+   eligibility today.
 3. **k-repeat paired confirmation is specified but runs once** under the
    deterministic fixture; wire k>1 when a stochastic adapter exists.
 4. **Thresholds are placeholders** (`min_prediction_precision`, smoke floor,
@@ -90,6 +103,29 @@ separable, and `simulated:accepted` mutated real state. v2 closes these:
    writable. The store-outside-repo + commit-diff design enforces the boundary
    *given* that confinement; a shared filesystem with an unconfined optimizer
    is out of the threat model this code can close alone.
+6. **Benchmark bundle handback requires real two-user deployment**:
+   `run-iteration --candidate-bundle PATH --candidate-manifest PATH` requires
+   both files and their inbox to share a separate optimizer UID. Benchmark
+   candidate identity and changed paths come from the imported D2 build, and
+   the exact sidecar bytes are read once; the mutable worktree is not benchmark
+   authority. Manifest structure is decided at E0 before ownership or D2
+   import. The manifest and inbox are opened component-by-component without
+   following symlinks; its bytes are read exactly once from the pinned
+   descriptor. The bundle is opened relative to that same pinned inbox and its
+   descriptor supplies the conductor-owned copy, so optimizer paths are never
+   reopened after ownership validation. Manifest input is capped at 256 KiB;
+   bundle staging copies exactly the bounded size initially reported by
+   `fstat`, rejecting append/short/change races. An advancing verdict imports
+   and verifies that copy's exact commit/tree before publication. One narrow
+   accepted-publication intent then recovers interruptions across the ref CAS,
+   canonical artifacts, register, ledger, learnings, and campaign state on the
+   next locked `run-iteration`. The intent is closed, strictly decoded,
+   digested, and fully cross-validated before recovery mutates anything;
+   terminal receipts retain only identity, intent digest, result summary, and
+   an error for failure. Pre-intent failures delete their exact staging ref,
+   while a durable intent owns later cleanup. This is not a general campaign
+   recovery journal. Same-user automatic bundle creation is a simulated
+   rehearsal only.
 
 ## Use
 
@@ -105,6 +141,25 @@ subcommand, for example
 `opti-loop --store-root /safe/path init --campaign rehearsal`.
 `install-check` invokes no live backend, but it is not an OS-level network
 sandbox.
+
+The operable offline D3 rehearsal is initialized directly with, for example:
+
+```bash
+opti-loop --store-root /safe/path init --campaign rehearsal \
+  --adapter harness-fixture \
+  --harness-file harness/components/policy/quality.txt \
+  --pass-rate 0.55 --seed 0
+```
+
+`--harness-file` is required for `harness-fixture`; `--pass-rate` supplies its
+accepted-build fallback/default and defaults to `0.55`, while `--seed` defaults
+to `0`. The shipped `harness/components/policy/quality.txt` is registered in its
+component and contains the accepted-build rate. Initialization validates that
+the path is safe, allowed, present in the accepted Git surface, regular,
+non-symlink, readable, finite, and a rate in `[0, 1]`; the fallback pass rate
+has the same finite range. Fixture evidence remains simulated, cannot advance
+accepted state, and cannot change research-continuation counters. Unsupported
+adapters stop at E1 before any treatment execution.
 
 Operator commands (see `opti-loop --help`): `init`, `measure-noise`, `start`,
 `run-iteration`, `status`, `compare-campaigns`, `transfer-plan`.
