@@ -64,6 +64,7 @@ from opti_loop.conductor import (
     _read_manifest_snapshot,
     _load_accepted_run,
     compare_campaigns,
+    continue_campaign,
     measure_noise,
     publication_status,
     run_iteration,
@@ -3389,6 +3390,61 @@ class TransactionalLoopTest(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("publication record is malformed", stderr.getvalue())
 
+    def test_missing_terminal_receipt_blocks_every_iteration_route(self) -> None:
+        campaign = self._new_campaign(
+            "missing-terminal-receipt",
+            {"kind": "harness-fixture", "file": QUALITY_REL,
+             "default_pass_rate": 0.55, "seed": 0},
+        )
+        self.assertEqual(publication_status(campaign)["status"], "none")
+        self.assertEqual(operation_status(campaign)["blockers"], [])
+
+        worktree = Path(start_iteration(campaign)["worktree"])
+        self.assertEqual(publication_status(campaign)["status"], "none")
+        self._commit_quality(worktree, "0.00\n")
+        self._write_manifest(worktree, predicted=self.flipping[:1])
+        result = run_iteration(campaign)
+        self.assertEqual(result["decision"], "rejected")
+        publication_path = campaign.store.campaign_dir / "accepted-publication.json"
+        self.assertTrue(publication_path.is_file())
+        publication_path.unlink()
+
+        projected = publication_status(campaign)
+        self.assertEqual(projected["status"], "malformed")
+        self.assertIn("receipt is missing", projected["error"])
+        self.assertTrue(any(
+            "publication record is malformed" in blocker
+            for blocker in operation_status(campaign)["blockers"]
+        ))
+        for route in (
+            lambda: start_iteration(campaign),
+            lambda: run_iteration(campaign),
+            lambda: continue_campaign(campaign),
+        ):
+            with self.subTest(route=route), self.assertRaisesRegex(
+                RuntimeError, "publication receipt is missing"
+            ):
+                route()
+
+        lifecycle_request(campaign, "stop")
+        with self.assertRaisesRegex(RuntimeError, "publication receipt is missing"):
+            lifecycle_request(campaign, "run", resume=True)
+        reloaded = load_campaign(
+            self.repo, campaign.campaign_id, store_root=self.store
+        )
+        self.assertEqual(reloaded.state["lifecycle"]["state"], "stopped")
+
+        for command in ("run", "resume"):
+            stderr = StringIO()
+            with self.subTest(command=command), redirect_stderr(stderr):
+                code = cli_main([
+                    "--repo-root", str(self.repo),
+                    "--store-root", str(self.store),
+                    command, "--campaign", campaign.campaign_id,
+                ])
+            self.assertEqual(code, 2)
+            self.assertIn("publication receipt is missing", stderr.getvalue())
+
     def test_cli_run_reloads_locked_state_before_routing_concurrent_pending_work(self) -> None:
         campaign = self._new_campaign(
             "concurrent-cli-route",
@@ -3655,9 +3711,9 @@ class TransactionalLoopTest(unittest.TestCase):
 
         campaign = self._new_campaign("spent-limits", {"kind": "fixture", "seed": 0})
         campaign.config["operation"]["max_iterations"] = 1
-        campaign.state["current_iteration"] = 1
         campaign.save_config()
-        campaign.save_state()
+        start_iteration(campaign)
+        run_iteration(campaign)
         with self.assertRaisesRegex(RuntimeError, "iteration limit is exhausted"):
             start_iteration(campaign)
 

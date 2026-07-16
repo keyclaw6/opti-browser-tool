@@ -142,7 +142,8 @@ make install-check  # uv-offline/no-index install + deterministic installed test
 `opti-loop==0.1.0` declares exact dependencies on
 `opti-browser-eval==0.1.0` and `opti-judge==0.1.0`. Global options precede the
 subcommand, for example
-`opti-loop --store-root /safe/path init --campaign rehearsal`.
+`opti-loop --store-root /safe/path init --campaign rehearsal
+--max-iterations 3 --max-attempts 6 --deadline-seconds 3600`.
 `install-check` invokes no live backend, but it is not an OS-level network
 sandbox.
 

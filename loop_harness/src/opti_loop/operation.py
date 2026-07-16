@@ -179,6 +179,17 @@ def request(
         campaign.config = fresh.config
         campaign.state = fresh.state
         validate_operation(campaign)
+        if value == "run":
+            # The conductor owns publication presence and iteration projection.
+            from .conductor import _project_publication
+
+            try:
+                _project_publication(campaign)
+            except (RuntimeError, ValueError) as exc:
+                raise RuntimeError(
+                    "publication record is malformed; inspect retained receipt: "
+                    + str(exc)
+                ) from exc
         current = campaign.state["lifecycle"]["state"]
         if value == "run" and current in {"paused", "stopped"} and not resume:
             raise RuntimeError(

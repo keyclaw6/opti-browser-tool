@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
@@ -70,6 +71,18 @@ def _seed_loop_repo(path: Path) -> Path:
 
 
 class RepoRootDiscoveryTest(unittest.TestCase):
+    def test_rehearsal_commands_bind_closed_limits_and_package_graph(self) -> None:
+        makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        readme = (REPO_ROOT / "loop_harness/README.md").read_text(encoding="utf-8")
+        limits = "--max-iterations 3 --max-attempts 6 --deadline-seconds 3600"
+        self.assertIn(limits, makefile)
+        self.assertIn(limits, readme)
+        loop_path = next(
+            line for line in makefile.splitlines() if line.startswith("LOOP_PYTHONPATH :=")
+        )
+        for package in ("eval_harness/src", "judge_harness/src", "loop_harness/src"):
+            self.assertIn(package, loop_path)
+
     def test_explicit_root(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = _seed_repo(Path(tmp))
@@ -129,6 +142,29 @@ class RepoRootDiscoveryTest(unittest.TestCase):
             self.assertEqual(code, 2)
             self.assertIn("verifier admission failed", stderr.getvalue())
             init.assert_not_called()
+
+    def test_production_source_preflight_never_claims_reportability(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = _seed_repo(Path(tmp))
+            stdout = StringIO()
+            checked = {
+                "mode": "production",
+                "config_digest": "a" * 64,
+                "credentials": {"required_env": ["OPENCODE_API_KEY"]},
+            }
+            with (
+                patch("opti_loop.cli.load_and_preflight_config", return_value=checked),
+                redirect_stdout(stdout),
+            ):
+                code = main([
+                    "--repo-root", str(repo), "warc-online4-preflight",
+                    "--config", "/owner/config.json",
+                ])
+            self.assertEqual(code, 0)
+            report = json.loads(stdout.getvalue())
+            self.assertFalse(report["benchmark_reportable"])
+            self.assertTrue(report["potential_benchmark_eligibility"])
+            self.assertFalse(report["lifecycle_executed"])
 
     def test_harness_fixture_init_writes_direct_file_defaults(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

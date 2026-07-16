@@ -4,8 +4,8 @@ PYTHONPATH := $(REPO_ROOT)/eval_harness/src
 
 .PHONY: install install-check eval-build eval-validate eval-test eval-smoke-fixture eval-all-fixture docs-verify schema-verify manifest-build archive-build archive-verify loop-test loop-init-dryrun judge-test
 
-LOOP_PYTHONPATH := $(REPO_ROOT)/eval_harness/src:$(REPO_ROOT)/loop_harness/src
-JUDGE_PYTHONPATH := $(LOOP_PYTHONPATH):$(REPO_ROOT)/judge_harness/src
+LOOP_PYTHONPATH := $(REPO_ROOT)/eval_harness/src:$(REPO_ROOT)/judge_harness/src:$(REPO_ROOT)/loop_harness/src
+JUDGE_PYTHONPATH := $(LOOP_PYTHONPATH)
 
 install:
 	$(PYTHON) -m pip install -e ./eval_harness -e ./judge_harness -e ./loop_harness
@@ -35,7 +35,7 @@ judge-test:
 	OPTI_BROWSER_REPO_ROOT=$(REPO_ROOT) PYTHONPATH=$(JUDGE_PYTHONPATH) $(PYTHON) -m unittest discover -s judge_harness/tests -v
 
 loop-init-dryrun:
-	OPTI_BROWSER_REPO_ROOT=$(REPO_ROOT) PYTHONPATH=$(LOOP_PYTHONPATH) $(PYTHON) -m opti_loop init --campaign dryrun --adapter fixture
+	OPTI_BROWSER_REPO_ROOT=$(REPO_ROOT) PYTHONPATH=$(LOOP_PYTHONPATH) $(PYTHON) -m opti_loop init --campaign dryrun --adapter fixture --max-iterations 3 --max-attempts 6 --deadline-seconds 3600
 	OPTI_BROWSER_REPO_ROOT=$(REPO_ROOT) PYTHONPATH=$(LOOP_PYTHONPATH) $(PYTHON) -m opti_loop measure-noise --campaign dryrun
 	OPTI_BROWSER_REPO_ROOT=$(REPO_ROOT) PYTHONPATH=$(LOOP_PYTHONPATH) $(PYTHON) -m opti_loop start --campaign dryrun
 

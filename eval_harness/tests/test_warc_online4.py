@@ -18,6 +18,8 @@ from unittest import mock
 
 from opti_eval.adapters.base import AdapterExecutionContext
 from opti_eval.adapters.warc_online4 import (
+    CONFIG_FIELDS,
+    RUNTIME_FIELDS,
     TASK_ID,
     WarcOnline4Adapter,
     WarcOnline4Error,
@@ -203,6 +205,42 @@ class WarcOnline4Test(unittest.TestCase):
         )
         self.assertIs(runtime_result["verifier"]["initial"]["passed"], False)
         self.assertIs(runtime_result["verifier"]["final"]["passed"], True)
+
+    def test_static_production_template_tracks_closed_preflight_shape(self) -> None:
+        repo_root = Path(os.environ["OPTI_BROWSER_REPO_ROOT"])
+        template_path = repo_root / "evals/warc-online4.production.template.json"
+        template = json.loads(template_path.read_text(encoding="utf-8"))
+        self.assertEqual(set(template), CONFIG_FIELDS)
+        self.assertEqual(template["schema_version"], "0.1.0")
+        self.assertEqual(template["mode"], "production")
+        self.assertEqual(set(template["runtime"]), RUNTIME_FIELDS)
+        self.assertEqual(template["credentials"], {"required_env": ["OPENCODE_API_KEY"]})
+        self.assertEqual(
+            set(template["confinement"]),
+            {"single_host", "network", "filesystem", "optimizer_uid", "static_inbox"},
+        )
+        self.assertEqual(
+            set(template["protocol_identity"]["repeated_protocol"]),
+            {
+                "matched_blocks", "coverage", "repeats", "stopping",
+                "outcome_handling", "effect", "non_inferiority", "regression",
+                "champion", "transfer", "multiplicity", "limits", "calibration",
+            },
+        )
+        rendered = template_path.read_text(encoding="utf-8")
+        for placeholder in (
+            "OWNER_WACZ_SHA256",
+            "OWNER_VERIFIER_SHA256",
+            "OWNER_ADMISSIONS_SHA256",
+            "OWNER_LICENSE_EVIDENCE_SHA256",
+            "OWNER_OPTIMIZER_UID_INTEGER",
+            "OWNER_REAL_CALIBRATION_SHA256",
+        ):
+            self.assertIn(placeholder, rendered)
+        qualification = (repo_root / "docs/WARC_ONLINE4_QUALIFICATION.md").read_text()
+        self.assertIn(template_path.name, qualification)
+        self.assertIn("--external-metering-id OWNER_APPROVED_METER_IDENTITY", qualification)
+        self.assertIn("--authorize-production-campaign", qualification)
 
     def test_applied_model_request_contains_exact_treatment_bytes(self) -> None:
         result = self._run()

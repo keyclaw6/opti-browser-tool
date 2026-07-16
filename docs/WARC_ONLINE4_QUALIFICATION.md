@@ -1,10 +1,11 @@
 # WARC-Bench `online.4` qualification
 
-Status: reversible milestone-F software qualification candidate. The initial
-reviews and subsequent targeted rereviews returned FIX; the additional bounded
-correction is implemented and locally verified, and targeted final correctness/
-elegance rereviews remain pending. No live
-run has been performed, no fixture output is benchmark evidence, and ADR-0003
+Status: reversible milestone-F software qualification checkpoint. Its bounded
+software qualification was independently reviewed and committed at `7c245e5`;
+this Sentinel readiness correction is implemented and locally verified, with
+new independent correctness and elegance reviews pending. No live run or
+external-asset qualification has been performed, no fixture or preflight output
+is reportable or performance evidence, no campaign is authorized, and ADR-0003
 remains Open.
 
 ## What exists
@@ -42,10 +43,13 @@ schema_version, mode, task, source, wacz, verifier, provenance, runtime,
 executor, credentials, confinement, limits, treatment_path, protocol_identity
 ```
 
-`mode` is `production` or `local_fixture`. Production is potentially
-reportable only after the existing AR-003 admission path accepts the complete
-run; `local_fixture` is always `benchmark_reportable=false`, uses evidence
-class `local_fixture`, and cannot advance accepted state.
+`mode` is `production` or `local_fixture`. Production is potentially eligible
+only after execution and the existing AR-003 admission path accepts the
+complete run. Source preflight always emits `benchmark_reportable=false`
+because it executes no task lifecycle and admits no run; its separately named
+`potential_benchmark_eligibility` fact is not reportability.
+`local_fixture` is always `benchmark_reportable=false`, uses evidence class
+`local_fixture`, and cannot advance accepted state.
 
 Required values are:
 
@@ -147,16 +151,36 @@ an uncooperative worker.
 
 ## Operator flow after owner-supplied inputs exist
 
-Keep the production config and every secret outside the repository. First run
-the non-executing preflight:
+Copy
+[`evals/warc-online4.production.template.json`](../evals/warc-online4.production.template.json)
+to an owner-only path outside the repository. Replace every `OWNER_*` string
+with the named owner-supplied value, preserving JSON types: UID and all values
+ending in `_INTEGER` become JSON integers, and values ending in `_NUMBER`
+become JSON numbers. Compute every checksum from the exact deployed bytes;
+record complete side-effect-free version commands and their exact combined
+stdout/stderr. The template includes every source asset, checksum, runtime,
+executor, credential-name, confinement, protocol identity, and calibrated
+decision field consumed by the closed preflight. It contains no secret value.
+
+Keep the completed production config and every secret outside the repository.
+Set `OPENCODE_API_KEY` only in the conductor environment, then run source
+preflight against that completed copy:
 
 ```bash
 opti-loop --repo-root /path/to/opti-browser-tool \
   warc-online4-preflight --config /owner-only/warc-online4.json
 ```
 
-A successful response explicitly says `lifecycle_executed: false`. Then
-initialize the one-task qualification campaign:
+A successful response explicitly says `lifecycle_executed: false`,
+`benchmark_reportable: false`, and
+`potential_benchmark_eligibility: true`. Preflight authorizes nothing and runs
+no task lifecycle, browser/model campaign, admission, or performance
+evaluation. It may run only the configured bounded, side-effect-free version
+commands needed to verify runtime identity.
+
+Only after the owner has explicitly authorized this exact production campaign,
+initialize it with the existing campaign-owned metering and authorization
+inputs (these intentionally are not duplicated into source configuration):
 
 ```bash
 opti-loop --repo-root /path/to/opti-browser-tool \
@@ -171,6 +195,11 @@ opti-loop --repo-root /path/to/opti-browser-tool \
   --external-metering-id OWNER_APPROVED_METER_IDENTITY \
   --authorize-production-campaign
 ```
+
+`--authorize-production-campaign` records that prior owner decision as
+`owner_authorized`; it does not originate authorization. Omitting the flag
+retains the missing-authorization blocker, and `start` cannot execute the
+production campaign until that blocker is removed.
 
 Start creates the accepted-build baseline through the normal conductor path:
 
@@ -191,9 +220,11 @@ opti-loop --repo-root /path/to/opti-browser-tool \
   --candidate-manifest /optimizer-owned/inbox/manifest.json
 ```
 
-These commands do not authorize a live run. Do not execute `start` until the
-owner has supplied every input below and separately authorized the exact
-qualification.
+Preflight and configuration commands do not themselves authorize a live run.
+Do not supply `--authorize-production-campaign` or execute `start` until the
+owner has supplied every input below and explicitly authorized the exact
+qualification. None of these steps establishes benchmark reportability or
+performance evidence.
 
 ## Current blockers
 

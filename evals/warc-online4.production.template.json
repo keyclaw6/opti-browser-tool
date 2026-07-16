@@ -1,0 +1,202 @@
+{
+  "schema_version": "0.1.0",
+  "mode": "production",
+  "task": {
+    "id": "warc-bench-online-4",
+    "source": "warc_bench",
+    "native_task_id": "online.4"
+  },
+  "source": {
+    "upstream_commit": "98d213ccd2b4380761738e1d144467a8695e37c5",
+    "manifest_path": "src/orby/subtask_benchmark/environments/benchmark.json",
+    "manifest_blob_sha1": "6b2bc7ee04b3231325fe3a84b195d26d0c589287",
+    "data_path": "environments/web_archives/alaska_airlines/alaska_airlines_flight_booking.wacz"
+  },
+  "wacz": {
+    "path": "/OWNER_ABSOLUTE_PATH/online4.wacz",
+    "sha256": "OWNER_WACZ_SHA256",
+    "start_url": "https://www.alaskaair.com/search/?A=1&C=0&L=0&O=JFK&D=SFO&OD=2025-02-18&DD=2025-02-18&RT=true&errorRedirect=true"
+  },
+  "verifier": {
+    "id": "OWNER_ADMITTED_VERIFIER_ID",
+    "path": "/OWNER_ABSOLUTE_PATH/online4-verifier.js",
+    "sha256": "OWNER_VERIFIER_SHA256",
+    "admissions_path": "/OWNER_ABSOLUTE_PATH/admitted-verifiers.jsonl",
+    "admissions_sha256": "OWNER_ADMISSIONS_SHA256"
+  },
+  "provenance": {
+    "wacz_origin": "OWNER_WACZ_ORIGIN",
+    "verifier_origin": "OWNER_VERIFIER_ORIGIN",
+    "license_id": "OWNER_LICENSE_ID",
+    "license_evidence_path": "/OWNER_ABSOLUTE_PATH/license-evidence.txt",
+    "license_evidence_sha256": "OWNER_LICENSE_EVIDENCE_SHA256",
+    "acknowledged": true
+  },
+  "runtime": {
+    "python": {
+      "path": "/OWNER_ABSOLUTE_PATH/python",
+      "sha256": "OWNER_PYTHON_SHA256",
+      "version_command": ["/OWNER_ABSOLUTE_PATH/python", "--version"],
+      "expected_version": "OWNER_PYTHON_VERSION_OUTPUT"
+    },
+    "node": {
+      "path": "/OWNER_ABSOLUTE_PATH/node",
+      "sha256": "OWNER_NODE_SHA256",
+      "version_command": ["/OWNER_ABSOLUTE_PATH/node", "--version"],
+      "expected_version": "OWNER_NODE_VERSION_OUTPUT"
+    },
+    "warc_bench": {
+      "path": "/OWNER_ABSOLUTE_PATH/orby/subtask_benchmark/utils/utils.py",
+      "sha256": "OWNER_WARC_BENCH_MODULE_SHA256",
+      "version_command": ["/OWNER_ABSOLUTE_PATH/python", "-c", "OWNER_SIDE_EFFECT_FREE_WARC_VERSION_PROBE"],
+      "expected_version": "OWNER_WARC_BENCH_VERSION_OUTPUT"
+    },
+    "replay": {
+      "path": "/OWNER_ABSOLUTE_PATH/webreplay-standalone/dist/index.js",
+      "sha256": "OWNER_REPLAY_SHA256",
+      "version_command": ["/OWNER_ABSOLUTE_PATH/node", "OWNER_SIDE_EFFECT_FREE_REPLAY_VERSION_SCRIPT"],
+      "expected_version": "OWNER_REPLAY_VERSION_OUTPUT"
+    },
+    "browsergym": {
+      "path": "/OWNER_ABSOLUTE_PATH/browsergym/subtaskbench/__init__.py",
+      "sha256": "OWNER_BROWSERGYM_SHA256",
+      "version_command": ["/OWNER_ABSOLUTE_PATH/python", "-c", "OWNER_SIDE_EFFECT_FREE_BROWSERGYM_VERSION_PROBE"],
+      "expected_version": "OWNER_BROWSERGYM_VERSION_OUTPUT"
+    },
+    "gymnasium": {
+      "path": "/OWNER_ABSOLUTE_PATH/gymnasium/__init__.py",
+      "sha256": "OWNER_GYMNASIUM_SHA256",
+      "version_command": ["/OWNER_ABSOLUTE_PATH/python", "-c", "OWNER_SIDE_EFFECT_FREE_GYMNASIUM_VERSION_PROBE"],
+      "expected_version": "OWNER_GYMNASIUM_VERSION_OUTPUT"
+    },
+    "playwright": {
+      "path": "/OWNER_ABSOLUTE_PATH/playwright/sync_api/__init__.py",
+      "sha256": "OWNER_PLAYWRIGHT_SHA256",
+      "version_command": ["/OWNER_ABSOLUTE_PATH/python", "-c", "OWNER_SIDE_EFFECT_FREE_PLAYWRIGHT_VERSION_PROBE"],
+      "expected_version": "OWNER_PLAYWRIGHT_VERSION_OUTPUT"
+    },
+    "playwright_driver": {
+      "path": "/OWNER_ABSOLUTE_PATH/playwright/driver/package/cli.js",
+      "sha256": "OWNER_PLAYWRIGHT_DRIVER_SHA256",
+      "version_command": ["/OWNER_ABSOLUTE_PATH/node", "/OWNER_ABSOLUTE_PATH/playwright/driver/package/cli.js", "--version"],
+      "expected_version": "OWNER_PLAYWRIGHT_DRIVER_VERSION_OUTPUT"
+    },
+    "browser": {
+      "path": "/OWNER_ABSOLUTE_PATH/chromium",
+      "sha256": "OWNER_BROWSER_SHA256",
+      "version_command": ["/OWNER_ABSOLUTE_PATH/chromium", "--version"],
+      "expected_version": "OWNER_BROWSER_VERSION_OUTPUT"
+    },
+    "sandbox": {
+      "path": "/OWNER_ABSOLUTE_PATH/bwrap",
+      "sha256": "OWNER_BWRAP_SHA256",
+      "version_command": ["/OWNER_ABSOLUTE_PATH/bwrap", "--version"],
+      "expected_version": "OWNER_BWRAP_VERSION_OUTPUT"
+    },
+    "cdp_port": 4222
+  },
+  "executor": {
+    "provider": "opencode-go",
+    "route": "https://opencode.ai/zen/go/v1/messages",
+    "model": "minimax-m3",
+    "settings": {
+      "temperature": 0,
+      "max_tokens": 4096
+    },
+    "tool_schema_digest": "0d32644b213d35490acc7f752d13eddb95699b03d9f742c9a24409fbeb00384b"
+  },
+  "credentials": {
+    "required_env": ["OPENCODE_API_KEY"]
+  },
+  "confinement": {
+    "single_host": true,
+    "network": "loopback-only",
+    "filesystem": "read-only-except-task-output",
+    "optimizer_uid": "OWNER_OPTIMIZER_UID_INTEGER",
+    "static_inbox": "/OWNER_ABSOLUTE_PATH/optimizer-static-inbox"
+  },
+  "limits": {
+    "timeout_seconds": "OWNER_REQUEST_TIMEOUT_SECONDS_INTEGER",
+    "deadline_seconds": "OWNER_LIFECYCLE_DEADLINE_SECONDS_INTEGER",
+    "action_budget": "OWNER_ACTION_BUDGET_INTEGER"
+  },
+  "treatment_path": "OWNER_FROZEN_CANDIDATE_RELATIVE_PATH",
+  "protocol_identity": {
+    "source_runtime": {
+      "source_revision": "OWNER_WARC_SOURCE_RUNTIME_REVISION",
+      "setup": {"id": "OWNER_SETUP_ID", "revision": "OWNER_SETUP_REVISION", "digest": "OWNER_SETUP_SHA256"},
+      "reset": {"id": "OWNER_RESET_ID", "revision": "OWNER_RESET_REVISION", "digest": "OWNER_RESET_SHA256"},
+      "environment": {"id": "OWNER_ENVIRONMENT_ID", "revision": "OWNER_ENVIRONMENT_REVISION", "digest": "OWNER_ENVIRONMENT_SHA256"},
+      "browser": {"id": "OWNER_BROWSER_ID", "revision": "OWNER_BROWSER_REVISION", "digest": "OWNER_BROWSER_IDENTITY_SHA256"}
+    },
+    "activation_instrumentation": {
+      "id": "OWNER_ACTIVATION_INSTRUMENTATION_ID",
+      "revision": "OWNER_ACTIVATION_INSTRUMENTATION_REVISION",
+      "digest": "OWNER_ACTIVATION_INSTRUMENTATION_SHA256"
+    },
+    "lane": {
+      "id": "OWNER_CONSTITUTIONAL_LANE_ID",
+      "config_path": "OWNER_LANE_CONFIG_RELATIVE_PATH"
+    },
+    "repeated_protocol": {
+      "matched_blocks": {
+        "seeds": ["OWNER_CALIBRATED_SEED_INTEGER"],
+        "arm_order": ["baseline", "treatment"],
+        "interleaving": "paired-dev-regression",
+        "reset_scope": "per-task-arm"
+      },
+      "coverage": {
+        "minimum_fraction": "OWNER_CALIBRATED_MINIMUM_FRACTION_NUMBER",
+        "quorum_fraction": "OWNER_CALIBRATED_QUORUM_FRACTION_NUMBER",
+        "required_sources": ["warc_bench"],
+        "denominator": "frozen_task_seed_blocks"
+      },
+      "repeats": {"count": "OWNER_CALIBRATED_REPEAT_COUNT_INTEGER"},
+      "stopping": {
+        "rule": "fixed-complete-block-sets",
+        "valid_after": "OWNER_CALIBRATED_VALID_AFTER_INTEGER",
+        "optional_stopping": false
+      },
+      "outcome_handling": {
+        "invalid": "invalid",
+        "missing": "inconclusive",
+        "quarantined": "invalid",
+        "one_arm_only": "inconclusive"
+      },
+      "effect": {
+        "estimator": "paired-mean",
+        "uncertainty": "observed-range",
+        "minimum_effect": "OWNER_CALIBRATED_MINIMUM_EFFECT_NUMBER"
+      },
+      "non_inferiority": {
+        "rule": "paired-range-lower-bound",
+        "margin": "OWNER_CALIBRATED_NON_INFERIORITY_MARGIN_NUMBER"
+      },
+      "regression": {
+        "rule": "no-new-failures",
+        "max_regressions": "OWNER_CALIBRATED_MAX_REGRESSIONS_INTEGER"
+      },
+      "champion": {
+        "rule": "durable-success-rate-floor",
+        "margin": "OWNER_CALIBRATED_CHAMPION_MARGIN_NUMBER"
+      },
+      "transfer": {
+        "rule": "scheduled-closed-checkpoint",
+        "schedule": "accepted-count-cadence"
+      },
+      "multiplicity": {
+        "rule": "all-complete-dev-blocks",
+        "family": "frozen-dev-blocks"
+      },
+      "limits": {
+        "max_runs": "OWNER_CALIBRATED_MAX_RUNS_INTEGER",
+        "deadline_seconds": "OWNER_CALIBRATED_PROTOCOL_DEADLINE_SECONDS_INTEGER",
+        "exhaustion_outcome": "inconclusive"
+      },
+      "calibration": {
+        "id": "OWNER_REAL_CALIBRATION_ID",
+        "digest": "OWNER_REAL_CALIBRATION_SHA256"
+      }
+    }
+  }
+}

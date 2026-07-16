@@ -452,7 +452,7 @@ def start_iteration(campaign: Campaign) -> dict[str, Any]:
             store_root=campaign.store.root,
         )
         campaign.state = fresh.state
-        publication = _load_publication_record(campaign)
+        publication = _project_publication(campaign)[1]
         if publication is not None:
             publication_iteration = publication["iteration"]
             if publication["status"] == "pending":
@@ -474,6 +474,7 @@ def _start_iteration_locked(
 ) -> dict[str, Any]:
     materialization_store = campaign.store.campaign_dir / "materializations"
     lock.require_held(materialization_store)
+    _project_publication(campaign)
     require_transition(campaign, action="start")
     if campaign.state.get("pending_iteration"):
         raise RuntimeError(
@@ -1948,26 +1949,62 @@ def _load_publication_record(campaign: Campaign) -> dict[str, Any] | None:
     return parsed
 
 
+def _project_publication(
+    campaign: Campaign,
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """Project the sole publication record against the current campaign state."""
+    current = campaign.state.get("current_iteration")
+    pending = campaign.state.get("pending_iteration")
+    if (
+        type(current) is not int
+        or current < 0
+        or type(pending) is not int
+        or pending < 0
+        or (pending and pending != current)
+    ):
+        raise RuntimeError("campaign iteration state is malformed")
+
+    record = _load_publication_record(campaign)
+    if record is None:
+        if (current, pending) in {(0, 0), (1, 1)}:
+            return {"status": "none", "recovery_required": False}, None
+        raise RuntimeError(
+            "accepted publication receipt is missing for established campaign state"
+        )
+
+    iteration = record["iteration"]
+    if record["status"] == "pending":
+        if iteration != current:
+            raise RuntimeError(
+                "pending publication iteration conflicts with campaign state"
+            )
+    else:
+        expected_iteration = current if pending == 0 else current - 1
+        if iteration != expected_iteration:
+            raise RuntimeError(
+                "terminal publication iteration conflicts with campaign state"
+            )
+        _validate_terminal_publication_artifacts(campaign, record)
+
+    return {
+        "status": record["status"],
+        "iteration": iteration,
+        "recovery_required": record["status"] == "pending",
+        "receipt_digest": record["record_digest"],
+    }, record
+
+
 def publication_status(campaign: Campaign) -> dict[str, Any]:
-    """Read-only projection of the conductor's sole publication validator."""
+    """Read-only projection of the conductor's sole publication authority."""
     try:
-        record = _load_publication_record(campaign)
-        if record is not None and record["status"] != "pending":
-            _validate_terminal_publication_artifacts(campaign, record)
+        projection, _record = _project_publication(campaign)
     except (RuntimeError, ValueError) as exc:
         return {
             "status": "malformed",
             "recovery_required": True,
             "error": str(exc),
         }
-    if record is None:
-        return {"status": "none", "recovery_required": False}
-    return {
-        "status": record["status"],
-        "iteration": record["iteration"],
-        "recovery_required": record["status"] == "pending",
-        "receipt_digest": record["record_digest"],
-    }
+    return projection
 
 
 def _ensure_ledger_row(path: Path, row: dict[str, Any], iteration: int) -> None:
@@ -2264,7 +2301,7 @@ def _recover_publication(
 def _recover_pending_publication(
     campaign: Campaign, *, lock: CampaignLock
 ) -> dict[str, Any] | None:
-    record = _load_publication_record(campaign)
+    record = _project_publication(campaign)[1]
     if record is None:
         return None
     if record["status"] == "pending":
@@ -2387,6 +2424,7 @@ def run_iteration(
         campaign.config = fresh.config
         campaign.state = fresh.state
         require_transition(campaign, action="reconcile")
+        _project_publication(campaign)
         recovered = _recover_pending_publication(campaign, lock=lock)
         if recovered is not None:
             return recovered
@@ -2420,19 +2458,11 @@ def continue_campaign(
         campaign.state = fresh.state
         require_transition(campaign, action="reconcile")
         try:
-            publication = _load_publication_record(campaign)
-        except RuntimeError as exc:
+            _projection, publication = _project_publication(campaign)
+        except (RuntimeError, ValueError) as exc:
             raise RuntimeError(
                 "publication record is malformed; inspect retained receipt: " + str(exc)
             ) from exc
-        if publication is not None and publication["status"] != "pending":
-            try:
-                _validate_terminal_publication_artifacts(campaign, publication)
-            except (RuntimeError, ValueError) as exc:
-                raise RuntimeError(
-                    "publication record is malformed; inspect retained receipt: "
-                    + str(exc)
-                ) from exc
         if publication is not None and publication["status"] == "pending":
             return _recover_publication(campaign, publication, lock=lock)
         if campaign.state.get("pending_iteration"):
@@ -2464,6 +2494,7 @@ def _run_iteration_locked(
 ) -> dict[str, Any]:
     materialization_store = campaign.store.campaign_dir / "materializations"
     lock.require_held(materialization_store)
+    _project_publication(campaign)
     number = int(campaign.state.get("pending_iteration") or 0)
     if not number:
         raise RuntimeError("no pending iteration — run `opti-loop start` first")
