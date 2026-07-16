@@ -572,7 +572,42 @@ recorded in the readiness execution ledger.
   `019f6c87-c36c-70e0-a4bf-11964415c70e` on implementation HEAD
   `6340ffe00b46410dcc9d870900292affd09d2370` plus binary diff SHA-256
   `387593cffb23a9eae82c3a7a252ac2219a802ceb3f830146546e46d734539356`
-  and is awaiting its evidence-only commit.
+  and was committed as `82447c39e366abd43033be575f3cc0aa7eb5fb52`.
   No external activation, live readiness, reportability, performance, merge,
   push, or live operation is claimed; the existing external activation
   blockers remain exact.
+
+### Post-materialization start interruption — uncommitted reviewer-clean commit candidate
+
+- **Frozen reviewed state:** writer GPT-5.6 Sol medium session
+  `019f6c9c-4e0d-7c60-b23e-b1100d26ba2f`; base
+  `82447c39e366abd43033be575f3cc0aa7eb5fb52` plus binary diff SHA-256
+  `b7a886661a51369cad5fcfaf67446a039602a9607fe564812442c1a096112e3f`.
+  Production/test SHA-256 values are
+  `1687e18527026c12751d6bfdbd5eb4348a6cf62a9bdde07c94581f3f1b7dfed0`
+  and `87caad61da1fe930b961f67052d0998b2c81fd517605d24f67792530a80998a5`.
+- **Correction:** start-preparation rollback unconditionally calls the existing
+  idempotent best-effort `worktree_remove`, retains the path-or-symlink
+  postcondition, and removes the obsolete `worktree_created` flag. One
+  regression interrupts after the real add helper materializes the worktree.
+- **Correctness review:** GPT-5.6 Sol medium session
+  `019f6ca0-7d20-7231-997c-6074978f3eb4` returned CLEAN with no findings. Its
+  six focused tests passed in 5.205s, proving harmless retry after real
+  pre-materialization add failure, cleanup and retry after real
+  post-materialization interruption, the exact suppressed-removal blocker,
+  first/later interruption retry, and state-first cleanup authority.
+- **Elegance/YAGNI/vision review:** GPT-5.6 Sol medium read-only session
+  `019f6ca0-7d26-7222-b3f3-f5eeab31ef47` returned CLEAN with no findings. It
+  confirmed deletion-first flag removal, unconditional existing cleanup, one
+  cleanup authority with state-first ordering, the retained postcondition, the
+  truthful historical `82447c3` ledger correction, and no helper, marker,
+  journal, or recovery machinery. Correctness supplied the dynamic proof.
+- **Full gates:** eval 70/70; judge 28/28; loop ran 231 and passed 230 with one
+  documented optional `jsonschema` skip; catalog 140/140 with primary 140,
+  smoke 20, and regression 20; schema passed 531 documents, experiment corpus
+  180, and evidence corpus 195; docs passed 86 Markdown files, 177 links, and
+  18 ADRs; completeness passed 55; Ruff, `py_compile`, and `git diff --check`
+  passed. Clean-install proofs await the exact implementation commit.
+- **Boundary:** this remains an uncommitted reviewer-clean commit candidate.
+  No live readiness, reportability, performance, merge, push, or live operation
+  is claimed; existing external activation blockers remain exact.

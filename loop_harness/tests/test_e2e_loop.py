@@ -3608,6 +3608,48 @@ class TransactionalLoopTest(unittest.TestCase):
         self.assertEqual(reloaded.current_iteration, 1)
         self.assertEqual(reloaded.state["pending_iteration"], 1)
 
+    def test_worktree_add_interruption_after_materialization_retries_one(self) -> None:
+        campaign = self._new_campaign(
+            "start-interrupt-after-worktree-add",
+            {"kind": "harness-fixture", "file": QUALITY_REL,
+             "default_pass_rate": 0.55, "seed": 0},
+        )
+        real_add = gitutil.worktree_add
+
+        def materialize_then_interrupt(repo, worktree, base_sha):
+            real_add(repo, worktree, base_sha)
+            self.assertTrue(worktree.exists())
+            raise KeyboardInterrupt("injected post-materialization interruption")
+
+        with (
+            mock.patch(
+                "opti_loop.conductor.gitutil.worktree_add",
+                side_effect=materialize_then_interrupt,
+            ) as interrupted,
+            self.assertRaisesRegex(
+                KeyboardInterrupt, "injected post-materialization interruption"
+            ),
+        ):
+            start_iteration(campaign)
+
+        interrupted.assert_called_once()
+        reloaded = load_campaign(
+            self.repo, campaign.campaign_id, store_root=self.store
+        )
+        self.assertFalse(reloaded.worktree_path.exists())
+        self.assertEqual(
+            reloaded.state["cleanup_health"],
+            {"status": "clean", "detail": "no cleanup failure recorded"},
+        )
+        self.assertEqual(operation_status(reloaded)["blockers"], [])
+        self.assertEqual(reloaded.current_iteration, 0)
+        self.assertEqual(reloaded.state["pending_iteration"], 0)
+
+        retry = start_iteration(reloaded)
+        self.assertEqual(retry["iteration"], 1)
+        self.assertEqual(reloaded.current_iteration, 1)
+        self.assertEqual(reloaded.state["pending_iteration"], 1)
+
     def test_later_iteration_baseline_interruption_restores_and_retries_two(self) -> None:
         campaign = self._new_campaign(
             "start-interrupt-iteration-2",

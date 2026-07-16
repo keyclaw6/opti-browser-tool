@@ -514,10 +514,8 @@ def _start_iteration_locked(
         if clusters_existed_before
         else None
     )
-    worktree_created = False
     try:
         gitutil.worktree_add(campaign.repo_root, worktree, base_sha)
-        worktree_created = True
         records = _catalog(worktree)
         sources = _task_sources(records)
         protocol = build_protocol_snapshot(
@@ -670,12 +668,11 @@ def _start_iteration_locked(
                 campaign.clusters_path.unlink(missing_ok=True)
             if iteration_dir.exists() and not iteration_dir.is_symlink():
                 shutil.rmtree(iteration_dir)
-            if worktree_created:
-                gitutil.worktree_remove(campaign.repo_root, worktree)
-                if worktree.exists() or worktree.is_symlink():
-                    raise RuntimeError(
-                        "start preparation worktree cleanup did not complete"
-                    )
+            gitutil.worktree_remove(campaign.repo_root, worktree)
+            if worktree.exists() or worktree.is_symlink():
+                raise RuntimeError(
+                    "start preparation worktree cleanup did not complete"
+                )
         except BaseException as cleanup_exc:
             campaign.state["cleanup_health"] = {
                 "status": "failed",
