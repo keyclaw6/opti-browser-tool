@@ -515,9 +515,12 @@ checkpoint. External activation still requires the exact owner-supplied inputs,
 real qualification/calibration evidence, and explicit campaign authorization
 recorded in the readiness execution ledger.
 
-### Retained start-worktree rollback correction — uncommitted commit candidate
+### Retained start-worktree rollback correction — implementation committed
 
-- **Frozen reviewed state:** base
+- **Committed and frozen reviewed state:** implementation commit
+  `6340ffe00b46410dcc9d870900292affd09d2370` has subject
+  `Fail closed on retained start worktree`. Its reviewed implementation state
+  is base
   `e238113c3d531faaa033d169930533160d9d37b4` plus binary diff
   `14736128d5045bd4432d19b40f3a5dbd8ee01c26ed1c17650f893000984fe50e`.
   Production/test SHA-256 values remain
@@ -549,7 +552,27 @@ recorded in the readiness execution ledger.
   passed 531 documents, experiment corpus 180, and evidence corpus 195; docs
   passed 86 Markdown files, 177 links, and 18 ADRs; completeness passed 55;
   changed-surface Ruff, `py_compile`, and `git diff --check` passed.
-- **Boundary:** this remains an uncommitted commit candidate. Clean-install
-  proofs remain pending until an exact implementation commit exists. No final
-  docs closeout, live readiness, external activation, reportability, or live
-  operation is claimed; the existing external activation blockers remain.
+- **Clean-install evidence:** from exact clean implementation commit
+  `6340ffe00b46410dcc9d870900292affd09d2370`, normal verification passed with
+  `TMPDIR=/home/kab/.cache/opti-clean-tmp-normal python scripts/verify_clean_install.py --repo-root "$PWD"`;
+  network-isolated verification passed with
+  `TMPDIR=/home/kab/.cache/opti-clean-tmp-unshare unshare -Urn python scripts/verify_clean_install.py --repo-root "$PWD"`.
+  Both used Python 3.14.5 and uv 0.11.6 and passed three-wheel construction,
+  offline/no-index dependency resolution, negative dependency control,
+  installed CLIs, and all three installed test suites. Neither used a live
+  backend, and both retained `benchmark_evidence=false`.
+- **Discarded environmental execution evidence:** initial concurrent attempts
+  using the nearly full 7.7GB `/tmp` tmpfs failed in Git with `Disk quota
+  exceeded`; the repository remained clean. Isolated reruns with the explicit
+  home-filesystem `TMPDIR` values above passed. This was an environmental
+  execution failure, not a code or test acceptance failure.
+- **Boundary:** the correction is implementation-committed and reviewer-clean.
+  The four-file docs closeout was independently reviewed CLEAN with no findings
+  by GPT-5.6 Sol medium read-only session
+  `019f6c87-c36c-70e0-a4bf-11964415c70e` on implementation HEAD
+  `6340ffe00b46410dcc9d870900292affd09d2370` plus binary diff SHA-256
+  `387593cffb23a9eae82c3a7a252ac2219a802ceb3f830146546e46d734539356`
+  and is awaiting its evidence-only commit.
+  No external activation, live readiness, reportability, performance, merge,
+  push, or live operation is claimed; the existing external activation
+  blockers remain exact.
