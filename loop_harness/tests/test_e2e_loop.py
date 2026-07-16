@@ -3655,6 +3655,71 @@ class TransactionalLoopTest(unittest.TestCase):
         self.assertEqual(reloaded.current_iteration, 2)
         self.assertEqual(reloaded.state["pending_iteration"], 2)
 
+    def test_start_cleanup_detects_suppressed_git_worktree_remove_failure(self) -> None:
+        campaign = self._new_campaign(
+            "start-retained-worktree",
+            {"kind": "harness-fixture", "file": QUALITY_REL,
+             "default_pass_rate": 0.55, "seed": 0},
+        )
+        real_run = subprocess.run
+
+        def retain_worktree(command, *args, **kwargs):
+            if command[3:5] == ["worktree", "remove"]:
+                return subprocess.CompletedProcess(
+                    command, 1, stdout="", stderr="injected removal failure"
+                )
+            return real_run(command, *args, **kwargs)
+
+        with (
+            mock.patch(
+                "opti_loop.evaluate.run_evaluation",
+                side_effect=KeyboardInterrupt("injected start interruption"),
+            ),
+            mock.patch("opti_loop.gitutil.subprocess.run", side_effect=retain_worktree),
+            self.assertRaisesRegex(
+                RuntimeError, "start preparation worktree cleanup did not complete"
+            ),
+        ):
+            start_iteration(campaign)
+
+        reloaded = load_campaign(
+            self.repo, campaign.campaign_id, store_root=self.store
+        )
+        expected_cleanup = {
+            "status": "failed",
+            "detail": (
+                "start preparation cleanup failed: "
+                "start preparation worktree cleanup did not complete"
+            ),
+        }
+        self.assertTrue(reloaded.worktree_path.exists())
+        self.assertEqual(reloaded.state["cleanup_health"], expected_cleanup)
+        status = operation_status(reloaded)
+        expected_blocker = (
+            "cleanup: start preparation cleanup failed: start preparation worktree "
+            "cleanup did not complete; inspect retained evidence before any further "
+            "transition"
+        )
+        self.assertEqual(status["cleanup"], expected_cleanup)
+        self.assertEqual(status["blockers"], [expected_blocker])
+
+        stdout = StringIO()
+        with redirect_stdout(stdout):
+            code = cli_main([
+                "--repo-root", str(self.repo),
+                "--store-root", str(self.store),
+                "preflight", "--campaign", campaign.campaign_id,
+            ])
+        self.assertEqual(code, 1)
+        self.assertEqual(json.loads(stdout.getvalue())["blockers"], [expected_blocker])
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "campaign transition blocked: cleanup: start preparation cleanup failed",
+        ):
+            start_iteration(reloaded)
+        gitutil.worktree_remove(self.repo, reloaded.worktree_path)
+
     def test_state_rollback_persists_before_later_cleanup_failure(self) -> None:
         from opti_loop.campaign import Campaign
 

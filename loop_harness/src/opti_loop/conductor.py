@@ -672,6 +672,10 @@ def _start_iteration_locked(
                 shutil.rmtree(iteration_dir)
             if worktree_created:
                 gitutil.worktree_remove(campaign.repo_root, worktree)
+                if worktree.exists() or worktree.is_symlink():
+                    raise RuntimeError(
+                        "start preparation worktree cleanup did not complete"
+                    )
         except BaseException as cleanup_exc:
             campaign.state["cleanup_health"] = {
                 "status": "failed",

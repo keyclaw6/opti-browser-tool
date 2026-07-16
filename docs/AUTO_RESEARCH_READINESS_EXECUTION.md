@@ -1127,3 +1127,42 @@ directly to the existing conductor:
    required browser/source assets, credentials, identities, confinement,
    metering, verifier admission, calibration evidence, and ADR-0003 decisions
    where required before explicitly authorizing any campaign.
+
+### Retained start-worktree rollback correction — uncommitted commit candidate
+
+- **Frozen reviewed state:** base
+  `e238113c3d531faaa033d169930533160d9d37b4` plus binary diff
+  `14736128d5045bd4432d19b40f3a5dbd8ee01c26ed1c17650f893000984fe50e`.
+  Production/test SHA-256 values remain
+  `d4c40467053dcdb9f50573f6c1b5cbd1e009f98e11321d6e5e47e3b70d6cf099`
+  and `b760af7d1037f918638283efd760aa208e4aca9450a821806539d4254b977a74`.
+  Writer was GPT-5.6 Sol medium session
+  `019f6c71-e557-79c1-b8ef-d04ead28b6e8`.
+- **Bounded correction:** after the existing start-preparation
+  `worktree_remove`, the conductor now fails cleanup when the worktree path or
+  symlink remains. The existing `cleanup_health` authority records the exact
+  failure and existing operation gates block status/preflight and transition.
+  One regression uses the real helper with an injected nonzero underlying Git
+  result. No cleanup framework or broad Git behavior changed.
+- **Correctness review:** GPT-5.6 Sol medium session
+  `019f6c77-248b-7470-8328-e2786b2c0bbe` returned CLEAN with no findings. It
+  actively ran the focused five tests in 5.112s and two adjacent tests in
+  0.739s, verifying the real-helper suppressed-nonzero boundary, exact cleanup
+  health, status/preflight/transition blockers, successful first/later cleanup,
+  and same-number retry.
+- **Elegance/YAGNI/vision review:** GPT-5.6 Sol medium session
+  `019f6c77-24ec-7da0-a0cc-3ae6998487cd` returned CLEAN with no findings. It
+  confirmed the boundary-local postcondition, state-first ordering, existing
+  single cleanup authority, retained paths/symlinks, and no new helper,
+  journal, configuration, or recovery machinery. Its read-only sandbox could
+  not create temporary directories; correctness supplied the dynamic proof.
+- **Full candidate gates:** eval 70/70; judge 28/28; loop ran 230, passed 229,
+  with one documented optional `jsonschema` skip; catalog 140/140 with primary
+  140, smoke 20, and regression 20; schema via `uv run --with jsonschema`
+  passed 531 documents, experiment corpus 180, and evidence corpus 195; docs
+  passed 86 Markdown files, 177 links, and 18 ADRs; completeness passed 55;
+  changed-surface Ruff, `py_compile`, and `git diff --check` passed.
+- **Boundary:** this remains an uncommitted commit candidate. Clean-install
+  proofs remain pending until an exact implementation commit exists. No final
+  docs closeout, live readiness, external activation, reportability, or live
+  operation is claimed; the existing external activation blockers remain.
