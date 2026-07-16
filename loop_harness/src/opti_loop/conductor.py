@@ -660,17 +660,25 @@ def _start_iteration_locked(
             "request": "run",
         }
         campaign.save_state()
-    except Exception:
+    except BaseException:
         campaign.state = state_before
         campaign.save_state()
-        if clusters_before is not None:
-            atomic_write_text(campaign.clusters_path, clusters_before)
-        elif not clusters_existed_before:
-            campaign.clusters_path.unlink(missing_ok=True)
-        if iteration_dir.exists() and not iteration_dir.is_symlink():
-            shutil.rmtree(iteration_dir)
-        if worktree_created:
-            gitutil.worktree_remove(campaign.repo_root, worktree)
+        try:
+            if clusters_before is not None:
+                atomic_write_text(campaign.clusters_path, clusters_before)
+            elif not clusters_existed_before:
+                campaign.clusters_path.unlink(missing_ok=True)
+            if iteration_dir.exists() and not iteration_dir.is_symlink():
+                shutil.rmtree(iteration_dir)
+            if worktree_created:
+                gitutil.worktree_remove(campaign.repo_root, worktree)
+        except BaseException as cleanup_exc:
+            campaign.state["cleanup_health"] = {
+                "status": "failed",
+                "detail": f"start preparation cleanup failed: {cleanup_exc}",
+            }
+            campaign.save_state()
+            raise
         raise
 
     result: dict[str, Any] = {

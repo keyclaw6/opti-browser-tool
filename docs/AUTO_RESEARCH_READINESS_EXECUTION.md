@@ -888,7 +888,8 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
   rehearsal instructions now bind all closed limits and execute with the
   dependency-complete three-package path.
 - **Final orchestrator evidence:** full eval passes 70/70; judge passes 28/28;
-  loop passes 227/227 with one expected skip. Catalog validation passes 140
+  loop ran 227 tests: 226 passed and one documented optional `jsonschema` test
+  skipped. Catalog validation passes 140
   candidates and 140 catalog tasks, with primary 140, smoke 20, and regression
   20. Schema validation passes 531 documents, including the 180-case experiment
   corpus and 195-case evidence corpus. Documentation passes 86 Markdown files
@@ -910,6 +911,58 @@ must always remain `benchmark_reportable=false` / `evidence_class=simulated`.
   and runtime confinement; real reset/final-state/trace/artifact evidence;
   calibration, transfer, and holdout evidence; metering and owner decisions;
   and explicit campaign authorization.
+
+### Final bounded Sentinel correction — reviewer-clean, uncommitted
+
+- **Writer/base/review state:** sole implementation writer session
+  `019f6c34-7664-7a33-95f0-2a8a182b0ed2` reopened the checkpoint from clean
+  exact HEAD `978802caeea7c5d7eacdee0225b7aafd374af462`. On unchanged reviewed
+  production/test slice digest
+  `1bc3486a052696692146df98cdded2203f218a515f44d7409262312770df154b`,
+  correctness session `019f6c3d-06ab-7a72-9810-a6f71e722088` returned CLEAN
+  after actively running all five focused regressions and independently
+  matching all 44 closed WARC dictionary objects plus rejecting all five
+  representative deletions. Elegance/YAGNI/vision session
+  `019f6c3d-06c3-7bd2-a35e-b43b1e8ab459` returned CLEAN with no new recovery
+  or configuration machinery; its read-only sandbox prevented temp-backed
+  tests, while correctness supplied the dynamic reproduction. The working tree
+  deliberately remains dirty, uncommitted, pending commit, and unpushed.
+- **Bounded correction:** only the existing start-preparation transaction now
+  catches `BaseException`, restores trusted campaign state before fallible
+  cleanup, restores cluster bytes, removes iteration artifacts and the
+  candidate worktree, and re-raises an interruption unchanged. Any failure in
+  those existing cleanup steps is saved through the sole `cleanup_health`
+  failed/detail authority before it is re-raised. No signal handling,
+  supervisor, journal, recovery framework, or second cleanup authority was
+  added. The WARC production-template test now compares the recursively
+  complete closed-object key shape with the already preflight-validated local
+  fixture and proves representative nested deletions fail.
+- **Focused evidence:** separate regressions interrupt the first baseline
+  `run_suite` through its real evaluation path while preparing fresh iteration
+  1 and while preparing iteration 2 after a normal terminal rejection of
+  iteration 1. They prove exact trusted-state/register restoration, preservation
+  of the complete iteration-1 publication, artifact/worktree cleanup, clean
+  cleanup health, no blockers, and retry of iteration 1 or 2 respectively. The
+  two interruption regressions, combined state-write plus cleanup-failure
+  blocker regression, existing packet/register/state rollback regression, and
+  recursively complete WARC template regression pass (5 focused tests) and
+  were actively reproduced by correctness.
+- **Final current-candidate orchestrator evidence:** eval ran 70 and passed 70;
+  judge ran 28 and passed 28; loop ran 229, passed 228, and recorded one
+  documented optional `jsonschema` skip. Catalog validation passed 140
+  candidates and 140 catalog tasks, with primary 140, smoke 20, and regression
+  20. Schema validation passed 531 documents, including experiment 180 and
+  evidence 195. Documentation passed 86 Markdown files and 177 links;
+  completeness passed 55 required files; the manifest passed 395 files; Ruff,
+  `py_compile`, and `git diff --check` passed. Normal clean install and
+  `unshare -Urn` clean install both passed with Python 3.14.5 and uv 0.11.6:
+  three wheels, offline no-index resolution, negative dependency control,
+  installed CLIs, and all installed suites. Neither clean-install proof used a
+  live backend, and both retained `benchmark_evidence=false`.
+- **Honest boundary:** no live source, browser, model, campaign, credential,
+  external asset, paid request, external budget, commit, merge, or push was
+  used. Fixture evidence remains non-live and nonreportable; all previously
+  documented owner-supplied activation inputs and authorization blockers remain.
 
 The milestone-F software checkpoint committed at `7c245e5` has the following
 local verification evidence; none is live/reportable qualification evidence:

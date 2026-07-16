@@ -19,8 +19,6 @@ from typing import Any
 from .base import Adapter, AdapterExecutionContext
 from ..admissions import require_verifier_admission
 from ..identity import (
-    REPEATED_PROTOCOL_FIELDS,
-    REPEATED_SECTION_FIELDS,
     SOURCE_RUNTIME_FIELDS,
     IdentityError,
     digest_json,
@@ -66,18 +64,6 @@ WARC_VERIFIER_FIELDS = {
 WARC_LIMIT_FIELDS = {"timeout_seconds", "deadline_seconds", "action_budget"}
 PROTOCOL_IDENTITY_FIELDS = {
     "source_runtime", "activation_instrumentation", "lane", "repeated_protocol",
-}
-WARC_NESTED_REQUIRED_FIELDS = {
-    "runtime": RUNTIME_FIELDS,
-    "verifier": WARC_VERIFIER_FIELDS,
-    "limits": WARC_LIMIT_FIELDS,
-    "protocol_identity": PROTOCOL_IDENTITY_FIELDS,
-    "protocol_identity.source_runtime": SOURCE_RUNTIME_FIELDS,
-    "protocol_identity.repeated_protocol": REPEATED_PROTOCOL_FIELDS,
-    **{
-        f"protocol_identity.repeated_protocol.{name}": fields
-        for name, fields in REPEATED_SECTION_FIELDS.items()
-    },
 }
 RUNTIME_LAUNCHER = Path(__file__).resolve().parents[1] / "warc_online4_runtime.py"
 

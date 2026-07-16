@@ -18,9 +18,7 @@ from unittest import mock
 
 from opti_eval.adapters.base import AdapterExecutionContext
 from opti_eval.adapters.warc_online4 import (
-    CONFIG_FIELDS,
     TASK_ID,
-    WARC_NESTED_REQUIRED_FIELDS,
     WarcOnline4Adapter,
     WarcOnline4Error,
     load_and_preflight_config,
@@ -210,14 +208,45 @@ class WarcOnline4Test(unittest.TestCase):
         repo_root = Path(os.environ["OPTI_BROWSER_REPO_ROOT"])
         template_path = repo_root / "evals/warc-online4.production.template.json"
         template = json.loads(template_path.read_text(encoding="utf-8"))
-        self.assertEqual(set(template), CONFIG_FIELDS)
+        validated_fixture = load_and_preflight_config(self.config_path)
+        validated_fixture.pop("config_digest")
+
+        def key_shape(value):
+            if type(value) is dict:
+                return {key: key_shape(child) for key, child in value.items()}
+            if type(value) is list:
+                return [
+                    key_shape(child)
+                    for child in value
+                    if type(child) in (dict, list)
+                ]
+            return None
+
+        expected_shape = key_shape(validated_fixture)
+
+        def assert_complete_shape(value):
+            self.assertEqual(key_shape(value), expected_shape)
+
+        assert_complete_shape(template)
+        for path in (
+            "task.native_task_id",
+            "wacz.start_url",
+            "runtime.python.sha256",
+            "executor.settings.max_tokens",
+            "protocol_identity.source_runtime.reset.digest",
+        ):
+            broken = copy.deepcopy(template)
+            parent = broken
+            parts = path.split(".")
+            for part in parts[:-1]:
+                parent = parent[part]
+            del parent[parts[-1]]
+            with self.subTest(deleted=path):
+                with self.assertRaises(AssertionError):
+                    assert_complete_shape(broken)
+
         self.assertEqual(template["schema_version"], "0.1.0")
         self.assertEqual(template["mode"], "production")
-        for path, required_fields in WARC_NESTED_REQUIRED_FIELDS.items():
-            value = template
-            for part in path.split("."):
-                value = value[part]
-            self.assertEqual(set(value), required_fields, path)
         self.assertEqual(template["credentials"], {"required_env": ["OPENCODE_API_KEY"]})
         self.assertEqual(
             set(template["confinement"]),

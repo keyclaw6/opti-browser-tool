@@ -3568,6 +3568,93 @@ class TransactionalLoopTest(unittest.TestCase):
                 self.assertEqual(reloaded.current_iteration, 2)
                 self.assertEqual(reloaded.state["pending_iteration"], 2)
 
+    def test_first_iteration_baseline_interruption_restores_and_retries_one(self) -> None:
+        campaign = self._new_campaign(
+            "start-interrupt-iteration-1",
+            {"kind": "harness-fixture", "file": QUALITY_REL,
+             "default_pass_rate": 0.55, "seed": 0},
+        )
+        state_before = campaign.store.state_path.read_bytes()
+        clusters_before = campaign.clusters_path.read_bytes()
+
+        with (
+            mock.patch(
+                "opti_loop.evaluate.run_evaluation",
+                side_effect=KeyboardInterrupt("injected iteration-1 interruption"),
+            ) as interrupted,
+            self.assertRaisesRegex(
+                KeyboardInterrupt, "injected iteration-1 interruption"
+            ),
+        ):
+            start_iteration(campaign)
+
+        interrupted.assert_called_once()
+        reloaded = load_campaign(
+            self.repo, campaign.campaign_id, store_root=self.store
+        )
+        self.assertEqual(reloaded.store.state_path.read_bytes(), state_before)
+        self.assertEqual(reloaded.clusters_path.read_bytes(), clusters_before)
+        self.assertEqual(publication_status(reloaded)["status"], "none")
+        self.assertFalse(reloaded.iteration_dir(1).exists())
+        self.assertFalse(reloaded.worktree_path.exists())
+        self.assertEqual(
+            reloaded.state["cleanup_health"],
+            {"status": "clean", "detail": "no cleanup failure recorded"},
+        )
+        self.assertEqual(operation_status(reloaded)["blockers"], [])
+
+        retry = start_iteration(reloaded)
+        self.assertEqual(retry["iteration"], 1)
+        self.assertEqual(reloaded.current_iteration, 1)
+        self.assertEqual(reloaded.state["pending_iteration"], 1)
+
+    def test_later_iteration_baseline_interruption_restores_and_retries_two(self) -> None:
+        campaign = self._new_campaign(
+            "start-interrupt-iteration-2",
+            {"kind": "harness-fixture", "file": QUALITY_REL,
+             "default_pass_rate": 0.55, "seed": 0},
+        )
+        first_worktree = Path(start_iteration(campaign)["worktree"])
+        self._commit_quality(first_worktree, "0.00\n")
+        self._write_manifest(first_worktree, predicted=self.flipping[:1])
+        self.assertEqual(run_iteration(campaign)["decision"], "rejected")
+        prior_publication = publication_status(campaign)
+        self.assertEqual(prior_publication["status"], "complete")
+        self.assertEqual(prior_publication["iteration"], 1)
+        state_before = campaign.store.state_path.read_bytes()
+        clusters_before = campaign.clusters_path.read_bytes()
+
+        with (
+            mock.patch(
+                "opti_loop.evaluate.run_evaluation",
+                side_effect=KeyboardInterrupt("injected iteration-2 interruption"),
+            ) as interrupted,
+            self.assertRaisesRegex(
+                KeyboardInterrupt, "injected iteration-2 interruption"
+            ),
+        ):
+            start_iteration(campaign)
+
+        interrupted.assert_called_once()
+        reloaded = load_campaign(
+            self.repo, campaign.campaign_id, store_root=self.store
+        )
+        self.assertEqual(reloaded.store.state_path.read_bytes(), state_before)
+        self.assertEqual(reloaded.clusters_path.read_bytes(), clusters_before)
+        self.assertEqual(publication_status(reloaded), prior_publication)
+        self.assertFalse(reloaded.iteration_dir(2).exists())
+        self.assertFalse(reloaded.worktree_path.exists())
+        self.assertEqual(
+            reloaded.state["cleanup_health"],
+            {"status": "clean", "detail": "no cleanup failure recorded"},
+        )
+        self.assertEqual(operation_status(reloaded)["blockers"], [])
+
+        retry = start_iteration(reloaded)
+        self.assertEqual(retry["iteration"], 2)
+        self.assertEqual(reloaded.current_iteration, 2)
+        self.assertEqual(reloaded.state["pending_iteration"], 2)
+
     def test_state_rollback_persists_before_later_cleanup_failure(self) -> None:
         from opti_loop.campaign import Campaign
 
@@ -3610,16 +3697,35 @@ class TransactionalLoopTest(unittest.TestCase):
         reloaded = load_campaign(
             self.repo, campaign.campaign_id, store_root=self.store
         )
-        self.assertEqual(reloaded.store.state_path.read_bytes(), state_before)
+        expected_state = json.loads(state_before)
+        expected_state["cleanup_health"] = {
+            "status": "failed",
+            "detail": "start preparation cleanup failed: injected later cleanup failure",
+        }
+        self.assertEqual(reloaded.state, expected_state)
         self.assertEqual(reloaded.current_iteration, 1)
         self.assertEqual(reloaded.state["pending_iteration"], 0)
         publication = publication_status(reloaded)
         self.assertEqual(publication["status"], "complete")
         self.assertEqual(publication["iteration"], 1)
         self.assertTrue(reloaded.iteration_dir(2).exists())
+        expected_cleanup = {
+            "status": "failed",
+            "detail": "start preparation cleanup failed: injected later cleanup failure",
+        }
+        self.assertEqual(reloaded.state["cleanup_health"], expected_cleanup)
+        status = operation_status(reloaded)
+        self.assertEqual(status["cleanup"], expected_cleanup)
+        self.assertEqual(
+            status["blockers"],
+            [
+                "cleanup: start preparation cleanup failed: injected later cleanup "
+                "failure; inspect retained evidence before any further transition"
+            ],
+        )
 
         with self.assertRaisesRegex(
-            RuntimeError, "next iteration path already exists"
+            RuntimeError, "start preparation cleanup failed: injected later cleanup failure"
         ):
             start_iteration(reloaded)
         routed = load_campaign(
