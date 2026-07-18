@@ -1241,3 +1241,33 @@ directly to the existing conductor:
   reviewer-clean.
   No live readiness, reportability, performance, merge, push, or live operation
   is claimed; existing external activation blockers remain exact.
+
+### Operator runbook installation audit — correction recorded
+
+- **Audit wave:** correctness session
+  `019f759b-ce58-73f2-8208-5742ce103be8` returned APPROVE after the full loop
+  suite ran 231 tests, passed 230, and recorded one optional skip. The elegance
+  review returned APPROVE after eight focused tests; its native session UUID
+  was not exposed. Operator-path session
+  `019f759c-78c0-7b10-a05d-a322f6e660de` returned FIX because
+  `make install-check` deletes its temporary environment and `opti-loop` then
+  exited 127 on a clean `PATH`. This was the only actionable finding.
+- **Documentation correction on base
+  `20bdc85e85a506191f69775df977b6a6689af407`:** the runbook now creates and
+  activates `.venv` and runs `make install` before the separate
+  `make install-check` packaging proof. The activated environment remains in
+  effect for every later `opti-loop` command.
+- **Independent verification:** read-only verifier session
+  `019f75a9-f4ab-7611-8402-944f55b0a572` returned APPROVE on the exact
+  three-file working-tree diff SHA-256
+  `d85d20318ee1170934bd623ef24027333ccd59fc54aa0b7cd0b993b84997372c`.
+  It reproduced the clean-`PATH` persistent-venv install and separate
+  disposable `make install-check` PASS: three wheels, offline/no-index
+  resolution, negative control, all three installed suites, no live backend,
+  and `benchmark_evidence=false`. Documentation passed 86 Markdown files, 177
+  links, and 18 ADRs; completeness passed 55; no added machinery was found.
+- **Boundary:** this is a documentation-only operator-path correction. It does
+  not change production, tests, configuration, schemas, or the Makefile and
+  does not authorize or claim live operation, external spend, or benchmark
+  reportability. The documentation correction is independently reviewed at the
+  exact digest above.

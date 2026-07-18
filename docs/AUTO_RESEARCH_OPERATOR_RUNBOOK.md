@@ -9,6 +9,10 @@ Fixtures and simulations are never benchmark evidence.
 From the repository root:
 
 ```bash
+python -m venv .venv
+. .venv/bin/activate
+make install
+
 make install-check
 PYTHONPATH=eval_harness/src:judge_harness/src:loop_harness/src \
   OPTI_BROWSER_REPO_ROOT="$PWD" \
@@ -17,6 +21,10 @@ PYTHONPATH=eval_harness/src:judge_harness/src:loop_harness/src \
   loop_harness.tests.test_e2e_loop.TransactionalLoopTest.test_foreground_lifecycle_pause_resume_and_status_use_existing_transaction \
   loop_harness.tests.test_e2e_loop.TransactionalLoopTest.test_accepted_publication_recovers_every_post_gate_boundary
 ```
+
+Keep this virtual environment activated for the later `opti-loop` commands.
+`make install-check` remains a separate disposable packaging proof; it does not
+install the CLI into the activated environment.
 
 The deterministic WARC fake traverses the repository-owned WARC boundary,
 D3 Git materialization/activation, the repeated E decision, terminal recording,
