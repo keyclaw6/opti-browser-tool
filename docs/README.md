@@ -15,6 +15,7 @@ This directory is the review surface for Opti Browser Tool. A new implementation
 9. [`../validation/README.md`](../validation/README.md) — what each stored validation artifact proves and does not prove.
 10. [`ROADMAP.md`](ROADMAP.md) and [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) — remaining work and unresolved choices.
 11. [`WARC_ONLINE4_QUALIFICATION.md`](WARC_ONLINE4_QUALIFICATION.md) — the reversible milestone-F config/preflight/operator path and its external blockers.
+12. [`PRODUCTION_ACTIVATION_HANDOVER_PROMPT.md`](PRODUCTION_ACTIVATION_HANDOVER_PROMPT.md) — a complete prompt for the next agent to turn the offline checkpoint into honestly calibrated real operation.
 
 ## Authoritative current records
 
